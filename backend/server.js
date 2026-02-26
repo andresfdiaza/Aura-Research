@@ -42,6 +42,36 @@ app.use(express.json());
     await pool.query(createInvestigadoresSql);
     console.log('investigadores table ensured');
 
+    // Ensure resultados table exists with all required columns
+    const ensureResultadosSql = `
+      CREATE TABLE IF NOT EXISTS resultados (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        id_investigador INT,
+        categoria VARCHAR(255),
+        nombre VARCHAR(255),
+        sexo VARCHAR(50),
+        grado VARCHAR(255),
+        tipo_proyecto VARCHAR(255),
+        nodo_padre VARCHAR(255),
+        titulo_proyecto TEXT,
+        anio INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;
+    `;
+    await pool.query(ensureResultadosSql);
+    console.log('resultados table ensured');
+
+    // Add nodo_padre column if it doesn't exist
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM resultados WHERE Field = 'nodo_padre'");
+      if (cols.length === 0) {
+        await pool.query("ALTER TABLE resultados ADD COLUMN nodo_padre VARCHAR(255)");
+        console.log('Added nodo_padre column to resultados table');
+      }
+    } catch (err) {
+      console.error('Error checking/adding nodo_padre column:', err.message);
+    }
+
     // create or refresh the view the frontend will use for exploratory data
     const createViewSql = `
       CREATE OR REPLACE VIEW vista_productos_final AS
@@ -227,53 +257,69 @@ app.delete('/investigadores/:id', async (req, res) => {
 // get resultados with optional filters – selects from the view
 app.get('/api/resultados', async (req, res) => {
   const { facultad, programa, anio, investigador, tipo, categoria, cedula, sexo, grado, tipologia, titulo_proyecto } = req.query;
-  let sql = 'SELECT * FROM vista_productos_final';
+  /*
+    use the dashboard view which already joins investigadores and resultados,
+    but alias the columns to match what the frontend expects (lowercase names)
+  */
+  let sql = `SELECT
+      Facultad AS facultad,
+      Programa_academico AS programa,
+      Categoria AS categoria,
+      Nombre AS nombre,
+      Cedula AS cedula,
+      Sexo AS sexo,
+      Grado AS grado,
+      NodoHijo AS tipo_proyecto,
+      NodoPadre AS nodo_padre,
+      Nombre_producto AS titulo_proyecto,
+      Anio AS anio
+    FROM scraping.vista_productos_dashboard`;
   const conditions = [];
   const params = [];
   if (facultad) {
-    conditions.push('facultad = ?');
+    conditions.push('Facultad = ?');
     params.push(facultad);
   }
   if (programa) {
-    conditions.push('programa = ?');
+    conditions.push('Programa_academico = ?');
     params.push(programa);
   }
   if (anio) {
-    conditions.push('anio = ?');
+    conditions.push('Anio = ?');
     params.push(anio);
   }
   if (investigador) {
-    // search in either column name used by the view: 'investigador' or 'nombre'
-    conditions.push('(investigador LIKE ? OR nombre LIKE ?)');
-    params.push(`%${investigador}%`);
+    // search by nombre column
+    conditions.push('Nombre LIKE ?');
     params.push(`%${investigador}%`);
   }
   if (tipo) {
-    conditions.push('tipo_proyecto = ?');
+    conditions.push('NodoHijo = ?');
     params.push(tipo);
   }
   if (categoria) {
-    conditions.push('categoria = ?');
+    conditions.push('Categoria = ?');
     params.push(categoria);
   }
   if (cedula) {
-    conditions.push('cedula = ?');
+    conditions.push('Cedula = ?');
     params.push(cedula);
   }
   if (sexo) {
-    conditions.push('sexo = ?');
+    conditions.push('Sexo = ?');
     params.push(sexo);
   }
   if (grado) {
-    conditions.push('grado = ?');
+    conditions.push('Grado = ?');
     params.push(grado);
   }
   if (tipologia) {
-    conditions.push('tipologia_productos = ?');
+    // nodo_padre appears to map to tipologia, but frontend uses tipologia_productos
+    conditions.push('NodoPadre = ?');
     params.push(tipologia);
   }
   if (titulo_proyecto) {
-    conditions.push('titulo_proyecto LIKE ?');
+    conditions.push('Nombre_producto LIKE ?');
     params.push(`%${titulo_proyecto}%`);
   }
   if (conditions.length) {
@@ -291,11 +337,25 @@ app.get('/api/resultados', async (req, res) => {
 // provide aggregated counts by tipologia using nodos, with optional filters
 app.get('/api/tipologia-cantidades', async (req, res) => {
   const { facultad, programa, anio, investigador, tipo, categoria, cedula, sexo, grado, tipologia, titulo_proyecto } = req.query;
+  /* use the dashboard view with aliasing for compatibility */
+  // count by NodoPadre directly from dashboard view (no external nodos table)
   let sql = `
-    SELECT n.tipologia_productos AS tipologia, COUNT(*) AS cantidad
-    FROM vista_productos_final r
-    LEFT JOIN nodos n
-      ON r.tipo_proyecto = n.nodo_hijo_scraping
+    SELECT r.nodo_padre AS tipologia, COUNT(*) AS cantidad
+    FROM (
+      SELECT
+        Facultad AS facultad,
+        Programa_academico AS programa,
+        Categoria AS categoria,
+        Nombre AS nombre,
+        Cedula AS cedula,
+        Sexo AS sexo,
+        Grado AS grado,
+        NodoHijo AS tipo_proyecto,
+        NodoPadre AS nodo_padre,
+        Nombre_producto AS titulo_proyecto,
+        Anio AS anio
+      FROM scraping.vista_productos_dashboard
+    ) r
   `;
   const conditions = [];
   const params = [];
@@ -312,9 +372,8 @@ app.get('/api/tipologia-cantidades', async (req, res) => {
     params.push(anio);
   }
   if (investigador) {
-    // search in either column name used by the view: 'investigador' or 'nombre'
-    conditions.push('(investigador LIKE ? OR nombre LIKE ?)');
-    params.push(`%${investigador}%`);
+    // search by nombre column from the dashboard view
+    conditions.push('nombre LIKE ?');
     params.push(`%${investigador}%`);
   }
   if (tipo) {
@@ -338,7 +397,8 @@ app.get('/api/tipologia-cantidades', async (req, res) => {
     params.push(grado);
   }
   if (tipologia) {
-    conditions.push('tipologia_productos = ?');
+    // filter by nodo_padre which we alias as tipologia
+    conditions.push('nodo_padre = ?');
     params.push(tipologia);
   }
   if (titulo_proyecto) {
@@ -349,7 +409,7 @@ app.get('/api/tipologia-cantidades', async (req, res) => {
     sql += ' WHERE ' + conditions.join(' AND ');
   }
   sql += `
-    GROUP BY n.tipologia_productos
+    GROUP BY r.nodo_padre
     ORDER BY cantidad DESC
     LIMIT 5
   `;
@@ -366,11 +426,24 @@ app.get('/api/tipologia-cantidades', async (req, res) => {
 // provide aggregated counts by nodo hijo (tipo de producto) optionally filtered by tipologia or other query params
 app.get('/api/nodo-hijo-cantidades', async (req, res) => {
   const { facultad, programa, anio, investigador, tipologia, tipo, categoria, cedula, sexo, grado, titulo_proyecto } = req.query;
+  // count by NodoHijo directly (tipo de producto) without nodos table
   let sql = `
-    SELECT n.nodo_hijo_scraping AS nodo, COUNT(*) AS cantidad
-    FROM vista_productos_final r
-    LEFT JOIN nodos n
-      ON r.tipo_proyecto = n.nodo_hijo_scraping
+    SELECT r.tipo_proyecto AS nodo, COUNT(*) AS cantidad
+    FROM (
+      SELECT
+        Facultad AS facultad,
+        Programa_academico AS programa,
+        Categoria AS categoria,
+        Nombre AS nombre,
+        Cedula AS cedula,
+        Sexo AS sexo,
+        Grado AS grado,
+        NodoHijo AS tipo_proyecto,
+        NodoPadre AS nodo_padre,
+        Nombre_producto AS titulo_proyecto,
+        Anio AS anio
+      FROM scraping.vista_productos_dashboard
+    ) r
   `;
   const conditions = [];
   const params = [];
@@ -387,16 +460,14 @@ app.get('/api/nodo-hijo-cantidades', async (req, res) => {
     params.push(anio);
   }
   if (investigador) {
-    // search in either column name used by the view: 'investigador' or 'nombre'
-    conditions.push('(investigador LIKE ? OR nombre LIKE ?)');
-    params.push(`%${investigador}%`);
+    // search by nombre column from the dashboard view
+    conditions.push('nombre LIKE ?');
     params.push(`%${investigador}%`);
   }
   if (tipologia) {
-    conditions.push('n.tipologia_productos = ?');
+    conditions.push('r.nodo_padre = ?');
     params.push(tipologia);
-  }
-  if (tipo) {
+  }  if (tipo) {
     conditions.push('tipo_proyecto = ?');
     params.push(tipo);
   }
@@ -424,7 +495,7 @@ app.get('/api/nodo-hijo-cantidades', async (req, res) => {
     sql += ' WHERE ' + conditions.join(' AND ');
   }
   sql += `
-    GROUP BY n.nodo_hijo_scraping
+    GROUP BY r.tipo_proyecto
     ORDER BY cantidad DESC
   `;
 

@@ -126,67 +126,33 @@ export default function Home() {
         </div>
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
-        <main className="flex-1 flex flex-col items-center py-12 px-6 md:px-16">
+        <main className="flex-1 flex flex-col items-center pt-2 px-6 md:px-16">
         <div className="max-w-6xl w-full flex flex-col gap-12">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="flex flex-col gap-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold uppercase tracking-wider">
-                <span className="size-2 rounded-full bg-accent"></span>
-                Sistema Activo
-              </div>
               <h1 className="text-primary text-4xl md:text-5xl font-black leading-tight tracking-tight">
-                ¡Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span>, <br className="hidden md:block" />{userName}!
+                <br className="hidden md:block" />¡{userName} Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span> !
               </h1>
               <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
                 Gestión y análisis de productos de investigación de la Corporación Universitaria Adventista. Visualiza el
                 impacto de la producción científica en tiempo real.
               </p>
             </div>
-            <div className="flex gap-3">
-              <button
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
-                onClick={() => setShowAddModal(true)}
-              >
-                <span className="material-symbols-outlined">person_add</span>
-                <span>Agregar Investigador</span>
-              </button>
-            <button
-                className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-xl font-bold shadow-lg shadow-green-300 hover:bg-green-600 transition-all"
-                onClick={async () => {
-                  setScrapingStatus('Ejecutando...');
-                  try {
-                    const res = await fetch('http://localhost:4000/api/scraping/ejecutar', { method: 'POST' });
-                    const data = await res.json();
-                    if (res.ok) setScrapingStatus(data.message || 'Scraping ejecutado correctamente');
-                    else setScrapingStatus(data.error || 'Error ejecutando scraping');
-                  } catch (err) {
-                    setScrapingStatus(err.message);
-                  }
-                }}
-              >
-                <span className="material-symbols-outlined">web</span>
-                <span>Ejecutar Scraping</span>
-              </button>
-            </div>
+
           </div>
-          {scrapingStatus && (
-            <div className="w-full mb-4 text-center">
-              <span className="text-sm font-semibold text-neutral-muted">{scrapingStatus}</span>
-            </div>
-          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft">
-              <div className="absolute top-0 right-0 p-8 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
-                <span className="material-symbols-outlined text-[120px] text-primary">group_add</span>
+            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+              <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
+                <span className="material-symbols-outlined text-[60px] text-primary">group_add</span>
               </div>
-              <div className="p-8 md:p-10 flex flex-col h-full relative z-10">
-                <div className="size-14 rounded-2xl bg-primary flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
+              <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
+                <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
                   <span className="material-symbols-outlined text-3xl">person_add</span>
                 </div>
-                <h3 className="text-2xl font-bold text-primary mb-3 tracking-tight">
+                <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
                   Directorio de Investigadores
                 </h3>
-                <p className="text-slate-600 mb-8 text-lg">
+                <p className="text-slate-600 mb-8 text-sm">
                   Accede al directorio completo de investigadores afiliados a la UNAC, con detalles de su producción científica.
                 </p>
                 <div className="mt-auto">
@@ -200,21 +166,21 @@ export default function Home() {
                   </Link>
                 </div>
               </div>
-              <div className="h-2 w-full bg-primary mt-auto"></div>
+              <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
             </div>
             {/* Card for Analisis categories */}
-            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft">
-              <div className="absolute top-0 right-0 p-8 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
-                <span className="material-symbols-outlined text-[120px] text-primary">analytics</span>
+            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+              <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
+                <span className="material-symbols-outlined text-[60px] text-primary">analytics</span>
               </div>
-              <div className="p-8 md:p-10 flex flex-col h-full relative z-10">
-                <div className="size-14 rounded-2xl bg-primary flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
+              <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
+                <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
                   <span className="material-symbols-outlined text-3xl" style={{ color: '#FFF' }}>insights</span>
                 </div>
-                <h3 className="text-2xl font-bold text-primary mb-3 tracking-tight">
+                <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
                   Análisis
                 </h3>
-                <p className="text-slate-600 mb-8 text-lg">
+                <p className="text-slate-600 mb-8 text-sm">
                   Navega por las tipologías de análisis.
                 </p>
                 <div className="mt-auto">
@@ -228,51 +194,49 @@ export default function Home() {
                   </Link>
                 </div>
               </div>
-              <div className="h-2 w-full bg-primary mt-auto"></div>
+              <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
             </div>
           </div>
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-              <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">query_stats</span>
-                Resumen de Actividad Reciente
-              </h2>
-              <button className="text-sm font-semibold text-primary hover:underline transition-all">Ver historial completo</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col gap-2">
-                <span className="text-xs font-bold text-neutral-muted uppercase tracking-wider">Investigadores</span>
-                <div className="flex items-end gap-2">
-                  <span className="text-3xl font-black text-primary">124</span>
-                  <span className="text-green-600 text-sm font-bold flex items-center mb-1">
-                    <span className="material-symbols-outlined text-xs">trending_up</span> +3%
-                  </span>
-                </div>
-              </div>
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col gap-2">
-                <span className="text-xs font-bold text-neutral-muted uppercase tracking-wider">Publicaciones Q1/Q2</span>
-                <div className="flex items-end gap-2">
-                  <span className="text-3xl font-black text-primary">58</span>
-                  <span className="text-green-600 text-sm font-bold flex items-center mb-1">
-                    <span className="material-symbols-outlined text-xs">trending_up</span> +12%
-                  </span>
-                </div>
-              </div>
-              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col gap-2">
-                <span className="text-xs font-bold text-neutral-muted uppercase tracking-wider">Proyectos Activos</span>
-                <div className="flex items-end gap-2">
-                  <span className="text-3xl font-black text-primary">14</span>
-                  <span className="text-slate-400 text-sm font-bold flex items-center mb-1">Sin cambios</span>
-                </div>
-              </div>
-            </div>
-          </div>
+         
         </div>
       </main>
       </div>
+      <div className="flex gap-2 justify-end mb-8">
+        <button
+          title="Agregar Investigador"
+          className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-sm"
+          onClick={() => setShowAddModal(true)}
+        >
+          <span className="material-symbols-outlined text-base">person_add</span>
+          <span>Agregar</span>
+        </button>
+        <button
+          title="Iniciar Scraping"
+          className="flex items-center gap-1 px-4 py-2 bg-[#F5A800] text-white rounded-lg font-bold shadow-md shadow-yellow-300 hover:bg-yellow-500 transition-all text-sm"
+          onClick={async () => {
+            setScrapingStatus('Ejecutando...');
+            try {
+              const res = await fetch('http://localhost:4000/api/scraping/ejecutar', { method: 'POST' });
+              const data = await res.json();
+              if (res.ok) setScrapingStatus(data.message || 'Scraping ejecutado correctamente');
+              else setScrapingStatus(data.error || 'Error ejecutando scraping');
+            } catch (err) {
+              setScrapingStatus(err.message);
+            }
+          }}
+        >
+          <span className="material-symbols-outlined text-base">web</span>
+          <span>Scraping</span>
+        </button>
+      </div>
+      {scrapingStatus && (
+        <div className="w-full mb-4 text-center">
+          <span className="text-sm font-semibold text-neutral-muted">{scrapingStatus}</span>
+        </div>
+      )}
       <footer className="mt-auto py-8 border-t border-slate-200 bg-white text-center">
         <p className="text-sm text-neutral-muted font-medium">
-          © 2024 Universidad Nacional del Callao - Facultad de Ingeniería - GI2A
+          © 2026 Corporacion Universitaria Adventista - Facultad de Ingeniería 
         </p>
       </footer>
       {showAddModal && (
@@ -290,7 +254,7 @@ export default function Home() {
               onClick={() => setShowAddModal(false)}
               aria-label="Cerrar"
             >
-              ×
+              
             </button>
             {/* Card Header / Hero Area */}
             <div className="relative h-32 bg-primary overflow-hidden flex items-center px-8">

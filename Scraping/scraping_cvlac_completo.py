@@ -6,7 +6,7 @@ import time
 from bs4 import BeautifulSoup
 import os
 import unicodedata
-from conexion_sql import guardar_en_mysql, limpiar_tabla
+from conexion_sql import guardar_en_mysql, limpiar_tabla, asegurar_columna_nodo_padre
 
 from conexion_sql import guardar_en_mysql
 
@@ -27,7 +27,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
     'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASS', ''),
+    'password': os.getenv('DB_PASS', 'Amaamama12345.'),
     'database': os.getenv('DB_NAME', 'scraping'),
 }
 
@@ -82,6 +82,45 @@ HEADERS = {
 # Nota: El sitio de CVLAC puede bloquear solicitudes si detecta tráfico sospechoso.
 # Por ende se usa el headers para simular un navegador real
 # y se implementan reintentos con espera entre ellos.
+
+# Mapeo de NodoHijo (scraping) -> NodoPadre (TipologiaProductos)
+NODO_PADRE_MAP = {
+    "Artículo": "Nuevo Conocimiento",
+    "Libro": "Nuevo Conocimiento",
+    "Capítulos de libro": "Nuevo Conocimiento",
+    "Patente": "Nuevo Conocimiento",
+    "Software": "Desarrollo Tecnológico e Innovación",
+    "Prototipo industrial": "Desarrollo Tecnológico e Innovación",
+    "Secreto empresarial": "Desarrollo Tecnológico e Innovación",
+    "Innovaciones generadas de producción empresarial": "Desarrollo Tecnológico e Innovación",
+    "Innovación de proceso o procedimiento": "Desarrollo Tecnológico e Innovación",
+    "Concepto técnico": "Desarrollo Tecnológico e Innovación",
+    "Proceso de Apropiación Social del Conocimiento para el fortalecimiento o solución de asuntos de interés social": "Apropiación Social del Conocimiento",
+    "Proceso de Apropiación Social del Conocimiento para la generación de insumos de política pública y normatividad": "Apropiación Social del Conocimiento",
+    "Proceso de Apropiación Social del Conocimiento para el fortalecimiento de cadenas": "Apropiación Social del Conocimiento",
+    "Evento científico": "Divulgación Pública de la Ciencia",
+    "Documento de trabajo": "Divulgación Pública de la Ciencia",
+    "Informes finales de investigación": "Divulgación Pública de la Ciencia",
+    "Informe técnico": "Divulgación Pública de la Ciencia",
+    "Consultoría Científico Tecnológica e Informe Técnico": "Divulgación Pública de la Ciencia",
+    "Producción de estrategias y contenidos transmedia": "Divulgación Pública de la Ciencia",
+    "Desarrollos web": "Divulgación Pública de la Ciencia",
+    "Trabajo dirigido de doctorado": "Formación del Recurso Humano",
+    "Trabajo dirigido de grado de maestría o especialidad clínica": "Formación del Recurso Humano",
+    "Trabajo dirigido de grado de pregrado": "Formación del Recurso Humano",
+    "Investigación y desarrollo": "Formación del Recurso Humano",
+    "Investigación desarrollo e Innovación": "Formación del Recurso Humano",
+    "Extensión y responsabilidad social CTI": "Formación del Recurso Humano",
+    "Trabajo dirigido de conclusión de curso de perfeccionamiento/especialización": "Formación del Recurso Humano",
+    "Trabajo dirigido de otro tipo": "Formación del Recurso Humano",
+}
+
+def obtener_nodo_padre(nodo_hijo):
+    """Busca el nodo padre basado en el nodo hijo (case-insensitive)"""
+    if not nodo_hijo:
+        return ""
+    nodo_normalizado = nodo_hijo.strip()
+    return NODO_PADRE_MAP.get(nodo_normalizado, "")
 
 archivo_csv = "cv_datos_generales.csv"
 
@@ -162,19 +201,27 @@ def obtener_html():
 
     for intento in range(5):
         print(f"Intento {intento + 1} de conexión...")
-        response = session.get(URL, timeout=30)
+        try:
+            # Aumentar timeout a 60 segundos para servidores lentos
+            response = session.get(URL, timeout=60)
 
-        if response.status_code == 200:
+            if response.status_code == 200:
+                # 🔥 Decodificar manualmente desde bytes
+                html = response.content.decode("latin-1")
+                return html
 
-            # 🔥 Decodificar manualmente desde bytes
-            html = response.content.decode("latin-1")
+            print(f"Servidor respondió {response.status_code}, esperando...")
+            time.sleep(5)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
+            print(f"Error de conexión (intento {intento + 1}): {str(e)}")
+            if intento < 4:
+                espera = 10 + (intento * 5)  # Espera progresiva: 10s, 15s, 20s, 25s
+                print(f"Esperando {espera} segundos antes de reintentar...")
+                time.sleep(espera)
+            else:
+                raise
 
-            return html
-
-        print(f"Servidor respondió {response.status_code}, esperando...")
-        time.sleep(5)
-
-    raise Exception("No fue posible acceder a CVLAC (bloqueo del servidor)")
+    raise Exception("No fue posible acceder a CVLAC (bloqueo del servidor después de 5 intentos)")
 # La función obtener_html intenta obtener el HTML de la página con reintentos y espera
 
 #================================================
@@ -1525,6 +1572,7 @@ def guardar_csv(filas):
                 "sexo",
                 "UltimaFormacionAcademica",
                 "NodoHijo",
+                "nodo_padre",
                 "Titulo_proyecto",
                 "año"
             ]
@@ -1607,6 +1655,11 @@ def main():
         (proyectos, "Titulo_proyecto"),
     ]
 
+    # Debug: mostrar cantidad de registros por sección
+    print("\n📊 Cantidad de registros por sección:")
+    for i, (seccion, _) in enumerate(secciones):
+        print(f"  {i+1}. {len(seccion)} registros")
+
     for seccion, campo_titulo in secciones:
         for item in seccion:
             filas_csv.append({
@@ -1615,6 +1668,7 @@ def main():
                 "sexo": datos_generales.get("sexo", ""),
                 "UltimaFormacionAcademica": extra_formacion.get("UltimaFormacionAcademica", ""),
                 "NodoHijo": item.get("NodoHijo", ""),
+                "nodo_padre": obtener_nodo_padre(item.get("NodoHijo", "")),
                 "Titulo_proyecto": item.get(campo_titulo, ""),
                 "año": item.get("año", "")
             })
@@ -1635,6 +1689,7 @@ def main():
             "sexo": fila["sexo"],
             "grado": fila["UltimaFormacionAcademica"],
             "tipo_proyecto": fila["NodoHijo"],
+            "nodo_padre": obtener_nodo_padre(fila["NodoHijo"]),
             "titulo_proyecto": fila["Titulo_proyecto"],
             "anio": fila["año"]
         })
@@ -1644,15 +1699,22 @@ if __name__ == "__main__":
 
     # obtener todas las URLs pendientes de la tabla investigadores
     URLS = obtener_urls_db()
+    print(f"📋 Se encontraron {len(URLS)} URLs pendientes de procesar")
+    
+    if len(URLS) == 0:
+        print("⚠️ No hay URLs pendientes. Todas ya fueron procesadas.")
+        print("Si necesitas procesar de nuevo, ejecuta en MySQL:")
+        print("UPDATE investigadores SET estado='pendiente' WHERE link IS NOT NULL OR link_cvlac IS NOT NULL;")
+        exit()
 
     # 🔥 1️⃣ Limpiar tabla SOLO UNA VEZ
     limpiar_tabla()
 
     todos_los_datos = []
 
-    for investigator_id, url in URLS:
+    for idx, (investigator_id, url) in enumerate(URLS, 1):
         # emoji removed because console may not support it
-        print(f"\nProcesando CVLAC: {url} (investigador {investigator_id})")
+        print(f"\n[{idx}/{len(URLS)}] Procesando CVLAC: {url} (investigador {investigator_id})")
 
         # asignar la URL al nombre global que usa la lógica de extracción
         URL = url   # sigue usando tu variable global
@@ -1660,10 +1722,14 @@ if __name__ == "__main__":
         datos = main()  # ahora main devuelve datos
         # agregar los datos extraídos de esta URL al acumulador
         if datos:
+            print(f"  -> Se extrajeron {len(datos)} registros")
             # inject the investigador id into each row so DB can relate them
             for row in datos:
                 row["id_investigador"] = investigator_id
             todos_los_datos.extend(datos)
+        else:
+            print(f"  -> No se extrajeron datos de esta URL")
+        
         # mark this investigador as processed so it won't be picked up again
         try:
             conn_update = mysql.connector.connect(**DB_CONFIG)
@@ -1673,13 +1739,19 @@ if __name__ == "__main__":
                 (investigator_id,)
             )
             conn_update.commit()
+            print(f"  ✅ Marcado como procesado")
             cur_update.close()
             conn_update.close()
         except Exception as e:
-            print(f"Warning: could not update estado for {investigator_id}: {e}")
+            print(f"  ❌ Error al marcar como procesado: {e}")
 
     # guardar todo junto en la base de datos después de procesar todas las URLs
+    print(f"\n📊 Total de datos recolectados: {len(todos_los_datos)}")
     if todos_los_datos:
+        # Asegurar que la columna nodo_padre existe antes de guardar
+        asegurar_columna_nodo_padre()
         guardar_en_mysql(todos_los_datos)
+    else:
+        print("⚠️ No hay datos para guardar en la base de datos")
 
     print(f"\n🚀 Proceso finalizado. Total registros insertados: {len(todos_los_datos)}")

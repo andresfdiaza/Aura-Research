@@ -1,4 +1,8 @@
 /* global styles for home page and tailwind utilities */
+:root{
+  padding: 0;
+}
+
 body {
   font-family: 'Space Grotesk', sans-serif;
   background-color: #F8FAFC;

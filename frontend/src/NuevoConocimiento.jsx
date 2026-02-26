@@ -1,7 +1,9 @@
 import React from "react";
+import { useLocation, Link } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
-ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
 
 export default function NuevoConocimiento() {
   const [resultados, setResultados] = React.useState([]);
@@ -10,15 +12,7 @@ export default function NuevoConocimiento() {
   const [filters, setFilters] = React.useState({
     facultad: '',
     programa: '',
-    anio: '',
-    investigador: '',
-    categoria: '',
-    cedula: '',
-    sexo: '',
-    grado: '',
-    tipo_proyecto: '',
-    tipologia_productos: '',
-    titulo_proyecto: ''
+    investigador: ''
   });
 
   // Obtener datos del backend según filtros (trabaja con la vista)
@@ -30,14 +24,6 @@ export default function NuevoConocimiento() {
         const qs = new URLSearchParams();
         if (filters.facultad) qs.append('facultad', filters.facultad);
         if (filters.programa) qs.append('programa', filters.programa);
-        if (filters.anio) qs.append('anio', filters.anio);
-        if (filters.categoria) qs.append('categoria', filters.categoria);
-        if (filters.cedula) qs.append('cedula', filters.cedula);
-        if (filters.sexo) qs.append('sexo', filters.sexo);
-        if (filters.grado) qs.append('grado', filters.grado);
-        if (filters.tipo_proyecto) qs.append('tipo', filters.tipo_proyecto);
-        if (filters.tipologia_productos) qs.append('tipologia', filters.tipologia_productos);
-        if (filters.titulo_proyecto) qs.append('titulo_proyecto', filters.titulo_proyecto);
         if (filters.investigador) qs.append('investigador', filters.investigador);
         const url = 'http://localhost:4000/api/resultados' + (qs.toString() ? ('?' + qs.toString()) : '');
         const res = await fetch(url);
@@ -53,33 +39,29 @@ export default function NuevoConocimiento() {
     load();
   }, [filters]);
 
-  // Opciones de filtros dinámicas
+  // Opciones de filtros dinámicas (sin 'Año')
   const filterOptions = React.useMemo(() => {
-    const opts = { facultad: [], programa: [], anio: [], investigador: [], categoria: [], cedula: [], sexo: [], grado: [], tipo_proyecto: [], tipologia_productos: [], titulo_proyecto: [] };
+    const opts = { facultad: [], programa: [], investigador: [] };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
-      if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);
       if (r.nombre && !opts.investigador.includes(r.nombre)) opts.investigador.push(r.nombre);
-      if (r.categoria && !opts.categoria.includes(r.categoria)) opts.categoria.push(r.categoria);
-      if (r.cedula && !opts.cedula.includes(r.cedula)) opts.cedula.push(r.cedula);
-      if (r.sexo && !opts.sexo.includes(r.sexo)) opts.sexo.push(r.sexo);
-      if (r.grado && !opts.grado.includes(r.grado)) opts.grado.push(r.grado);
-      if (r.tipo_proyecto && !opts.tipo_proyecto.includes(r.tipo_proyecto)) opts.tipo_proyecto.push(r.tipo_proyecto);
-      if (r.tipologia_productos && !opts.tipologia_productos.includes(r.tipologia_productos)) opts.tipologia_productos.push(r.tipologia_productos);
-      if (r.titulo_proyecto && !opts.titulo_proyecto.includes(r.titulo_proyecto)) opts.titulo_proyecto.push(r.titulo_proyecto);
     });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
   }, [resultados]);
 
-  // Filtrar resultados solo para tipologia 'Nuevo Conocimiento'
+  // Filtrar resultados solo para tipologia 'Nuevo Conocimiento' (usando nodo_padre de la vista)
   const filtered = React.useMemo(() => {
-    return resultados.filter(r => {
-      if (r.tipologia_productos !== 'Nuevo Conocimiento') return false;
+    let result = resultados.filter(r => {
+      const tipologia = (r.nodo_padre || r.tipologia_productos || '').toString().trim().toLowerCase();
+      return tipologia === 'nuevo conocimiento';
+    });
+    
+    // Aplicar otros filtros (sin año)
+    result = result.filter(r => {
       if (filters.facultad && r.facultad !== filters.facultad) return false;
       if (filters.programa && r.programa !== filters.programa) return false;
-      if (filters.anio && r.anio !== filters.anio) return false;
       if (
         filters.investigador &&
         !r.nombre?.toLowerCase().includes(filters.investigador.toLowerCase())
@@ -87,6 +69,14 @@ export default function NuevoConocimiento() {
         return false;
       return true;
     });
+    
+    console.log('Resultados totales:', resultados.length);
+    console.log('Filtrados (Nuevo Conocimiento):', result.length);
+    if (resultados.length > 0) {
+      console.log('Sample data:', resultados[0]);
+      console.log('Valores nodo_padre únicos:', [...new Set(resultados.map(r => r.nodo_padre || r.tipologia_productos))]);
+    }
+    return result;
   }, [resultados, filters]);
 
   // Agrupar por nodo hijo usando tipo_proyecto
@@ -100,33 +90,141 @@ export default function NuevoConocimiento() {
     return grupos;
   }, [filtered]);
 
+  const location = useLocation();
+  const user = location.state?.user;
+  const userName = user?.email?.split('@')[0] || 'Usuario';
+
+  const labelMap = {
+    facultad: 'Facultad',
+    programa: 'Programa',
+    investigador: 'Investigador',
+    titulo_proyecto: 'Título del proyecto',
+    anio: 'Año'
+  };
+  const displayLabel = (k) => labelMap[k] || (k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+
+  const palette = ['#2A5783']; // institucional: azul, amarillo
+
+  const handleDownloadCSV = () => {
+    if (!filtered || filtered.length === 0) {
+      alert('No hay datos para descargar');
+      return;
+    }
+    const headers = Object.keys(filtered[0]);
+    const csvContent = [
+      headers.map(h => displayLabel(h)).join(','),
+      ...filtered.map(row => headers.map(h => `"${(row[h] ?? '').toString().replace(/"/g,'""')}"`).join(','))
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nuevo_conocimiento_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const openTableInNewTab = () => {
+    if (!filtered || filtered.length === 0) {
+      alert('No hay datos para mostrar en la tabla');
+      return;
+    }
+    const headers = Object.keys(filtered[0]);
+    const styles = `table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background: #f3f4f6; color: #0f172a; font-weight: 700; } tr:nth-child(even) { background: #fafafa; }`;
+    const thead = `<tr>${headers.map(h => `<th>${displayLabel(h)}</th>`).join('')}</tr>`;
+    const rows = filtered.map(r => `<tr>${headers.map(h => `<td>${(r[h] ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>`).join('')}</tr>`).join('');
+    const html = `<html><head><title>Tabla de resultados</title><meta charset="utf-8"/><style>${styles}</style></head><body><h2>Tabla de resultados</h2><div style="overflow:auto; max-width:100%;"><table>${thead}${rows}</table></div></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert('No se pudo abrir la pestaña. Revisa el bloqueador de popups.'); return; }
+    w.document.write(html);
+    w.document.close();
+  };
+
   return (
-    <div className="flex flex-col items-center min-h-screen bg-white">
-      <h1 className="text-3xl font-bold text-primary mb-6">Nuevo Conocimiento</h1>
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6 w-full max-w-7xl">
-        {['facultad', 'programa', 'anio', 'investigador', 'categoria', 'cedula'].map(key => (
-          <div key={key}>
-            <label className="block text-sm font-semibold mb-1 capitalize text-xs">
-              {key === 'facultad' ? 'Facultad' : key === 'programa' ? 'Programa' : key === 'anio' ? 'Año' : key === 'investigador' ? 'Investigador' : key.replace(/_/g, ' ')}
-            </label>
-            <select
-              className="w-full border rounded px-2 py-1 text-sm"
-              value={filters[key]}
-              onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
-            >
-              <option value="">Todos</option>
-              {filterOptions[key]?.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
+    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
+            <span className="material-symbols-outlined text-2xl">rocket_launch</span>
           </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 w-full max-w-7xl">
-        {['sexo', 'grado', 'tipo_proyecto', 'tipologia_productos', 'titulo_proyecto'].map(key => (
+          <div className="flex flex-col">
+            <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">GI2A UNAC</h2>
+            <span className="text-xs text-neutral-muted font-medium uppercase tracking-wider">
+              Facultad de Ingeniería
+            </span>
+          </div>
+        </div>
+        <nav className="hidden md:flex items-center gap-8">
+          <Link
+            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+            to="/home"
+            state={{ user }}
+          >
+            Inicio
+          </Link>
+          <Link
+            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+            to="/investigadores"
+            state={{ user }}
+          >
+            Investigadores
+          </Link>
+          <a className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors" href="#">
+            Proyectos
+          </a>
+          <a className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors" href="#">
+            Reportes
+          </a>
+        </nav>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2">
+            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+              <span className="material-symbols-outlined">notifications</span>
+            </button>
+            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+              <span className="material-symbols-outlined">settings</span>
+            </button>
+          </div>
+          <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-primary">{userName}</p>
+            </div>
+            <div className="bg-primary/10 rounded-full border border-primary/20 flex items-center justify-center w-10 h-10">
+              <span className="material-symbols-outlined text-primary text-2xl">person</span>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div className="container mx-auto flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col items-center py-6 px-6 md:px-16">
+        <div className="max-w-7xl w-full flex flex-col gap-8">
+          <div className="flex justify-between items-center mb-0 w-full">
+            <h1 className="text-3xl font-bold text-primary">Nuevo Conocimiento</h1>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadCSV}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
+              >
+                <span className="material-symbols-outlined">download</span>
+                <span>Descargar CSV</span>
+              </button>
+              <button
+                onClick={openTableInNewTab}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
+              >
+                <span className="material-symbols-outlined">table_view</span>
+                <span>Ver tabla</span>
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-0 w-full max-w-7xl">
+        {['facultad', 'programa', 'investigador'].map(key => (
           <div key={key}>
             <label className="block text-sm font-semibold mb-1 capitalize text-xs">
-              {key.replace(/_/g, ' ')}
+              {key === 'facultad' ? 'Facultad' : key === 'programa' ? 'Programa' : key === 'investigador' ? 'Investigador' : key}
             </label>
             <select
               className="w-full border rounded px-2 py-1 text-sm"
@@ -143,36 +241,52 @@ export default function NuevoConocimiento() {
       </div>
       {loading && <p className="text-center text-lg">Cargando datos…</p>}
       {error && <p className="text-center text-red-600">Error: {error}</p>}
+      {!loading && !error && resultados.length === 0 && (
+        <p className="text-center text-gray-600 text-lg">No hay datos disponibles. Revisa la consola.</p>
+      )}
+      {!loading && !error && resultados.length > 0 && Object.keys(nodosHijo).length === 0 && (
+        <p className="text-center text-gray-600 text-lg">No hay registros de "Nuevo Conocimiento". Total datos: {resultados.length}</p>
+      )}
       {!loading && !error && Object.keys(nodosHijo).length > 0 && (
-        <div className="w-full max-w-4xl mb-8">
-          {Object.entries(nodosHijo).map(([nodo, items]) => {
+        <div className="w-full max-w-7xl mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Object.entries(nodosHijo).map(([nodo, items], idx) => {
             // Agrupar por año para el diagrama
             const anios = {};
             items.forEach(i => {
               const anio = i.anio || 'Sin año';
               anios[anio] = (anios[anio] || 0) + 1;
             });
+            const labels = Object.keys(anios);
+            const valores = Object.values(anios);
             const chartData = {
-              labels: Object.keys(anios),
+              labels,
               datasets: [
                 {
                   label: `Cantidad (${nodo})`,
-                  data: Object.values(anios),
-                  backgroundColor: '#3b82f6',
+                  data: valores,
+                  backgroundColor: palette[idx % palette.length]
                 },
               ],
             };
             return (
-              <div key={nodo} className="mb-8 bg-slate-50 p-4 rounded shadow">
-                <h2 className="text-xl font-bold mb-2 text-primary">{nodo}</h2>
-                <Bar data={chartData} options={{
+              <div key={nodo} className="relative bg-slate-50 p-2 rounded shadow">
+                <div className="absolute top-2 right-2 bg-primary text-white px-2 py-0.5 rounded-full text-xs font-bold">{items.length}</div>
+                <h2 className="text-base font-bold mb-2 text-primary">{nodo}</h2>
+                <Bar data={chartData} height={160} options={{
                   responsive: true,
                   plugins: {
                     legend: { display: false },
                     tooltip: { enabled: true },
+                    datalabels: {
+                      color: '#8F9FBF',
+                      anchor: 'center',
+                      align: 'center',
+                      formatter: value => value,
+                      font: { weight: 'bold' }
+                    }
                   },
                   scales: {
-                    x: { title: { display: true, text: 'Año' } },
+                    x: { title: { display: false, text: '' } },
                     y: { title: { display: true, text: 'Cantidad' }, beginAtZero: true },
                   },
                 }} />
@@ -181,6 +295,20 @@ export default function NuevoConocimiento() {
           })}
         </div>
       )}
+        </div>
+        {/* Back button placed at bottom-right of content (same as Datos) */}
+        <div className="flex justify-end mt-6">
+          <button
+            className="px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
+            onClick={() => window.history.back()}
+            aria-label="Volver"
+          >
+            <span className="material-symbols-outlined align-middle mr-2">arrow_back</span>
+            Volver
+          </button>
+        </div>
+        </main>
+      </div>
     </div>
   );
 }

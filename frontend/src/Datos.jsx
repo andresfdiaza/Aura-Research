@@ -53,6 +53,44 @@ export default function Datos() {
   });
   const chartRef = React.useRef();
 
+  const openTableInNewTab = () => {
+    if (!filtered || filtered.length === 0) {
+      alert('No hay datos para mostrar en la tabla');
+      return;
+    }
+    const headers = Object.keys(filtered[0]);
+    const styles = `
+      table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      th { background: #f3f4f6; color: #0f172a; font-weight: 700; }
+      tr:nth-child(even) { background: #fafafa; }
+    `;
+    const thead = `<tr>${headers.map(h => `<th>${displayLabel(h)}</th>`).join('')}</tr>`;
+    const rows = filtered.map(r => `<tr>${headers.map(h => `<td>${(r[h] ?? '').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>`).join('')}</tr>`).join('');
+    const html = `
+      <html>
+        <head>
+          <title>Tabla de resultados</title>
+          <meta charset="utf-8" />
+          <style>${styles}</style>
+        </head>
+        <body>
+          <h2>Tabla de resultados</h2>
+          <div style="overflow:auto; max-width:100%;">
+            <table>${thead}${rows}</table>
+          </div>
+        </body>
+      </html>
+    `;
+    const w = window.open('', '_blank');
+    if (!w) {
+      alert('No se pudo abrir la pestaña. Revisa el bloqueador de popups.');
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+  };
+
   // institutional palette + helpers
   // extended professional palette including neutrals for bar charts
   const palette = ['#2A5783', '#F5A800', '#8F9FBF', '#4A4A4A', '#CCCCCC'];
@@ -74,6 +112,21 @@ export default function Datos() {
     return colors;
   };
   const userName = user?.email?.split('@')[0] || 'Usuario';
+
+  const labelMap = {
+    facultad: 'Facultad',
+    programa: 'Programa',
+    anio: 'Año',
+    investigador: 'Investigador',
+    tipologia: 'Tipología de Productos',
+    categoria: 'Categoría',
+    cedula: 'Cédula',
+    sexo: 'Sexo',
+    grado: 'Grado',
+    tipo_proyecto: 'Tipo de proyecto',
+    titulo_proyecto: 'Título del proyecto'
+  };
+  const displayLabel = (k) => labelMap[k] || (k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
 
   // derive available options for filters once resultados is loaded
   const filterOptions = React.useMemo(() => {
@@ -310,37 +363,37 @@ export default function Datos() {
         </div>
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
-        <main className="flex-1 flex flex-col items-center py-12 px-6 md:px-16">
+        <main className="flex-1 flex flex-col items-center py-6 px-6 md:px-16">
         <div className="max-w-7xl w-full flex flex-col gap-8">
-          {/* Back button */}
-          <div className="mb-4">
-            <button
-              className="px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
-              onClick={() => window.history.back()}
-            >
-              <span className="material-symbols-outlined align-middle mr-2">arrow_back</span>
-              Volver
-            </button>
-          </div>
+          {/* Back button moved to bottom */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-primary">Análisis y Estadísticas</h1>
-            <button
-              onClick={handleDownloadCSV}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
-            >
-              <span className="material-symbols-outlined">download</span>
-              <span>Descargar CSV</span>
-            </button>
+            <h1 className="text-3xl font-bold text-primary">Análisis y Estadísticas Generales</h1>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadCSV}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
+              >
+                <span className="material-symbols-outlined">download</span>
+                <span>Descargar CSV</span>
+              </button>
+              <button
+                onClick={openTableInNewTab}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
+              >
+                <span className="material-symbols-outlined">table_view</span>
+                <span>Ver tabla</span>
+              </button>
+            </div>
           </div>
-          {/* filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {/* filters (single horizontal row, scrollable on small screens) */}
+          <div className="flex flex-row gap-4 mb-0 overflow-x-auto py-1 justify-between">
             {['facultad', 'programa', 'anio', 'investigador', 'tipologia'].map(key => (
-              <div key={key}>
-                <label className="block text-sm font-semibold mb-1 capitalize">
-                  {key === 'tipologia' ? 'Tipología de Productos' : key}
+              <div key={key} className="min-w-[160px]">
+                <label className="block text-xs font-medium mb-1">
+                  {displayLabel(key)}
                 </label>
                 <select
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-2 py-1 text-xs h-8"
                   value={filters[key]}
                   onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
                 >
@@ -357,10 +410,10 @@ export default function Datos() {
 
           {/* Diagrams side by side, smaller */}
           {!loading && !error && (topTipos.length > 0 || years.length > 0) && (
-            <div className="flex flex-row gap-6 mb-8 w-full justify-center items-start">
+            <div className="flex flex-row gap-6 mb-0 w-full justify-between items-start flex-wrap">
               {/* parent/child drillable bar chart */}
               {topTipos.length > 0 && (
-                <div className="w-full max-w-md h-64">
+                <div className="flex-1 min-w-[360px] h-96">
                   {/* Chart with tooltips for labels */}
                   <Bar
                     ref={chartRef}
@@ -458,13 +511,13 @@ export default function Datos() {
                         }
                       }
                     }}
-                    height={256}
+                    height={384}
                   />
                 </div>
               )}
               {/* año chart */}
               {years.length > 0 && (
-                <div className="w-full max-w-md h-64">
+                <div className="flex-1 min-w-[360px] h-96">
                   <Bar
                     data={{
                       labels: years,
@@ -490,42 +543,29 @@ export default function Datos() {
                         }
                       }
                     }}
-                    height={256}
+                    height={384}
                   />
                 </div>
               )}
             </div>
           )}
 
-          {!loading && !error && filtered.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full table-auto bg-white rounded shadow">
-                <thead>
-                  <tr className="bg-slate-100">
-                    {Object.keys(filtered[0]).map(key => (
-                      <th key={key} className="px-4 py-2 text-center text-sm font-bold text-primary">
-                        {key}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((row, idx) => (
-                    <tr key={idx} className="border-t hover:bg-gray-50">
-                      {Object.keys(filtered[0]).map(key => (
-                        <td key={`${idx}-${key}`} className="px-4 py-2 text-sm text-center">
-                          {row[key] || '-'}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
           {!loading && !error && filtered.length === 0 && (
             <p className="text-center text-gray-600 text-lg">No hay datos disponibles en resultados</p>
           )}
+
+          {/* Back button placed at bottom-right of content */}
+          <div className="flex justify-end mt-6">
+            <button
+              className="px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
+              onClick={() => window.history.back()}
+              aria-label="Volver"
+            >
+              <span className="material-symbols-outlined align-middle mr-2">arrow_back</span>
+              Volver
+            </button>
+          </div>
+
         </div>
       </main>
       </div>

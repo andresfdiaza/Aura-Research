@@ -1,0 +1,16 @@
+/* global styles for home page and tailwind utilities */
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background-color: #F8FAFC;
+}
+
+.action-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  transition: all 0.3s ease;
+}
+.action-card:hover {
+  border-color: #2A5783;
+  transform: translateY(-2px);
+}
+

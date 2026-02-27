@@ -5,7 +5,7 @@ import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Lege
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
 
-export default function NuevoConocimiento() {
+export default function FormacionRecursoHumano() {
   const [resultados, setResultados] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -51,11 +51,11 @@ export default function NuevoConocimiento() {
     return opts;
   }, [resultados]);
 
-  // Filtrar resultados solo para tipologia 'Nuevo Conocimiento' (usando nodo_padre de la vista)
+  // Filtrar resultados solo para tipologia 'Formación del Recurso Humano' (usando nodo_padre de la vista)
   const filtered = React.useMemo(() => {
     let result = resultados.filter(r => {
       const tipologia = (r.nodo_padre || r.tipologia_productos || '').toString().trim().toLowerCase();
-      return tipologia === 'nuevo conocimiento';
+      return tipologia === 'formación del recurso humano';
     });
     
     // Aplicar otros filtros (sin año)
@@ -71,10 +71,11 @@ export default function NuevoConocimiento() {
     });
     
     console.log('Resultados totales:', resultados.length);
-    console.log('Filtrados (Nuevo Conocimiento):', result.length);
+    console.log('Filtrados (Formación del Recurso Humano):', result.length);
     if (resultados.length > 0) {
       console.log('Sample data:', resultados[0]);
-      console.log('Valores nodo_padre únicos:', [...new Set(resultados.map(r => r.nodo_padre || r.tipologia_productos))]);
+      const valoresUnicos = [...new Set(resultados.map(r => r.nodo_padre || r.tipologia_productos))];
+      console.log('Valores nodo_padre únicos:', valoresUnicos);
     }
     return result;
   }, [resultados, filters]);
@@ -124,7 +125,7 @@ export default function NuevoConocimiento() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nuevo_conocimiento_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `formacion_recurso_humano_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -208,7 +209,7 @@ export default function NuevoConocimiento() {
         <main className="flex-1 flex flex-col items-center py-6 px-6 md:px-16">
         <div className="max-w-7xl w-full flex flex-col gap-8">
           <div className="flex justify-between items-center mb-0 w-full">
-            <h1 className="text-3xl font-bold text-primary">Nuevo Conocimiento</h1>
+            <h1 className="text-3xl font-bold text-primary">Formación del Recurso Humano</h1>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleDownloadCSV}
@@ -258,7 +259,7 @@ export default function NuevoConocimiento() {
         <p className="text-center text-gray-600 text-lg">No hay datos disponibles. Revisa la consola.</p>
       )}
       {!loading && !error && resultados.length > 0 && Object.keys(nodosHijo).length === 0 && (
-        <p className="text-center text-gray-600 text-lg">No hay registros de "Nuevo Conocimiento". Total datos: {resultados.length}</p>
+        <p className="text-center text-gray-600 text-lg">No hay registros de "Formación del Recurso Humano". Total datos: {resultados.length}</p>
       )}
       {!loading && !error && Object.keys(nodosHijo).length > 0 && (
         <>

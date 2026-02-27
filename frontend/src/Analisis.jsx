@@ -1,9 +1,12 @@
 import React from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 
 export default function Analisis() {
   const location = useLocation();
+  const navigate = useNavigate();
   const user = location.state?.user;
+  const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
+  const userName = user?.email?.split('@')[0] || 'Usuario';
   const categories = [
     'General',
     'Nuevo Conocimiento',
@@ -38,7 +41,7 @@ export default function Analisis() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
-            <span className="material-symbols-outlined text-2xl">analytics</span>
+            <span className="material-symbols-outlined text-2xl">rocket_launch</span>
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
@@ -48,27 +51,68 @@ export default function Analisis() {
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-8">
-          <Link className="text-primary text-sm font-bold border-b-2 border-accent pb-1" to="/home" state={{ user }}>
+          <Link
+            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+            to={homePath}
+            state={{ user }}
+          >
             Inicio
           </Link>
           <Link
             className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
-            to="/investigadores"
+            to="/DirectorioInvestigadores"
             state={{ user }}
           >
             Investigadores
           </Link>
-          <a className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors" href="#">
-            Proyectos
-          </a>
-          <a className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors" href="#">
-            Reportes
-          </a>
+          <Link
+            className="text-primary text-sm font-bold border-b-2 border-accent pb-1"
+            to="/analisis"
+            state={{ user }}
+          >
+            Análisis
+          </Link>
         </nav>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2">
+            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+              <span className="material-symbols-outlined">notifications</span>
+            </button>
+            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+              <span className="material-symbols-outlined">settings</span>
+            </button>
+          </div>
+          <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-primary">{userName}</p>
+            </div>
+            <div className="bg-primary/10 rounded-full border border-primary/20 flex items-center justify-center w-10 h-10">
+              <span className="material-symbols-outlined text-primary text-2xl">person</span>
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-1 px-3 py-2 ml-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-all text-sm font-semibold"
+              title="Cerrar sesión"
+            >
+              <span className="material-symbols-outlined text-base">logout</span>
+              <span className="hidden sm:inline">Salir</span>
+            </button>
+          </div>
+        </div>
       </header>
       <main className="flex-1 flex flex-col items-center py-12 px-0 md:px-0">
         <div className="max-w-6xl w-full flex flex-col gap-12">
-          <h1 className="text-4xl font-black text-primary">Tipología de productos</h1>
+          <div className="w-full flex items-center justify-between">
+            <h1 className="text-4xl font-black text-primary">Tipología de productos</h1>
+            <button
+              onClick={() => window.history.back()}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
+            >
+              <span className="material-symbols-outlined align-middle">arrow_back</span>
+              <span>Volver</span>
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {categories.map(cat => (
               <div
@@ -101,6 +145,42 @@ export default function Analisis() {
                         Ver
                         <span className="material-symbols-outlined">arrow_forward</span>
                       </Link>
+                    ) : cat === 'Desarrollo Tecnológico e Innovación' ? (
+                      <Link
+                        to="/DesarrolloTecnologico"
+                        state={{ user }}
+                        className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                      >
+                        Ver
+                        <span className="material-symbols-outlined">arrow_forward</span>
+                      </Link>
+                    ) : cat === 'Apropiación Social de Conocimiento' ? (
+                      <Link
+                        to="/ApropriacionSocial"
+                        state={{ user }}
+                        className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                      >
+                        Ver
+                        <span className="material-symbols-outlined">arrow_forward</span>
+                      </Link>
+                    ) : cat === 'Divulgación Pública de la Ciencia' ? (
+                      <Link
+                        to="/DivulgacionPublica"
+                        state={{ user }}
+                        className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                      >
+                        Ver
+                        <span className="material-symbols-outlined">arrow_forward</span>
+                      </Link>
+                    ) : cat === 'Formación del Recurso Humano' ? (
+                      <Link
+                        to="/FormacionRecursoHumano"
+                        state={{ user }}
+                        className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                      >
+                        Ver
+                        <span className="material-symbols-outlined">arrow_forward</span>
+                      </Link>
                     ) : (
                       <Link
                         to="/datos"
@@ -117,15 +197,7 @@ export default function Analisis() {
               </div>
             ))}
           </div>
-          <div className="flex justify-end mt-8">
-            <button
-              className="px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
-              onClick={() => window.history.back()}
-            >
-              <span className="material-symbols-outlined align-middle mr-2">arrow_back</span>
-              Volver
-            </button>
-          </div>
+          {/* Volver moved up next to title */}
         </div>
       </main>
     </div>

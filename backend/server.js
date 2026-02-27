@@ -17,11 +17,23 @@ app.use(express.json());
         id INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB;
     `;
     await pool.query(createUsersSql);
     console.log('users table ensured');
+
+    // Add role column if it doesn't exist
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM users WHERE Field = 'role'");
+      if (cols.length === 0) {
+        await pool.query("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'user'");
+        console.log('Added role column to users table');
+      }
+    } catch (err) {
+      console.error('Error checking/adding role column:', err.message);
+    }
 
     const createInvestigadoresSql = `
       CREATE TABLE IF NOT EXISTS investigadores (
@@ -153,7 +165,7 @@ app.post('/login', async (req, res) => {
     if (!ok) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    res.json({ id: user.id, email: user.email });
+    res.json({ id: user.id, email: user.email, role: user.role || 'user' });
   } catch (err) {
     console.error('Login error:', err.message, err.stack);
     res.status(500).json({ message: 'internal server error', error: err.message });

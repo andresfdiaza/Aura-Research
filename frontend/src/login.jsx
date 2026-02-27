@@ -26,7 +26,9 @@ export default function Login() {
         throw new Error(data.message || 'Login failed');
       }
       const data = await res.json();
-      navigate('/home', { state: { user: data } });
+      // Redirigir según el role del usuario
+      const destination = data.role === 'admin' ? '/homeadmin' : '/home';
+      navigate(destination, { state: { user: data } });
     } catch (err) {
       setError(err.message);
     }

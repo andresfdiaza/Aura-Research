@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -18,7 +18,9 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tool
 
 export default function Datos() {
   const location = useLocation();
+  const navigate = useNavigate();
   const user = location.state?.user;
+  const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
   // preselected tipologia can be passed through navigation state
   const initialTipologia = location.state?.tipologia || '';
 
@@ -146,6 +148,9 @@ export default function Datos() {
       if (r.tipo_proyecto && !opts.tipo_proyecto.includes(r.tipo_proyecto)) opts.tipo_proyecto.push(r.tipo_proyecto);
       if (r.tipologia_productos && !opts.tipologia_productos.includes(r.tipologia_productos)) opts.tipologia_productos.push(r.tipologia_productos);
       if (r.titulo_proyecto && !opts.titulo_proyecto.includes(r.titulo_proyecto)) opts.titulo_proyecto.push(r.titulo_proyecto);
+      // Add nodo_padre to tipologia options
+      const nodoPadre = (r.nodo_padre || r.tipologia_productos || '').toString().trim();
+      if (nodoPadre && !opts.tipologia.includes(nodoPadre)) opts.tipologia.push(nodoPadre);
     });
     // sort options for nicer UI
     Object.values(opts).forEach(arr => arr.sort());
@@ -170,7 +175,11 @@ export default function Datos() {
         !r.nombre?.toLowerCase().includes(filters.investigador.toLowerCase())
       )
         return false;
-      if (filters.tipologia && r.tipo_proyecto !== filters.tipologia) return false;
+      // Filter by tipologia using nodo_padre or tipologia_productos
+      if (filters.tipologia) {
+        const nodoPadre = (r.nodo_padre || r.tipologia_productos || '').toString().trim();
+        if (nodoPadre !== filters.tipologia) return false;
+      }
       return true;
     });
   }, [resultados, filters]);
@@ -314,7 +323,7 @@ export default function Datos() {
             <span className="material-symbols-outlined text-2xl">rocket_launch</span>
           </div>
           <div className="flex flex-col">
-            <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">GI2A UNAC</h2>
+            <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
             <span className="text-xs text-neutral-muted font-medium uppercase tracking-wider">
               Facultad de Ingeniería
             </span>
@@ -323,24 +332,25 @@ export default function Datos() {
         <nav className="hidden md:flex items-center gap-8">
           <Link
             className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
-            to="/home"
+            to={homePath}
             state={{ user }}
           >
             Inicio
           </Link>
           <Link
             className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
-            to="/investigadores"
+            to="/DirectorioInvestigadores"
             state={{ user }}
           >
             Investigadores
           </Link>
-          <a className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors" href="#">
-            Proyectos
-          </a>
-          <a className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors" href="#">
-            Reportes
-          </a>
+          <Link
+            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+            to="/analisis"
+            state={{ user }}
+          >
+            Análisis
+          </Link>
         </nav>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
@@ -363,11 +373,14 @@ export default function Datos() {
         </div>
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
-        <main className="flex-1 flex flex-col items-center py-6 px-6 md:px-16">
+        <main className="flex-1 flex flex-col items-center py-5 px-6 md:px-16">
         <div className="max-w-7xl w-full flex flex-col gap-8">
           {/* Back button moved to bottom */}
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-primary">Análisis y Estadísticas Generales</h1>
+          <div className="flex justify-between items-center mb-0">
+            <div className="flex items-center gap-6">
+              <h1 className="text-3xl font-bold text-primary">Análisis y Estadísticas Generales</h1>
+
+            </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleDownloadCSV}
@@ -383,27 +396,63 @@ export default function Datos() {
                 <span className="material-symbols-outlined">table_view</span>
                 <span>Ver tabla</span>
               </button>
+              <button
+                onClick={() => window.history.back()}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
+              >
+                <span className="material-symbols-outlined">arrow_back</span>
+                <span>Volver</span>
+              </button>
             </div>
           </div>
-          {/* filters (single horizontal row, scrollable on small screens) */}
-          <div className="flex flex-row gap-4 mb-0 overflow-x-auto py-1 justify-between">
-            {['facultad', 'programa', 'anio', 'investigador', 'tipologia'].map(key => (
-              <div key={key} className="min-w-[160px]">
-                <label className="block text-xs font-medium mb-1">
-                  {displayLabel(key)}
-                </label>
-                <select
-                  className="w-full border rounded px-2 py-1 text-xs h-8"
-                  value={filters[key]}
-                  onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
-                >
-                  <option value="">Todos</option>
-                  {filterOptions[key]?.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+          {/* KPI cards on left, filters on right */}
+          <div className="flex items-start justify-between mb-0 overflow-x-auto py-1">
+            <div className="flex gap-4">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+                <div>
+                  <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
+                  <p className="text-lg font-bold text-primary">{resultados.length.toLocaleString()}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xxs text-slate-500">Regs</p>
+                  <div className="bg-primary/10 rounded-full p-0.5">
+                    <span className="material-symbols-outlined text-base text-primary">database</span>
+                  </div>
+                </div>
               </div>
-            ))}
+              <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+                <div>
+                  <p className="text-xxs text-slate-600 font-medium mb-0.5">Filtr.</p>
+                  <p className="text-lg font-bold text-accent">{filtered.length.toLocaleString()}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xxs text-slate-500">{filtered.length === resultados.length ? 'Todos' : `${((filtered.length/resultados.length)*100).toFixed(1)}%`}</p>
+                  <div className="bg-accent/10 rounded-full p-0.5">
+                    <span className="material-symbols-outlined text-base text-accent">filter_alt</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-row gap-3">
+              {['facultad', 'programa', 'anio', 'investigador', 'tipologia'].map(key => (
+                <div key={key} className="w-[120px]">
+                  <label className="block text-[9px] font-medium mb-1 truncate text-center">
+                    {displayLabel(key)}
+                  </label>
+                  <select
+                    className="w-full border rounded px-2 py-0.5 text-[10px] h-6 text-center appearance-none"
+                    value={filters[key]}
+                    onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
+                    style={{textAlignLast: 'center'}}
+                  >
+                    <option value="">Todos</option>
+                    {filterOptions[key]?.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
           </div>
           {loading && <p className="text-center text-lg">Cargando datos…</p>}
           {error && <p className="text-center text-red-600">Error: {error}</p>}
@@ -466,8 +515,10 @@ export default function Datos() {
                           }
                         },
                         datalabels: {
+                          // put values outside the bar instead of inside
                           anchor: 'end',
-                          align: 'end',
+                          align: 'top',
+                          offset: 4,
                           formatter: value => value,
                           font: { weight: 'bold' }
                         },
@@ -503,10 +554,14 @@ export default function Datos() {
                         if (!drillMode) {
                           setParentSelected(fullLabel);
                           setDrillMode(true);
+                          // Also set the tipologia filter when clicking a category
+                          setFilters(prev => ({ ...prev, tipologia: fullLabel }));
                         } else {
                           if (idx === 0) {
                             setDrillMode(false);
                             setParentSelected('');
+                            // Clear the tipologia filter when going back
+                            setFilters(prev => ({ ...prev, tipologia: '' }));
                           }
                         }
                       }
@@ -537,7 +592,8 @@ export default function Datos() {
                         title: { display: true, text: 'Cantidad de Productos por Año' },
                         datalabels: {
                           anchor: 'end',
-                          align: 'end',
+                          align: 'top',
+                          offset: 4,
                           formatter: value => value,
                           font: { weight: 'bold' }
                         }
@@ -554,17 +610,7 @@ export default function Datos() {
             <p className="text-center text-gray-600 text-lg">No hay datos disponibles en resultados</p>
           )}
 
-          {/* Back button placed at bottom-right of content */}
-          <div className="flex justify-end mt-6">
-            <button
-              className="px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
-              onClick={() => window.history.back()}
-              aria-label="Volver"
-            >
-              <span className="material-symbols-outlined align-middle mr-2">arrow_back</span>
-              Volver
-            </button>
-          </div>
+          {/* Back button moved to header (next to CSV/Table) */}
 
         </div>
       </main>

@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 export default function Investigadores() {
   const location = useLocation();
-  const user = location.state?.user;
+  const homePath = location.state?.user?.role === 'admin' ? '/homeadmin' : '/home';  const user = location.state?.user;
   const [investigadores, setInvestigadores] = React.useState([]);
   const [editingId, setEditingId] = React.useState(null);
   const [editingData, setEditingData] = React.useState({});
@@ -51,7 +51,7 @@ export default function Investigadores() {
         <nav className="hidden md:flex items-center gap-8">
           <Link
             className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
-            to="/home"
+            to={homePath}
             state={{ user }}
           >
             Inicio
@@ -95,6 +95,13 @@ export default function Investigadores() {
         <div className="max-w-6xl w-full flex flex-col gap-12">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-primary">Directorio de Investigadores</h1>
+        <button
+          onClick={handleVolver}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
+        >
+          <span className="material-symbols-outlined align-middle">arrow_back</span>
+          <span>Volver</span>
+        </button>
       </div>
       {loading && <p>Cargando investigadores…</p>}
       {error && <p className="text-red-600">Error: {error}</p>}

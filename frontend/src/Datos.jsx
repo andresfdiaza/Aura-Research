@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { API_BASE } from './config';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -233,7 +234,7 @@ export default function Datos() {
         if (filters.titulo_proyecto) qs.append('titulo_proyecto', filters.titulo_proyecto);
         // Enviar el filtro como investigador (valor desde nombre)
         if (filters.investigador) qs.append('investigador', filters.investigador);
-        const res = await fetch('http://localhost:4000/api/tipologia-cantidades?' + qs.toString());
+        const res = await fetch(`${API_BASE}/tipologia-cantidades?` + qs.toString());
         if (!res.ok) throw new Error('Error fetching agregados');
         const data = await res.json();
         setTopTipos(data.map(r => [r.tipologia, r.cantidad]));
@@ -263,7 +264,7 @@ export default function Datos() {
         // Enviar el filtro como investigador (valor desde nombre)
         if (filters.investigador) qs.append('investigador', filters.investigador);
         qs.append('tipologia', parentSelected);
-        const res = await fetch('http://localhost:4000/api/nodo-hijo-cantidades?' + qs.toString());
+        const res = await fetch(`${API_BASE}/nodo-hijo-cantidades?` + qs.toString());
         if (!res.ok) throw new Error('Error fetching nodo hijo agregados');
         const data = await res.json();
         setChildColumns(data.map(r => ({ nodo: r.nodo, cantidad: r.cantidad }))); 
@@ -279,7 +280,7 @@ export default function Datos() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('http://localhost:4000/api/resultados');
+        const res = await fetch(`${API_BASE}/resultados`);
         if (!res.ok) throw new Error('Error fetching resultados');
         const data = await res.json();
         setResultados(data);

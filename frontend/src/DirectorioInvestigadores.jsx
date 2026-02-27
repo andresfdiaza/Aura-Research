@@ -1,5 +1,6 @@
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { API_BASE } from './config';
 
 export default function DirectorioInvestigadores() {
   const [resultados, setResultados] = React.useState([]);
@@ -20,7 +21,7 @@ export default function DirectorioInvestigadores() {
         const qs = new URLSearchParams();
         if (filters.facultad) qs.append('facultad', filters.facultad);
         if (filters.programa) qs.append('programa', filters.programa);
-        const url = 'http://localhost:4000/api/resultados' + (qs.toString() ? ('?' + qs.toString()) : '');
+        const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');
         const res = await fetch(url);
         if (!res.ok) throw new Error('Error fetching resultados');
         const data = await res.json();

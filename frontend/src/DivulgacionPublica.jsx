@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
+import { API_BASE } from './config';
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
@@ -25,7 +26,7 @@ export default function DivulgacionPublica() {
         if (filters.facultad) qs.append('facultad', filters.facultad);
         if (filters.programa) qs.append('programa', filters.programa);
         if (filters.investigador) qs.append('investigador', filters.investigador);
-        const url = 'http://localhost:4000/api/resultados' + (qs.toString() ? ('?' + qs.toString()) : '');
+        const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');
         const res = await fetch(url);
         if (!res.ok) throw new Error('Error fetching resultados');
         const data = await res.json();

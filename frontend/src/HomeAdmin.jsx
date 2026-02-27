@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import './home.css';
+import { API_BASE } from './config';
 
 export default function HomeAdmin() {
   const location = useLocation();
@@ -229,7 +230,7 @@ export default function HomeAdmin() {
           onClick={async () => {
             setScrapingStatus('Ejecutando...');
             try {
-              const res = await fetch('http://localhost:4000/api/scraping/ejecutar', { method: 'POST' });
+              const res = await fetch(`${API_BASE}/scraping/ejecutar`, { method: 'POST' });
               const data = await res.json();
               if (res.ok) setScrapingStatus(data.message || 'Scraping ejecutado correctamente');
               else setScrapingStatus(data.error || 'Error ejecutando scraping');

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import './home.css';
+import { SERVER_BASE } from './config';
 import { API_BASE } from './config';
 
 export default function HomeAdmin() {
@@ -42,7 +43,7 @@ export default function HomeAdmin() {
     setSuccess(false);
 
     try {
-      const res = await fetch('http://localhost:4000/investigadores', {
+        const res = await fetch(`${SERVER_BASE}/investigadores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

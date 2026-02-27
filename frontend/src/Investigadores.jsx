@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { SERVER_BASE } from './config';
 
 export default function Investigadores() {
   const location = useLocation();
@@ -17,7 +18,7 @@ export default function Investigadores() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('http://localhost:4000/investigadores');
+        const res = await fetch(`${SERVER_BASE}/investigadores`);
         if (!res.ok) throw new Error('Error fetching investigadores');
         const data = await res.json();
         setInvestigadores(data);
@@ -171,7 +172,7 @@ export default function Investigadores() {
                           className="px-3 py-1 bg-green-500 text-white rounded text-sm"
                           onClick={async () => {
                             try {
-                              const res = await fetch(`http://localhost:4000/investigadores/${inv.id}`, {
+                              const res = await fetch(`${SERVER_BASE}/investigadores/${inv.id}`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(editingData),
@@ -216,7 +217,7 @@ export default function Investigadores() {
                           onClick={async () => {
                             if (!confirm('¿Eliminar este investigador?')) return;
                             try {
-                              const res = await fetch(`http://localhost:4000/investigadores/${inv.id}`, { method: 'DELETE' });
+                              const res = await fetch(`${SERVER_BASE}/investigadores/${inv.id}`, { method: 'DELETE' });
                               if (!res.ok) throw new Error('Delete failed');
                               setInvestigadores((prev) => prev.filter(p => p.id !== inv.id));
                             } catch (err) {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import unacLogo from './assets/Logo UNAC + FI Azul@2x.png';
 import bgImage from './assets/fondo.jpg';
 import './login.css';
+import { LOGIN_URL } from './config';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     try {
-      const res = await fetch('http://localhost:4000/login', {
+      const res = await fetch(LOGIN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

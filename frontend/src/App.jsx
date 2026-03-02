@@ -14,8 +14,9 @@ import DirectorioInvestigadores from './DirectorioInvestigadores';
 import './App.css';
 
 function App() {
+  const basePath = import.meta.env.DEV ? '/' : '/auraresearch/';
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basePath}>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/home" element={<Home />} />

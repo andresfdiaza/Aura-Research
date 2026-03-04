@@ -31,3 +31,33 @@ exports.executeScraping = async () => {
     });
   });
 };
+
+// run python scraping logic for GroupLab. the processing lives in scraping_grupoinves.py
+exports.executeScrapingGroupLab = async () => {
+  return new Promise((resolve, reject) => {
+    // execute the GroupLab scraping script which handles fetching group data
+    // the scraping scripts live at workspace root in the `Scraping` folder
+    const scriptPath = path.resolve(__dirname, '..', '..', 'Scraping', 'scraping_grupoinves.py');
+    // set environment variables so Python uses UTF-8 for I/O (prevents
+    // UnicodeEncodeError when printing emojis on Windows)
+    const env = Object.assign({}, process.env, {
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8: '1'
+    });
+    exec(`python "${scriptPath}"`, { env, maxBuffer: 1024 * 500 }, (error, stdout, stderr) => {
+      if (error) {
+        return reject(error);
+      }
+      // After scraping succeeds, regenerate the clean table
+      const cleanScriptPath = path.resolve(__dirname, '..', '..', 'Scraping', 'crear_titulo_grouplab_clean_v2.py');
+      exec(`python "${cleanScriptPath}"`, { env, maxBuffer: 1024 * 500 }, (cleanError, cleanStdout, cleanStderr) => {
+        if (cleanError) {
+          console.error('Error regenerating clean table:', cleanError);
+          // Still resolve even if clean table generation fails - scraping succeeded
+          return resolve({ stdout: stdout + '\n--- Clean table generation ---\n' + cleanStdout, stderr: stderr });
+        }
+        resolve({ stdout: stdout + '\n--- Clean table generation ---\n' + cleanStdout, stderr: stderr });
+      });
+    });
+  });
+};

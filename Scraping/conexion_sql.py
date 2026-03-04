@@ -7,7 +7,9 @@ def limpiar_tabla():
         #host="ingenieria.unac.edu.co",
         #user="investiga",
         password="Amaamama12345.",
-        database="scraping"
+        database="scraping",
+        charset='utf8mb4',
+        use_unicode=True
     )
     cursor = conexion.cursor()
     cursor.execute("TRUNCATE TABLE resultados")
@@ -22,7 +24,9 @@ def asegurar_columna_nodo_padre():
         host="localhost",
         user="root",
         password="Amaamama12345.",
-        database="scraping"
+        database="scraping",
+        charset='utf8mb4',
+        use_unicode=True
     )
     cursor = conexion.cursor()
     try:
@@ -71,7 +75,9 @@ def guardar_en_mysql(datos):
         #host="ingenieria.unac.edu.co",
         #user="investiga",
         password="Amaamama12345.",
-        database="scraping"
+        database="scraping",
+        charset='utf8mb4',
+        use_unicode=True
     )
 
     cursor = conexion.cursor()

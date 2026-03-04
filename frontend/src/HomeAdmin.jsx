@@ -218,14 +218,6 @@ export default function HomeAdmin() {
       </div>
       <div className="flex gap-2 justify-end mb-8">
         <button
-          title="Agregar Investigador"
-          className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-sm"
-          onClick={() => setShowAddModal(true)}
-        >
-          <span className="material-symbols-outlined text-base">person_add</span>
-          <span>Agregar</span>
-        </button>
-        <button
           title="Iniciar Scraping"
           className="flex items-center gap-1 px-4 py-2 bg-[#F5A800] text-white rounded-lg font-bold shadow-md shadow-yellow-300 hover:bg-yellow-500 transition-all text-sm"
           onClick={async () => {
@@ -241,15 +233,25 @@ export default function HomeAdmin() {
           }}
         >
           <span className="material-symbols-outlined text-base">web</span>
-          <span>Scraping</span>
+          <span>Scraping Cvlac</span>
         </button>
         <button
-          title="Editar Investigador"
-          className="flex items-center gap-1 px-4 py-2 bg-slate-500 text-white rounded-lg font-bold shadow-md shadow-slate-400 hover:bg-slate-600 transition-all text-sm"
-          onClick={() => navigate('/investigadores', { state: { user } })}
+          title="Iniciar Scraping GroupLab"
+          className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md shadow-green-400 hover:bg-green-700 transition-all text-sm"
+          onClick={async () => {
+            setScrapingStatus('Ejecutando Scraping GroupLab...');
+            try {
+              const res = await fetch(`${API_BASE}/scraping/ejecutar-grouplab`, { method: 'POST' });
+              const data = await res.json();
+              if (res.ok) setScrapingStatus(data.message || 'Scraping GroupLab ejecutado correctamente');
+              else setScrapingStatus(data.error || 'Error ejecutando scraping GroupLab');
+            } catch (err) {
+              setScrapingStatus(err.message);
+            }
+          }}
         >
-          <span className="material-symbols-outlined text-base">edit</span>
-          <span>Editar</span>
+          <span className="material-symbols-outlined text-base">web</span>
+          <span>Scraping GroupLab</span>
         </button>
       </div>
       {scrapingStatus && (

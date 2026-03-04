@@ -29,6 +29,8 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'root'),
     'password': os.getenv('DB_PASS', 'Amaamama12345.'),
     'database': os.getenv('DB_NAME', 'scraping'),
+    'charset': 'utf8mb4',
+    'use_unicode': True
 }
 
 def obtener_urls_db():
@@ -88,8 +90,10 @@ NODO_PADRE_MAP = {
     "Artículo": "Nuevo Conocimiento",
     "Libro": "Nuevo Conocimiento",
     "Capítulos de libro": "Nuevo Conocimiento",
+    "Otra producción bibliográfica": "Divulgación Pública de la Ciencia",
     "Patente": "Nuevo Conocimiento",
     "Software": "Desarrollo Tecnológico e Innovación",
+    "Otros productos tecnológicos": "Desarrollo Tecnológico e Innovación",
     "Prototipo industrial": "Desarrollo Tecnológico e Innovación",
     "Secreto empresarial": "Desarrollo Tecnológico e Innovación",
     "Innovaciones generadas de producción empresarial": "Desarrollo Tecnológico e Innovación",
@@ -100,19 +104,30 @@ NODO_PADRE_MAP = {
     "Proceso de Apropiación Social del Conocimiento para el fortalecimiento de cadenas": "Apropiación Social del Conocimiento",
     "Evento científico": "Divulgación Pública de la Ciencia",
     "Documento de trabajo": "Divulgación Pública de la Ciencia",
+    "Textos en publicaciones no científicas": "Divulgación Pública de la Ciencia",
     "Informes finales de investigación": "Divulgación Pública de la Ciencia",
     "Informe técnico": "Divulgación Pública de la Ciencia",
     "Consultoría Científico Tecnológica e Informe Técnico": "Divulgación Pública de la Ciencia",
     "Producción de estrategias y contenidos transmedia": "Divulgación Pública de la Ciencia",
     "Desarrollos web": "Divulgación Pública de la Ciencia",
     "Trabajo dirigido de doctorado": "Formación del Recurso Humano",
-    "Trabajo dirigido de grado de maestría o especialidad clínica": "Formación del Recurso Humano",
-    "Trabajo dirigido de grado de pregrado": "Formación del Recurso Humano",
+    "Trabajo de grado de maestría o especialidad clínica": "Formación del Recurso Humano",
+    "Trabajos de grado de pregrado": "Formación del Recurso Humano",
     "Investigación y desarrollo": "Formación del Recurso Humano",
     "Investigación desarrollo e Innovación": "Formación del Recurso Humano",
     "Extensión y responsabilidad social CTI": "Formación del Recurso Humano",
     "Trabajo dirigido de conclusión de curso de perfeccionamiento/especialización": "Formación del Recurso Humano",
-    "Trabajo dirigido de otro tipo": "Formación del Recurso Humano",
+    "Trabajos dirigidos/Tutorías de otro tipo": "Formación del Recurso Humano",
+    "Monografía de conclusión de curso de perfeccionamiento/especialización": "Formación del Recurso Humano",
+    "Tesis de doctorado": "Formación del Recurso Humano",
+    # Tipos de divulgación adicionales
+    "redes conocimiento especializado": "Divulgación Pública de la Ciencia",
+    "contenido impreso": "Divulgación Pública de la Ciencia",
+    "contenido multimedia": "Divulgación Pública de la Ciencia",
+    "contenido virtual": "Divulgación Pública de la Ciencia",
+    "estrategias comunicacion conocimiento": "Divulgación Pública de la Ciencia",
+    "estrategias pedagogicas cti": "Divulgación Pública de la Ciencia",
+    "participacion ciudadana cti": "Divulgación Pública de la Ciencia",
 }
 
 def obtener_nodo_padre(nodo_hijo):
@@ -130,14 +145,56 @@ if os.path.exists(archivo_csv):
     os.remove(archivo_csv)
 
 def quitar_tildes(texto):
+    """Mantiene tildes y ñ, solo hace limpieza de encoding"""
     if not texto:
         return ""
-    texto = unicodedata.normalize("NFD", texto)
-    texto = texto.encode("ascii", "ignore").decode("utf-8")
+    # Solo normaliza el encoding, NO quita tildes
+    if isinstance(texto, bytes):
+        texto = texto.decode('utf-8', errors='replace')
+    texto = unicodedata.normalize("NFC", texto)
     return texto
+
+def reparar_mojibake(texto):
+    """Repara texto mal decodificado (ej: investigaciÃ³n -> investigación)."""
+    if not texto or not isinstance(texto, str):
+        return texto
+
+    # Señales típicas de UTF-8 mal interpretado
+    patron_mojibake = r"[ÃÂâ]|\uFFFD"
+    if not re.search(patron_mojibake, texto):
+        return texto
+
+    def puntaje(cadena):
+        # Menor puntaje = texto más limpio
+        return len(re.findall(patron_mojibake, cadena))
+
+    mejor = texto
+    mejor_puntaje = puntaje(texto)
+
+    # Probar reparaciones con latin-1 y cp1252
+    for encoding in ("latin-1", "cp1252"):
+        for modo_error in ("strict", "replace"):
+            try:
+                candidato = texto.encode(encoding, errors=modo_error).decode("utf-8", errors="replace")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                continue
+
+            p = puntaje(candidato)
+            if p < mejor_puntaje:
+                mejor = candidato
+                mejor_puntaje = p
+
+    return mejor
+
 def limpiar(texto):
     if not texto:
         return ""
+    if isinstance(texto, bytes):
+        texto = texto.decode("utf-8", errors="replace")
+    texto = reparar_mojibake(texto)
+    # Decodificar entidades HTML (&aacute;, &ntilde;, etc.)
+    texto = html.unescape(texto)
+    texto = unicodedata.normalize("NFC", texto)
     texto = texto.replace("\xa0", " ")
     texto = re.sub(r"\s+", " ", texto)
     return texto.strip()
@@ -145,11 +202,12 @@ def limpiar(texto):
 # no deseados del texto extraído.
 def limpiar_titulo(titulo):
     """
-    Quita tildes, espacios, comillas y reemplaza comas internas por punto y coma.
+    Limpia espacios, comillas y reemplaza comas internas por punto y coma.
+    Mantiene tildes y ñ.
     """
     if not titulo:
         return ""
-    titulo = quitar_tildes(titulo)        # Quita tildes
+    titulo = quitar_tildes(titulo)        # Normaliza encoding
     titulo = titulo.replace('"', '')      # Quita comillas dobles
     titulo = titulo.replace("'", '')      # Quita comillas simples
     titulo = titulo.replace(",", ";")     # Reemplaza comas internas
@@ -176,15 +234,13 @@ def limpiar_tipo_trabajo(texto):
 
     texto = limpiar(texto)
 
-    # Nos quedamos SOLO con lo que está después del "de"
+    # Nos quedamos SOLO con lo que está después del "-"
+    # Ej: "Trabajos dirigidos/Tutorías - Trabajos de grado de pregrado" → "Trabajos de grado de pregrado"
+    # Ej: "Trabajos dirigidos/Tutorías - Trabajo de grado de maestría o especialidad clínica" → "Trabajo de grado de maestría o especialidad clínica"
     if "-" in texto:
-        texto = texto.split("de", 1)[1].strip()
-
-    # Aseguramos formato uniforme
-    texto = texto.lower()
-
-    # Construimos el texto final
-    return f"Trabajo dirigido de {texto}"
+        texto = texto.split("-", 1)[1].strip()
+    
+    return texto
 
 def limpiar_tipo_consultoria(texto):
     texto = limpiar(texto)
@@ -206,9 +262,27 @@ def obtener_html():
             response = session.get(URL, timeout=60)
 
             if response.status_code == 200:
-                # 🔥 Decodificar manualmente desde bytes
-                html = response.content.decode("latin-1")
-                return html
+                # Decodificación robusta para evitar mojibake en tildes/ñ
+                encodings = [
+                    response.encoding,
+                    response.apparent_encoding,
+                    "utf-8",
+                    "latin-1",
+                ]
+                html_content = None
+
+                for enc in [e for e in encodings if e]:
+                    try:
+                        html_content = response.content.decode(enc, errors="strict")
+                        break
+                    except UnicodeDecodeError:
+                        continue
+
+                if html_content is None:
+                    html_content = response.content.decode("utf-8", errors="replace")
+
+                html_content = reparar_mojibake(html_content)
+                return html_content
 
             print(f"Servidor respondió {response.status_code}, esperando...")
             time.sleep(5)
@@ -979,6 +1053,164 @@ def extraer_capitulos_libro(soup):
     return resultados
 
 #================================================
+# EXTRAER TEXTOS EN PUBLICACIONES NO CIENTÍFICAS
+#================================================
+def extraer_textos_publicaciones_no_cientificas(soup):
+
+    resultados = []
+
+    # 1️⃣ Buscar la sección por h3 (más confiable que el ancla)
+    h3 = soup.find(
+        "h3",
+        string=lambda t: t and "publicaciones no cient" in limpiar(t).lower()
+    )
+    if not h3:
+        print("⚠️ No se encontró la sección Textos en publicaciones no científicas")
+        return resultados
+
+    # 2️⃣ Recorrer blockquotes de esta sección
+    for blockquote in h3.find_all_next("blockquote"):
+        if blockquote.find_previous("h3") != h3:
+            break
+
+        texto = limpiar(blockquote.get_text(" "))
+
+        # 3️⃣ Título entre comillas
+        titulo_match = re.search(r'"{1,2}\s*(.*?)\s*"{1,2}', texto)
+        if titulo_match:
+            titulo = titulo_match.group(1).strip()
+        else:
+            # Fallback: tomar texto antes de "En:" quitando autores iniciales
+            parte = re.split(r"\.?\s*En:", texto, flags=re.IGNORECASE)[0].strip(" ,.")
+            if "," in parte:
+                parte = parte.split(",", 1)[1].strip(" ,.")
+            titulo = parte
+
+        if not titulo:
+            continue
+
+        # 4️⃣ Año
+        anio_match = re.search(r"En:\s*[^\d]{0,120}(19|20)\d{2}", texto)
+        if anio_match:
+            anio = re.search(r"(19|20)\d{2}", anio_match.group(0)).group(0)
+        else:
+            anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
+            anio = anio_match.group(0) if anio_match else ""
+
+        resultados.append({
+            "NodoHijo": "Textos en publicaciones no científicas",
+            "Titulo_proyecto": titulo,
+            "año": anio
+        })
+
+    print(f"✅ Total TEXTOS EN PUBLICACIONES NO CIENTÍFICAS: {len(resultados)}")
+    return resultados
+
+#================================================
+# EXTRAER OTRA PRODUCCIÓN BIBLIOGRÁFICA
+#================================================
+def extraer_otra_produccion_bibliografica(soup):
+
+    resultados = []
+
+    # 1️⃣ Buscar sección "Otra producción blibliográfica" (con typo en el HTML)
+    h3 = soup.find(
+        "h3",
+        string=lambda t: t and "otra" in limpiar(t).lower() and (
+            "bibliográfica" in limpiar(t).lower() or 
+            "blibliográfica" in limpiar(t).lower()
+        )
+    )
+    
+    if not h3:
+        print("⚠️ No se encontró la sección Otra producción bibliográfica")
+        return resultados
+
+    # 2️⃣ Buscar contenedor (tabla)
+    contenedor = h3.find_parent("table")
+    if not contenedor:
+        print("⚠️ No se encontró contenedor de Otra producción bibliográfica")
+        return resultados
+
+    # 3️⃣ Buscar solo subtipos "Producción bibliográfica - Otra producción bibliográfica - Otra"
+    for b in contenedor.find_all("b"):
+        texto_b = limpiar(b.get_text(" "))
+        texto_b_lower = texto_b.lower()
+        
+        # Verificar que sea el subtipo correcto (flexible con encoding issues)
+        if not ("producci" in texto_b_lower and 
+                "bibliogr" in texto_b_lower and 
+                "otra" in texto_b_lower and 
+                texto_b.strip().lower().endswith("otra")):
+            continue
+
+        # 4️⃣ Buscar el blockquote con el contenido
+        tr = b.find_parent("tr")
+        siguiente_tr = tr.find_next_sibling("tr") if tr else None
+        blockquote = siguiente_tr.find("blockquote") if siguiente_tr else None
+        
+        if not blockquote:
+            continue
+
+        texto = limpiar(blockquote.get_text(" "))
+
+        # 5️⃣ Título: puede estar entre comillas o después de comas
+        titulo = ""
+        
+        # Buscar texto entre comillas
+        titulo_match = re.search(r'["«"]\s*(.*?)\s*["»"]', texto)
+        if titulo_match:
+            titulo = titulo_match.group(1).strip()
+        else:
+            # Fallback: tomar texto antes de "En:" o antes del año
+            # Quitar autores capitalizados al inicio (ej: WILSON ARANA PALOMINO,)
+            partes = texto.split(",")
+            for i, parte in enumerate(partes):
+                parte_limpia = parte.strip()
+                # Si no es todo mayúsculas (no es autor), tomar desde ahí
+                if parte_limpia and parte_limpia != parte_limpia.upper():
+                    # Unir desde esta parte hasta "En:"
+                    resto = ",".join(partes[i:])
+                    if "En:" in resto:
+                        titulo = resto.split("En:")[0].strip(" ,.")
+                    else:
+                        # Tomar hasta encontrar el año
+                        titulo_match = re.match(r"(.*?)\s*\.?\s*(19|20)\d{2}", resto)
+                        if titulo_match:
+                            titulo = titulo_match.group(1).strip(" ,.")
+                        else:
+                            titulo = resto.strip(" ,.")
+                    break
+            
+            # Si no se encontró título, usar todo el texto hasta "En:" o año
+            if not titulo:
+                if "En:" in texto:
+                    titulo = texto.split("En:")[0].strip(" ,.")
+                else:
+                    titulo_match = re.match(r"(.*?)\s*\.?\s*(19|20)\d{2}", texto)
+                    if titulo_match:
+                        titulo = titulo_match.group(1).strip(" ,.")
+                    else:
+                        titulo = texto[:200].strip(" ,.")  # Limitar longitud
+        
+        titulo = titulo.strip('" ,.')
+        
+        # 6️⃣ Año: tomar el primer año mencionado (normalmente el año de inicio del estudio/publicación)
+        anio = ""
+        anio_match = re.search(r"(19\d{2}|20\d{2})", texto)
+        anio = anio_match.group(1) if anio_match else ""
+
+        if titulo:
+            resultados.append({
+                "NodoHijo": "Otra producción bibliográfica",
+                "Titulo_proyecto": titulo,
+                "año": anio
+            })
+
+    print(f"✅ Total OTRA PRODUCCIÓN BIBLIOGRÁFICA: {len(resultados)}")
+    return resultados
+
+#================================================
 # EXTRAER INNOVACIONES DE GESTIÓN EMPRESARIAL
 #================================================
 def extraer_innovaciones_gestion_empresarial(soup):
@@ -1214,6 +1446,75 @@ def extraer_software(soup):
 
 
 #================================================
+# EXTRAER OTROS PRODUCTOS TECNOLÓGICOS
+#================================================
+def extraer_otros_productos_tecnologicos(soup):
+
+    resultados = []
+
+    # 1️⃣ Buscar sección de productos tecnológicos
+    h3 = soup.find("h3", string=re.compile(r"Productos tecnológicos", re.IGNORECASE))
+    if not h3:
+        print("⚠️ No se encontró la sección Productos tecnológicos")
+        return resultados
+
+    contenedor = h3.find_parent("table")
+    if not contenedor:
+        print("⚠️ No se encontró contenedor de Productos tecnológicos")
+        return resultados
+
+    def es_probable_autor(fragmento):
+        frag = limpiar(fragmento).strip(" ,.")
+        if not frag:
+            return False
+        palabras = [p for p in frag.split() if p]
+        if len(palabras) < 2 or len(palabras) > 6:
+            return False
+        return frag == frag.upper()
+
+    # 2️⃣ Buscar solo subtipos "... Productos tecnológicos - Otro"
+    for b in contenedor.find_all("b"):
+        texto_b = limpiar(b.get_text(" "))
+        if "Producción técnica - Productos tecnológicos - Otro" not in texto_b:
+            continue
+
+        tr = b.find_parent("tr")
+        siguiente_tr = tr.find_next_sibling("tr") if tr else None
+        blockquote = siguiente_tr.find("blockquote") if siguiente_tr else None
+        if not blockquote:
+            continue
+
+        texto = limpiar(blockquote.get_text(" "))
+
+        # 3️⃣ Título: todo antes de "Nombre comercial", removiendo autores al inicio
+        parte_titulo = re.split(r"\s*,\s*Nombre comercial\s*:", texto, flags=re.IGNORECASE)[0]
+        parte_titulo = parte_titulo.strip(" ,.")
+
+        fragmentos = [f.strip(" ,.") for f in parte_titulo.split(",") if f.strip(" ,.")]
+        inicio_titulo = 0
+        while inicio_titulo < len(fragmentos) and es_probable_autor(fragmentos[inicio_titulo]):
+            inicio_titulo += 1
+
+        titulo = ", ".join(fragmentos[inicio_titulo:]).strip(" ,.")
+        if not titulo:
+            titulo = parte_titulo
+
+        # 4️⃣ Año
+        anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
+        anio = anio_match.group(0) if anio_match else ""
+
+        if titulo:
+            resultados.append({
+                "NodoHijo": "Otros productos tecnológicos",
+                "Titulo_proyecto": titulo,
+                "año": anio
+            })
+
+    print(f"✅ Total OTROS PRODUCTOS TECNOLÓGICOS: {len(resultados)}")
+    return resultados
+
+
+#================================================
 # EXTRAER PROTOTIPOS INDUSTRIALES
 #================================================
 def extraer_prototipos_industriales(soup):
@@ -1287,6 +1588,23 @@ def extraer_innovacion_procesos(soup):
         print("⚠️ No se encontró el h3 de Innovación de proceso o procedimiento")
         return resultados
 
+    def es_probable_autor(fragmento):
+        """Heurística: autores suelen ser nombres cortos en mayúsculas."""
+        frag = limpiar(fragmento).strip(" ,.")
+        if not frag:
+            return False
+
+        palabras = [p for p in frag.split() if p]
+        if len(palabras) < 2 or len(palabras) > 6:
+            return False
+
+        # Permitir letras (incluyendo tildes), guiones y apóstrofes
+        solo_texto = re.sub(r"[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\-']", "", frag)
+        if not solo_texto:
+            return False
+
+        return frag == frag.upper()
+
     # 2️⃣ Recorrer hasta el siguiente h3
     for elem in h3.find_all_next():
 
@@ -1298,13 +1616,22 @@ def extraer_innovacion_procesos(soup):
 
         texto = limpiar(elem.get_text(" "))
 
-        # ✅ TÍTULO: texto antes de ", Nombre comercial"
-        titulo_match = re.search(
-            r"([^,]+)(?=,\s*Nombre comercial)",
-            texto,
-            re.IGNORECASE
-        )
-        titulo = titulo_match.group(1).strip() if titulo_match else ""
+        # ✅ TÍTULO: todo antes de "Nombre comercial", quitando autores iniciales
+        parte_titulo = re.split(r"\s*,\s*Nombre comercial\s*:", texto, flags=re.IGNORECASE)[0]
+        parte_titulo = parte_titulo.strip(" ,.")
+
+        fragmentos = [f.strip(" ,.") for f in parte_titulo.split(",") if f.strip(" ,.")]
+
+        # Saltar autores iniciales (nombres cortos en mayúsculas)
+        inicio_titulo = 0
+        while inicio_titulo < len(fragmentos) and es_probable_autor(fragmentos[inicio_titulo]):
+            inicio_titulo += 1
+
+        titulo = ", ".join(fragmentos[inicio_titulo:]).strip(" ,.")
+
+        # Fallback por seguridad
+        if not titulo:
+            titulo = parte_titulo
 
         # ✅ AÑO
         anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
@@ -1460,31 +1787,69 @@ def extraer_informes_finales_investigacion(soup):
     # 🔹 Iterar cada bloque
     for block in tabla.find_all("blockquote", recursive=True):
 
-        texto = block.get_text(" ", strip=True)
+        # Obtener texto preservando saltos de línea
+        texto = block.get_text("\n", strip=True)
 
         # ========================
-        # 1️⃣ Extraer año
+        # 1️⃣ Extraer año (último año encontrado)
         # ========================
-        anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
-        anio = anio_match.group(0) if anio_match else ""
+        anios = re.findall(r"\b(?:19|20)\d{2}\b", texto)
+        anio = anios[-1] if anios else ""
 
         # ========================
         # 2️⃣ Extraer título
         # ========================
-
-        # Cortar antes de ". En:"
+        
+        # Cortar antes de ".En:" (lo que viene antes de Colombia)
         titulo_bruto = re.split(r"\.?\s*En:", texto, flags=re.IGNORECASE)[0]
 
-        # Eliminar el autor (todo hasta la primera coma)
-        if "," in titulo_bruto:
-            titulo_bruto = titulo_bruto.split(",", 1)[1]
+        # Eliminar espacios múltiples (que pueden haber por el \n)
+        titulo_bruto = re.sub(r"\s+", " ", titulo_bruto)
 
-        titulo = titulo_bruto.strip(" ,.")
+        # ========================
+        # 3️⃣ Eliminar TODOS los autores
+        # ========================
+        # Los autores siguen el patrón: "NOMBRE APELLIDO, NOMBRE APELLIDO, ..."
+        # El título empieza después de la última coma que separa un nombre de un título más largo
+        
+        # Estrategia: buscar la última secuencia de "PALABRA MAYUSCULA, PALABRA MAYUSCULA, ..."
+        # y luego el título comienza después
+        
+        # Dividir por comas
+        partes = [p.strip() for p in titulo_bruto.split(",")]
+        
+        # Encontrar dónde termina la lista de autores
+        # Los nombres autores suelen ser cortos y sin palabras muy largas
+        # El título es significativamente más largo
+        
+        indice_titulo = 0
+        for i, parte in enumerate(partes):
+            # Si la parte tiene palabras largas (>10 caracteres) o contiene minúsculas al inicio
+            # es probable que sea el título
+            palabras = parte.split()
+            tiene_palabra_larga = any(len(p) > 10 for p in palabras)
+            tiene_minuscula_inicio = parte and parte[0].islower()
+            
+            # Si encontramos una parte que parece un título (no es un nombre corto)
+            # ese es nuestro punto de corte
+            if tiene_palabra_larga or tiene_minuscula_inicio or len(parte) > 40:
+                indice_titulo = i
+                break
+        
+        # Si no encontramos un punto de corte claro, tomar de la penúltima parte en adelante
+        if indice_titulo == 0 and len(partes) > 1:
+            indice_titulo = len(partes) - 1
+        
+        # Reconstruir el título desde el índice identificado
+        titulo = ", ".join(partes[indice_titulo:]).strip(" ,.")
+        
+        # Aplicar función para quitar tildes (si existe)
+        try:
+            titulo = quitar_tildes(titulo)
+        except:
+            pass
 
-        # Limpieza extra
-        titulo = re.sub(r"\s{2,}", " ", titulo)
-
-        if titulo:
+        if titulo and len(titulo) > 3:  # Asegurar que sea un título válido
             resultados.append({
                 "NodoHijo": nodo_hijo,
                 "Titulo_proyecto": titulo,
@@ -1591,7 +1956,8 @@ def main():
     with open("debug.html", "w", encoding="utf-8") as f:
         f.write(html)
 
-    soup = BeautifulSoup(html, "lxml")
+    # `html.parser` evita mojibake con páginas ISO-8859-1 de CVLAC (caso Walter)
+    soup = BeautifulSoup(html, "html.parser")
 
     # -----------------------------
     # Inicializar variables
@@ -1615,11 +1981,14 @@ def main():
     articulos = extraer_articulos(soup)
     libros = extraer_libros(soup)
     capitulos_libro = extraer_capitulos_libro(soup)
+    textos_no_cientificos = extraer_textos_publicaciones_no_cientificas(soup)
+    otra_produccion_bibliografica = extraer_otra_produccion_bibliografica(soup)
     innovaciones_gestion_empresarial = extraer_innovaciones_gestion_empresarial(soup)
     documentos_trabajo = extraer_documentos_trabajo(soup)
     patentes = extraer_patentes(soup)
     secretos_empresariales = extraer_secretos_empresariales(soup)
     software = extraer_software(soup)
+    otros_productos_tecnologicos = extraer_otros_productos_tecnologicos(soup)
     prototipos_industriales = extraer_prototipos_industriales(soup)
     innovacion_procesos = extraer_innovacion_procesos(soup)
     informes_tecnicos = extraer_informes_tecnicos(soup)
@@ -1642,11 +2011,14 @@ def main():
         (articulos, "Titulo_proyecto"),
         (libros, "Titulo_proyecto"),
         (capitulos_libro, "Titulo_proyecto"),
+        (textos_no_cientificos, "Titulo_proyecto"),
+        (otra_produccion_bibliografica, "Titulo_proyecto"),
         (innovaciones_gestion_empresarial, "Titulo_proyecto"),
         (documentos_trabajo, "Titulo_documento"),
         (patentes, "Titulo_patente"),
         (secretos_empresariales, "Titulo_secreto"),
         (software, "Titulo_proyecto"),
+        (otros_productos_tecnologicos, "Titulo_proyecto"),
         (prototipos_industriales, "Titulo_prototipo"),
         (innovacion_procesos, "Titulo_proyecto"),
         (informes_tecnicos, "Titulo_proyecto"),

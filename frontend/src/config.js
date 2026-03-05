@@ -9,4 +9,4 @@ const DEFAULT_SERVER_BASE = import.meta.env.DEV
 
 export const SERVER_BASE = import.meta.env.VITE_SERVER_BASE || DEFAULT_SERVER_BASE;
 export const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? `${SERVER_BASE}/api` : `/auraresearch/api`);
-export const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || (import.meta.env.DEV ? `${SERVER_BASE}/login` : `/auraresearch/login`);
+export const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || (import.meta.env.DEV ? `${SERVER_BASE}/api/login` : `/auraresearch/api/login`);

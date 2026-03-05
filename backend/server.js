@@ -149,7 +149,7 @@ app.post('/register', async (req, res) => {
 });
 
 // login route
-app.post('/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ message: 'email and password required' });

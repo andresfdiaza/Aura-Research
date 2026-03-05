@@ -173,7 +173,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // list investigadores (nombre, cedula, facultad, programa)
-app.get('/investigadores', async (req, res) => {
+app.get('/api/investigadores', async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT id, nombre_completo, cedula, facultad, programa_academico FROM investigadores'

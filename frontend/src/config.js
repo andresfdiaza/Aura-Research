@@ -8,5 +8,5 @@ const DEFAULT_SERVER_BASE = import.meta.env.DEV
   : window.location.origin;
 
 export const SERVER_BASE = import.meta.env.VITE_SERVER_BASE || DEFAULT_SERVER_BASE;
-export const API_BASE = import.meta.env.VITE_API_BASE || `${SERVER_BASE}/api`;
-export const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || `${SERVER_BASE}/login`;
+export const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? `${SERVER_BASE}/api` : `/auraresearch/api`);
+export const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || (import.meta.env.DEV ? `${SERVER_BASE}/login` : `/auraresearch/login`);

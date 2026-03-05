@@ -339,6 +339,51 @@ app.get('/api/resultados', async (req, res) => {
   }
 });
 
+// get tabla_normalizada_final with optional filters for CSV download
+app.get('/api/tabla-normalizada-final', async (req, res) => {
+  const { facultad, programa } = req.query;
+  let sql = `SELECT
+      facultad,
+      programa_academico AS programa,
+      categoria,
+      nombre,
+      tipo_proyecto,
+      nodo_padre_resultados AS nodo_padre,
+      titulo_proyecto,
+      anio,
+      tipo_grouplab,
+      nodo_padre_grouplab,
+      autor_1_grouplab,
+      autor_2_grouplab,
+      autor_3_grouplab,
+      autor_4_grouplab,
+      autor_5_grouplab,
+      issn,
+      isbn,
+      revista
+    FROM scraping.tabla_Normalizada_final`;
+  const conditions = [];
+  const params = [];
+  if (facultad) {
+    conditions.push('facultad = ?');
+    params.push(facultad);
+  }
+  if (programa) {
+    conditions.push('programa_academico = ?');
+    params.push(programa);
+  }
+  if (conditions.length) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+  try {
+    const [rows] = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching tabla_normalizada_final:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
 // provide aggregated counts by tipologia using nodos, with optional filters
 app.get('/api/tipologia-cantidades', async (req, res) => {
   const { facultad, programa, anio, investigador, tipo, categoria, cedula, sexo, grado, tipologia, titulo_proyecto } = req.query;

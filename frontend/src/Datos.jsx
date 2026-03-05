@@ -44,7 +44,6 @@ export default function Datos() {
     facultad: '',
     programa: '',
     anio: '',
-    investigador: '', // value comes from view column `nombre`
     categoria: '',
     cedula: '',
     sexo: '',
@@ -134,14 +133,13 @@ export default function Datos() {
   // derive available options for filters once resultados is loaded
   const filterOptions = React.useMemo(() => {
     const opts = {
-      facultad: [], programa: [], anio: [], investigador: [], tipologia: [],
+      facultad: [], programa: [], anio: [], tipologia: [],
       categoria: [], cedula: [], sexo: [], grado: [], tipo_proyecto: [], tipologia_productos: [], titulo_proyecto: []
     };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
       if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);
-      if (r.nombre && !opts.investigador.includes(r.nombre)) opts.investigador.push(r.nombre);
       if (r.categoria && !opts.categoria.includes(r.categoria)) opts.categoria.push(r.categoria);
       if (r.cedula && !opts.cedula.includes(r.cedula)) opts.cedula.push(r.cedula);
       if (r.sexo && !opts.sexo.includes(r.sexo)) opts.sexo.push(r.sexo);
@@ -171,11 +169,6 @@ export default function Datos() {
       if (filters.tipo_proyecto && r.tipo_proyecto !== filters.tipo_proyecto) return false;
       if (filters.tipologia_productos && r.tipologia_productos !== filters.tipologia_productos) return false;
       if (filters.titulo_proyecto && r.titulo_proyecto !== filters.titulo_proyecto) return false;
-      if (
-        filters.investigador &&
-        !r.nombre?.toLowerCase().includes(filters.investigador.toLowerCase())
-      )
-        return false;
       // Filter by tipologia using nodo_padre or tipologia_productos
       if (filters.tipologia) {
         const nodoPadre = (r.nodo_padre || r.tipologia_productos || '').toString().trim();
@@ -232,8 +225,6 @@ export default function Datos() {
         if (filters.tipo_proyecto) qs.append('tipo', filters.tipo_proyecto);
         if (filters.tipologia_productos) qs.append('tipologia', filters.tipologia_productos);
         if (filters.titulo_proyecto) qs.append('titulo_proyecto', filters.titulo_proyecto);
-        // Enviar el filtro como investigador (valor desde nombre)
-        if (filters.investigador) qs.append('investigador', filters.investigador);
         const res = await fetch(`${API_BASE}/tipologia-cantidades?` + qs.toString());
         if (!res.ok) throw new Error('Error fetching agregados');
         const data = await res.json();
@@ -261,8 +252,6 @@ export default function Datos() {
         if (filters.tipo_proyecto) qs.append('tipo', filters.tipo_proyecto);
         if (filters.tipologia_productos) qs.append('tipologia', filters.tipologia_productos);
         if (filters.titulo_proyecto) qs.append('titulo_proyecto', filters.titulo_proyecto);
-        // Enviar el filtro como investigador (valor desde nombre)
-        if (filters.investigador) qs.append('investigador', filters.investigador);
         qs.append('tipologia', parentSelected);
         const res = await fetch(`${API_BASE}/nodo-hijo-cantidades?` + qs.toString());
         if (!res.ok) throw new Error('Error fetching nodo hijo agregados');
@@ -391,13 +380,6 @@ export default function Datos() {
                 <span>Descargar CSV</span>
               </button>
               <button
-                onClick={openTableInNewTab}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
-              >
-                <span className="material-symbols-outlined">table_view</span>
-                <span>Ver tabla</span>
-              </button>
-              <button
                 onClick={() => window.history.back()}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
               >
@@ -435,7 +417,7 @@ export default function Datos() {
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              {['facultad', 'programa', 'anio', 'investigador', 'tipologia'].map(key => (
+              {['facultad', 'programa', 'anio', 'tipologia'].map(key => (
                 <div key={key} className="w-[120px]">
                   <label className="block text-[9px] font-medium mb-1 truncate text-center">
                     {displayLabel(key)}

@@ -12,8 +12,7 @@ export default function DesarrolloTecnologico() {
   const [error, setError] = React.useState(null);
   const [filters, setFilters] = React.useState({
     facultad: '',
-    programa: '',
-    investigador: ''
+    programa: ''
   });
 
   // Obtener datos del backend según filtros (trabaja con la vista)
@@ -42,11 +41,10 @@ export default function DesarrolloTecnologico() {
 
   // Opciones de filtros dinámicas (sin 'Año')
   const filterOptions = React.useMemo(() => {
-    const opts = { facultad: [], programa: [], investigador: [] };
+    const opts = { facultad: [], programa: [] };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
-      if (r.nombre && !opts.investigador.includes(r.nombre)) opts.investigador.push(r.nombre);
     });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
@@ -63,11 +61,6 @@ export default function DesarrolloTecnologico() {
     result = result.filter(r => {
       if (filters.facultad && r.facultad !== filters.facultad) return false;
       if (filters.programa && r.programa !== filters.programa) return false;
-      if (
-        filters.investigador &&
-        !r.nombre?.toLowerCase().includes(filters.investigador.toLowerCase())
-      )
-        return false;
       return true;
     });
     
@@ -111,25 +104,37 @@ export default function DesarrolloTecnologico() {
 
   const palette = ['#2A5783', '#F5A800']; // azul izquierda, amarillo derecha institucional
 
-  const handleDownloadCSV = () => {
-    if (!filtered || filtered.length === 0) {
-      alert('No hay datos para descargar');
-      return;
+  const handleDownloadCSV = async () => {
+    try {
+      const qs = new URLSearchParams();
+      if (filters.facultad) qs.append('facultad', filters.facultad);
+      if (filters.programa) qs.append('programa', filters.programa);
+      const url = `${API_BASE}/tabla-normalizada-final?` + qs.toString();
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Error descargando CSV');
+      const data = await res.json();
+      
+      if (!data || data.length === 0) {
+        alert('No hay datos para descargar');
+        return;
+      }
+      
+      const headers = Object.keys(data[0]);
+      const csvContent = [
+        headers.map(h => displayLabel(h)).join(','),
+        ...data.map(row => headers.map(h => `"${(row[h] ?? '').toString().replace(/"/g,'\"\"')}"`).join(','))
+      ].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.setAttribute('href', URL.createObjectURL(blob));
+      link.setAttribute('download', `desarrollo_tecnologico_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      alert('Error al descargar CSV: ' + err.message);
     }
-    const headers = Object.keys(filtered[0]);
-    const csvContent = [
-      headers.map(h => displayLabel(h)).join(','),
-      ...filtered.map(row => headers.map(h => `"${(row[h] ?? '').toString().replace(/"/g,'""')}"`).join(','))
-    ].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `desarrollo_tecnologico_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
   };
 
   const openTableInNewTab = () => {
@@ -219,13 +224,6 @@ export default function DesarrolloTecnologico() {
                 <span>Descargar CSV</span>
               </button>
               <button
-                onClick={openTableInNewTab}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
-              >
-                <span className="material-symbols-outlined">table_view</span>
-                <span>Ver tabla</span>
-              </button>
-              <button
                 onClick={() => window.history.back()}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
               >
@@ -234,25 +232,55 @@ export default function DesarrolloTecnologico() {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-0 w-full max-w-7xl">
-        {['facultad', 'programa', 'investigador'].map(key => (
-          <div key={key}>
-            <label className="block text-sm font-semibold mb-1 capitalize text-xs">
-              {key === 'facultad' ? 'Facultad' : key === 'programa' ? 'Programa' : key === 'investigador' ? 'Investigador' : key}
-            </label>
-            <select
-              className="w-full border rounded px-2 py-1 text-sm"
-              value={filters[key]}
-              onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
-            >
-              <option value="">Todos</option>
-              {filterOptions[key]?.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
+          {/* KPI cards on left, filters on right */}
+          <div className="flex items-start justify-between mb-0 overflow-x-auto py-1 gap-6">
+            <div className="flex gap-4 flex-shrink-0">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+                <div>
+                  <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
+                  <p className="text-lg font-bold text-primary">{resultados.length.toLocaleString()}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xxs text-slate-500">Regs</p>
+                  <div className="bg-primary/10 rounded-full p-0.5">
+                    <span className="material-symbols-outlined text-base text-primary">database</span>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+                <div>
+                  <p className="text-xxs text-slate-600 font-medium mb-0.5">Filtr.</p>
+                  <p className="text-lg font-bold text-accent">{filtered.length.toLocaleString()}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xxs text-slate-500">{filtered.length === resultados.length ? 'Todos' : `${((filtered.length/resultados.length)*100).toFixed(1)}%`}</p>
+                  <div className="bg-accent/10 rounded-full p-0.5">
+                    <span className="material-symbols-outlined text-base text-accent">filter_alt</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-row gap-3">
+              {['facultad', 'programa'].map(key => (
+                <div key={key} className="w-[180px]">
+                  <label className="block text-[12px] font-medium mb-2 truncate text-center">
+                    {key === 'facultad' ? 'Facultad' : key === 'programa' ? 'Programa' : key}
+                  </label>
+                  <select
+                    className="w-full border rounded px-3 py-2.5 text-[12px] h-10 text-center appearance-none bg-white"
+                    value={filters[key]}
+                    onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
+                    style={{textAlignLast: 'center'}}
+                  >
+                    <option value="">Todos</option>
+                    {filterOptions[key]?.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
               ))}
-            </select>
+            </div>
           </div>
-        ))}
-      </div>
       {loading && <p className="text-center text-lg">Cargando datos…</p>}
       {error && <p className="text-center text-red-600">Error: {error}</p>}
       {!loading && !error && resultados.length === 0 && (

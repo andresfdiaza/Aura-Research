@@ -33,11 +33,23 @@ export default function DirectorioInvestigadores() {
         if (filters.facultad) qs.append('facultad', filters.facultad);
         if (filters.programa) qs.append('programa', filters.programa);
         const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');
+        console.log('[DirectorioInvestigadores] Fetching resultados', { url, filters });
         const res = await fetch(url);
-        if (!res.ok) throw new Error('Error fetching resultados');
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('[DirectorioInvestigadores] Fetch failed', {
+            url,
+            status: res.status,
+            statusText: res.statusText,
+            body: errorText,
+          });
+          throw new Error(`Error fetching resultados (${res.status})`);
+        }
         const data = await res.json();
+        console.log('[DirectorioInvestigadores] Fetch success', { rows: data.length });
         setResultados(data);
       } catch (err) {
+        console.error('[DirectorioInvestigadores] Load error', err);
         setError('Error al cargar datos');
       } finally {
         setLoading(false);

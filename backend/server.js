@@ -9,6 +9,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Lightweight API request logging for production diagnostics.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    console.log(`[API] ${req.method} ${req.originalUrl}`, {
+      query: req.query,
+      bodyKeys: req.body ? Object.keys(req.body) : [],
+    });
+  }
+  next();
+});
+
 // create users and investigadores tables if not exists
 (async () => {
   try {
@@ -331,10 +342,21 @@ app.get('/api/resultados', async (req, res) => {
     sql += ' WHERE ' + conditions.join(' AND ');
   }
   try {
+    console.log('[API] /api/resultados SQL built', { sql, params });
     const [rows] = await pool.query(sql, params);
+    console.log('[API] /api/resultados success', { rowCount: rows.length });
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching resultados:', err.message, err.stack);
+    console.error('[API] /api/resultados error', {
+      message: err.message,
+      code: err.code,
+      errno: err.errno,
+      sqlState: err.sqlState,
+      sqlMessage: err.sqlMessage,
+      sql,
+      params,
+      stack: err.stack,
+    });
     res.status(500).json({ message: 'internal server error', error: err.message });
   }
 });

@@ -11,8 +11,7 @@ export default function ApropriacionSocial() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [filters, setFilters] = React.useState({
-    facultad: '',
-    programa: ''
+    facultad: ''
   });
 
   // Obtener datos del backend según filtros (trabaja con la vista)
@@ -23,7 +22,6 @@ export default function ApropriacionSocial() {
       try {
         const qs = new URLSearchParams();
         if (filters.facultad) qs.append('facultad', filters.facultad);
-        if (filters.programa) qs.append('programa', filters.programa);
         if (filters.investigador) qs.append('investigador', filters.investigador);
         const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');
         const res = await fetch(url);
@@ -41,10 +39,9 @@ export default function ApropriacionSocial() {
 
   // Opciones de filtros dinámicas (sin 'Año')
   const filterOptions = React.useMemo(() => {
-    const opts = { facultad: [], programa: [] };
+    const opts = { facultad: [] };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
-      if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
     });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
@@ -60,7 +57,6 @@ export default function ApropriacionSocial() {
     // Aplicar otros filtros (sin año)
     result = result.filter(r => {
       if (filters.facultad && r.facultad !== filters.facultad) return false;
-      if (filters.programa && r.programa !== filters.programa) return false;
       return true;
     });
     
@@ -94,6 +90,27 @@ export default function ApropriacionSocial() {
 
   // state to show enlarged chart when clicked
   const [expandedChart, setExpandedChart] = React.useState(null);
+  const [yearDetailModal, setYearDetailModal] = React.useState(null);
+
+  const openYearDetailModal = (nodo, anio, items) => {
+    const matched = items
+      .filter(item => String(item.anio || 'Sin año') === String(anio))
+      .map(item => {
+        const autores = [item.autor_1_grouplab, item.autor_2_grouplab, item.autor_3_grouplab]
+          .filter(Boolean)
+          .join(', ');
+        return {
+          titulo: item.titulo_proyecto || item.titulo_grouplab || 'Sin titulo',
+          nodoHijo: item.tipo_proyecto || nodo || 'Sin nodo hijo',
+          nodoPadre: item.nodo_padre || item.nodo_padre_resultados || 'Sin nodo padre',
+          autores: autores || 'N/D',
+          anio: item.anio || 'Sin año',
+          facultad: item.facultad || 'N/D',
+          programa: item.programa || item.programa_academico || 'N/D'
+        };
+      });
+    setYearDetailModal({ nodo, anio, rows: matched });
+  };
 
   const labelMap = {
     facultad: 'Facultad',
@@ -110,7 +127,6 @@ export default function ApropriacionSocial() {
     try {
       const qs = new URLSearchParams();
       if (filters.facultad) qs.append('facultad', filters.facultad);
-      if (filters.programa) qs.append('programa', filters.programa);
       const url = `${API_BASE}/tabla-normalizada-final?` + qs.toString();
       const res = await fetch(url);
       if (!res.ok) throw new Error('Error descargando CSV');
@@ -263,7 +279,7 @@ export default function ApropriacionSocial() {
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              {['facultad', 'programa'].map(key => (
+              {['facultad'].map(key => (
                 <div key={key} className="w-[180px]">
                   <label className="block text-[12px] font-medium mb-2 truncate text-center">
                     {key === 'facultad' ? 'Facultad' : key === 'programa' ? 'Programa' : key}
@@ -312,6 +328,12 @@ export default function ApropriacionSocial() {
                   height={300}
                   options={{
                     responsive: true,
+                    onClick: (_event, elements) => {
+                      if (!elements || elements.length === 0) return;
+                      const idx = elements[0].index;
+                      const selectedYear = expandedChart.labels[idx];
+                      openYearDetailModal(expandedChart.nodo, selectedYear, expandedChart.items || []);
+                    },
                     plugins: {
                       legend: { display: false },
                       tooltip: { enabled: true },
@@ -333,6 +355,61 @@ export default function ApropriacionSocial() {
                   <button
                     onClick={() => setExpandedChart(null)}
                     className="px-4 py-2 bg-primary text-white rounded-lg"
+                  >Cerrar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {yearDetailModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setYearDetailModal(null)}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-6xl w-full max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="px-6 py-4 border-b bg-gradient-to-r from-primary/10 to-slate-50">
+                  <h3 className="text-xl font-bold text-primary">
+                    {yearDetailModal.nodo}
+                  </h3>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Año: <span className="font-semibold">{yearDetailModal.anio}</span> • Registros: <span className="font-semibold">{yearDetailModal.rows.length}</span>
+                  </p>
+                </div>
+                <div className="overflow-auto max-h-[60vh]">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-100 sticky top-0 z-10">
+                      <tr>
+                        <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Titulo</th>
+                        <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Nodo hijo</th>
+                        <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Nodo padre</th>
+                        <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Autores (max 3)</th>
+                        <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Año</th>
+                        <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Facultad</th>
+                        <th className="p-3 text-left text-xs font-bold uppercase tracking-wide text-slate-700">Programa</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {yearDetailModal.rows.length === 0 ? (
+                        <tr>
+                          <td className="p-6 text-center text-slate-500" colSpan={7}>No se encontraron productos para esa barra.</td>
+                        </tr>
+                      ) : (
+                        yearDetailModal.rows.map((row, idx) => (
+                          <tr key={`${row.titulo}-${idx}`} className="border-t odd:bg-white even:bg-slate-50 hover:bg-primary/5 transition-colors">
+                            <td className="p-3 font-medium text-slate-800 max-w-[340px]">{row.titulo}</td>
+                            <td className="p-3 text-slate-700">{row.nodoHijo}</td>
+                            <td className="p-3 text-slate-700">{row.nodoPadre}</td>
+                            <td className="p-3 text-slate-700">{row.autores}</td>
+                            <td className="p-3"><span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2.5 py-1 text-xs font-semibold">{row.anio}</span></td>
+                            <td className="p-3"><span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2.5 py-1 text-xs font-semibold">{row.facultad}</span></td>
+                            <td className="p-3"><span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 text-xs font-semibold">{row.programa}</span></td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-end px-6 py-4 border-t bg-slate-50">
+                  <button
+                    onClick={() => setYearDetailModal(null)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors"
                   >Cerrar</button>
                 </div>
               </div>
@@ -366,12 +443,21 @@ export default function ApropriacionSocial() {
               <div
                 key={nodo}
                 className="relative bg-slate-50 p-2 rounded shadow cursor-pointer hover:shadow-lg transition"
-                onClick={() => setExpandedChart({ nodo, labels, valores, yMax, color: palette[idx % 2] })}
+                onClick={(e) => {
+                  if (e.target && e.target.tagName === 'CANVAS') return;
+                  setExpandedChart({ nodo, labels, valores, yMax, color: palette[idx % 2], items });
+                }}
               >
                 <div className="absolute top-2 right-2 bg-primary text-white px-2 py-0.5 rounded-full text-xs font-bold">{items.length}</div>
                 <h2 className="text-base font-bold mb-2 text-primary break-words pr-12">{nodo}</h2>
                 <Bar data={chartData} height={160} options={{
                   responsive: true,
+                  onClick: (_event, elements) => {
+                    if (!elements || elements.length === 0) return;
+                    const i = elements[0].index;
+                    const selectedYear = labels[i];
+                    openYearDetailModal(nodo, selectedYear, items);
+                  },
                   plugins: {
                     legend: { display: false },
                     tooltip: { enabled: true },

@@ -17,16 +17,41 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     try {
-      const res = await fetch(LOGIN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Login failed');
+      // Compatibility: try configured endpoint first, then legacy /login if needed.
+      const fallbackUrl = LOGIN_URL.replace('/api/login', '/login');
+      const loginUrls = [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx);
+
+      let data = null;
+      let lastError = null;
+
+      for (const url of loginUrls) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+
+          if (res.status === 404) {
+            continue;
+          }
+
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.message || 'Login failed');
+          }
+
+          data = await res.json();
+          break;
+        } catch (err) {
+          lastError = err;
+        }
       }
-      const data = await res.json();
+
+      if (!data) {
+        throw lastError || new Error('Login failed');
+      }
+
       // Redirigir según el role del usuario
       const destination = data.role === 'admin' ? '/homeadmin' : '/home';
       navigate(destination, { state: { user: data } });

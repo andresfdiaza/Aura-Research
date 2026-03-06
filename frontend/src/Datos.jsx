@@ -42,7 +42,6 @@ export default function Datos() {
 
   const [filters, setFilters] = React.useState({
     facultad: '',
-    programa: '',
     anio: '',
     categoria: '',
     cedula: '',
@@ -133,12 +132,11 @@ export default function Datos() {
   // derive available options for filters once resultados is loaded
   const filterOptions = React.useMemo(() => {
     const opts = {
-      facultad: [], programa: [], anio: [], tipologia: [],
+      facultad: [], anio: [], tipologia: [],
       categoria: [], cedula: [], sexo: [], grado: [], tipo_proyecto: [], tipologia_productos: [], titulo_proyecto: []
     };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
-      if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
       if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);
       if (r.categoria && !opts.categoria.includes(r.categoria)) opts.categoria.push(r.categoria);
       if (r.cedula && !opts.cedula.includes(r.cedula)) opts.cedula.push(r.cedula);
@@ -160,7 +158,6 @@ export default function Datos() {
   const filtered = React.useMemo(() => {
     return resultados.filter(r => {
       if (filters.facultad && r.facultad !== filters.facultad) return false;
-      if (filters.programa && r.programa !== filters.programa) return false;
       if (filters.anio && r.anio !== filters.anio) return false;
       if (filters.categoria && r.categoria !== filters.categoria) return false;
       if (filters.cedula && r.cedula !== filters.cedula) return false;
@@ -216,7 +213,6 @@ export default function Datos() {
       try {
         const qs = new URLSearchParams();
         if (filters.facultad) qs.append('facultad', filters.facultad);
-        if (filters.programa) qs.append('programa', filters.programa);
         if (filters.anio) qs.append('anio', filters.anio);
         if (filters.categoria) qs.append('categoria', filters.categoria);
         if (filters.cedula) qs.append('cedula', filters.cedula);
@@ -243,7 +239,6 @@ export default function Datos() {
       try {
         const qs = new URLSearchParams();
         if (filters.facultad) qs.append('facultad', filters.facultad);
-        if (filters.programa) qs.append('programa', filters.programa);
         if (filters.anio) qs.append('anio', filters.anio);
         if (filters.categoria) qs.append('categoria', filters.categoria);
         if (filters.cedula) qs.append('cedula', filters.cedula);
@@ -417,7 +412,7 @@ export default function Datos() {
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              {['facultad', 'programa', 'anio', 'tipologia'].map(key => (
+              {['facultad', 'anio', 'tipologia'].map(key => (
                 <div key={key} className="w-[120px]">
                   <label className="block text-[9px] font-medium mb-1 truncate text-center">
                     {displayLabel(key)}

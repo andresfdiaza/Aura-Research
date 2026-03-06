@@ -16,6 +16,9 @@ export default function HomeAdmin() {
     link_cvlac: '',
     facultad: '',
     programa_academico: '',
+    correo: '',
+    google_scholar: '',
+    orcid: '',
   });
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -61,6 +64,9 @@ export default function HomeAdmin() {
         link_cvlac: '',
         facultad: '',
         programa_academico: '',
+        correo: '',
+        google_scholar: '',
+        orcid: '',
       });
       setTimeout(() => {
         setShowAddModal(false);
@@ -330,6 +336,30 @@ export default function HomeAdmin() {
                   <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="https://scienti.minciencias.gov.co/cvlac/..." type="url" name="link_cvlac" value={formData.link_cvlac} onChange={handleInputChange} />
                 </div>
               </div>
+              {/* Correo Electrónico */}
+              <div className="col-span-1">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Correo Electrónico</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">mail</span>
+                  <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="correo@ejemplo.com" type="email" name="correo" value={formData.correo} onChange={handleInputChange} />
+                </div>
+              </div>
+              {/* Link Google Scholar */}
+              <div className="col-span-1">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Link de Google Scholar</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">school</span>
+                  <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="https://scholar.google.com/..." type="url" name="google_scholar" value={formData.google_scholar} onChange={handleInputChange} />
+                </div>
+              </div>
+              {/* Link ORCID */}
+              <div className="col-span-1">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Link de ORCID</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">fingerprint</span>
+                  <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="https://orcid.org/0000-0000-0000-0000" type="url" name="orcid" value={formData.orcid} onChange={handleInputChange} />
+                </div>
+              </div>
               {/* Facultad */}
               <div className="col-span-1">
                 <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Facultad</label>
@@ -337,10 +367,10 @@ export default function HomeAdmin() {
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">account_balance</span>
                   <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="facultad" value={formData.facultad} onChange={handleInputChange}>
                     <option value="">Seleccione Facultad</option>
-                    <option value="ingenieria">Facultad de Ingeniería</option>
-                    <option value="ciencias_salud">Facultad de Ciencias de la Salud</option>
-                    <option value="educacion">Facultad de Educación</option>
-                    <option value="teologia">Facultad de Teología</option>
+                    <option value="Facultad de Ingeniería">Facultad de Ingeniería</option>
+                    <option value="Facultad de Ciencias de la Salud">Facultad de Ciencias de la Salud</option>
+                    <option value="Facultad de Educación">Facultad de Educación</option>
+                    <option value="Facultad de Teología">Facultad de Teología</option>
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
@@ -349,12 +379,12 @@ export default function HomeAdmin() {
               <div className="col-span-1">
                 <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programa Académico</label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">school</span>
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">library_books</span>
                   <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="programa_academico" value={formData.programa_academico} onChange={handleInputChange}>
                     <option value="">Seleccione Programa</option>
-                    <option value="sistemas">Ingeniería de Sistemas</option>
-                    <option value="electronica">Ingeniería Electrónica</option>
-                    <option value="industrial">Ingeniería Industrial</option>
+                    <option value="Ingeniería de Sistemas">Ingeniería de Sistemas</option>
+                    <option value="Ingeniería Electrónica">Ingeniería Electrónica</option>
+                    <option value="Ingeniería Industrial">Ingeniería Industrial</option>
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>

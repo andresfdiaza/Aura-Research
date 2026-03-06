@@ -95,11 +95,37 @@ app.use((req, res, next) => {
       console.error('Error checking/adding nodo_padre column:', err.message);
     }
 
+    // Add correo, google_scholar and orcid columns to investigadores if they don't exist
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM investigadores");
+      const colNames = cols.map(c => c.Field);
+      const newColumns = [];
+      
+      if (!colNames.includes('correo')) {
+        newColumns.push("ADD COLUMN correo VARCHAR(255)");
+      }
+      if (!colNames.includes('google_scholar')) {
+        newColumns.push("ADD COLUMN google_scholar VARCHAR(255)");
+      }
+      if (!colNames.includes('orcid')) {
+        newColumns.push("ADD COLUMN orcid VARCHAR(255)");
+      }
+      
+      if (newColumns.length > 0) {
+        const alterSql = `ALTER TABLE investigadores ${newColumns.join(', ')}`;
+        await pool.query(alterSql);
+        console.log('Added new columns to investigadores:', newColumns.join(', '));
+      }
+    } catch (err) {
+      console.error('Error checking/adding new columns to investigadores:', err.message);
+    }
+
     // create or refresh the view the frontend will use for exploratory data
     const createViewSql = `
       CREATE OR REPLACE VIEW vista_productos_final AS
       SELECT r.*, i.facultad, i.programa_academico AS programa,
-             i.nombre_completo AS investigador
+             i.nombre_completo AS investigador, i.link_cvlac, i.cedula,
+             i.correo, i.google_scholar, i.orcid
       FROM resultados r
       LEFT JOIN investigadores i ON r.id_investigador = i.id;
     `;
@@ -160,7 +186,7 @@ app.post('/register', async (req, res) => {
 });
 
 // login route
-app.post('/api/login', async (req, res) => {
+const loginHandler = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ message: 'email and password required' });
@@ -181,13 +207,16 @@ app.post('/api/login', async (req, res) => {
     console.error('Login error:', err.message, err.stack);
     res.status(500).json({ message: 'internal server error', error: err.message });
   }
-});
+};
+
+app.post('/api/login', loginHandler);
+app.post('/login', loginHandler);
 
 // list investigadores (nombre, cedula, facultad, programa)
 app.get('/api/investigadores', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, nombre_completo, cedula, facultad, programa_academico FROM investigadores'
+      'SELECT id, nombre_completo, cedula, link_cvlac, correo, google_scholar, orcid, facultad, programa_academico FROM investigadores'
     );
     res.json(rows);
   } catch (err) {
@@ -200,7 +229,7 @@ app.get('/api/investigadores', async (req, res) => {
 app.get('/investigadores/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query('SELECT id, nombre_completo, cedula, link_cvlac, facultad, programa_academico FROM investigadores WHERE id = ?', [id]);
+    const [rows] = await pool.query('SELECT id, nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid FROM investigadores WHERE id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ message: 'Not found' });
     res.json(rows[0]);
   } catch (err) {
@@ -211,8 +240,8 @@ app.get('/investigadores/:id', async (req, res) => {
 
 // add investigador route
 app.post('/investigadores', async (req, res) => {
-  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico } = req.body;
-  console.log('Received data:', { nombre_completo, cedula, link_cvlac, facultad, programa_academico });
+  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid } = req.body;
+  console.log('Received data:', { nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid });
   
   if (!nombre_completo) {
     return res.status(400).json({ message: 'nombre_completo is required' });
@@ -220,10 +249,10 @@ app.post('/investigadores', async (req, res) => {
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO investigadores (nombre_completo, cedula, link_cvlac, facultad, programa_academico) VALUES (?, ?, ?, ?, ?)',
-      [nombre_completo, cedula || null, link_cvlac || null, facultad || null, programa_academico || null]
+      'INSERT INTO investigadores (nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [nombre_completo, cedula || null, link_cvlac || null, facultad || null, programa_academico || null, correo || null, google_scholar || null, orcid || null]
     );
-    res.status(201).json({ id: result.insertId, nombre_completo, cedula, link_cvlac, facultad, programa_academico });
+    res.status(201).json({ id: result.insertId, nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid });
   } catch (err) {
     console.error('Error inserting investigador:', err.message, err.code);
     if (err.code === 'ER_DUP_ENTRY') {
@@ -237,7 +266,7 @@ app.post('/investigadores', async (req, res) => {
 // update investigador by id
 app.put('/investigadores/:id', async (req, res) => {
   const { id } = req.params;
-  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico } = req.body;
+  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid } = req.body;
   try {
     const fields = [];
     const values = [];
@@ -246,6 +275,9 @@ app.put('/investigadores/:id', async (req, res) => {
     if (link_cvlac !== undefined) { fields.push('link_cvlac = ?'); values.push(link_cvlac); }
     if (facultad !== undefined) { fields.push('facultad = ?'); values.push(facultad); }
     if (programa_academico !== undefined) { fields.push('programa_academico = ?'); values.push(programa_academico); }
+    if (correo !== undefined) { fields.push('correo = ?'); values.push(correo); }
+    if (google_scholar !== undefined) { fields.push('google_scholar = ?'); values.push(google_scholar); }
+    if (orcid !== undefined) { fields.push('orcid = ?'); values.push(orcid); }
 
     if (fields.length === 0) {
       return res.status(400).json({ message: 'No fields to update' });
@@ -256,7 +288,7 @@ app.put('/investigadores/:id', async (req, res) => {
     const [result] = await pool.query(sql, values);
     if (result.affectedRows === 0) return res.status(404).json({ message: 'Not found' });
 
-    const [rows] = await pool.query('SELECT id, nombre_completo, cedula, link_cvlac, facultad, programa_academico FROM investigadores WHERE id = ?', [id]);
+    const [rows] = await pool.query('SELECT id, nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid FROM investigadores WHERE id = ?', [id]);
     res.json(rows[0]);
   } catch (err) {
     console.error('Error updating investigador:', err.message, err.stack);
@@ -281,29 +313,29 @@ app.delete('/investigadores/:id', async (req, res) => {
 app.get('/api/resultados', async (req, res) => {
   const { facultad, programa, anio, investigador, tipo, categoria, tipologia, titulo_proyecto } = req.query;
   /*
-    Use tabla_Normalizada_final (view with clean, deduplicated data from coincidences)
-    This view auto-updates when scraping runs
+    Use vista_productos_final (view that joins resultados with investigadores)
+    This provides access to local database data
   */
   let sql = `SELECT
-      facultad,
-      programa_academico AS programa,
+      id,
+      id_investigador,
       categoria,
       nombre,
+      sexo,
+      grado,
       tipo_proyecto,
-      nodo_padre_resultados AS nodo_padre,
+      nodo_padre,
       titulo_proyecto,
       anio,
-      tipo_grouplab,
-      nodo_padre_grouplab,
-      autor_1_grouplab,
-      autor_2_grouplab,
-      autor_3_grouplab,
-      autor_4_grouplab,
-      autor_5_grouplab,
-      issn,
-      isbn,
-      revista
-    FROM scraping.tabla_Normalizada_final`;
+      facultad,
+      programa,
+      investigador AS nombre_completo,
+      link_cvlac,
+      cedula,
+      correo,
+      google_scholar,
+      orcid
+    FROM vista_productos_final`;
   const conditions = [];
   const params = [];
   if (facultad) {
@@ -311,7 +343,7 @@ app.get('/api/resultados', async (req, res) => {
     params.push(facultad);
   }
   if (programa) {
-    conditions.push('programa_academico = ?');
+    conditions.push('programa = ?');
     params.push(programa);
   }
   if (anio) {
@@ -331,7 +363,7 @@ app.get('/api/resultados', async (req, res) => {
     params.push(categoria);
   }
   if (tipologia) {
-    conditions.push('nodo_padre_resultados = ?');
+    conditions.push('nodo_padre = ?');
     params.push(tipologia);
   }
   if (titulo_proyecto) {

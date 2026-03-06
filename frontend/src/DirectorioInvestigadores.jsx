@@ -1,6 +1,136 @@
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { API_BASE, SERVER_BASE } from './config';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { Bar } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
+
+const assetImages = import.meta.glob('./assets/*.{png,jpg,jpeg,webp}', {
+  eager: true,
+  import: 'default'
+});
+
+const TIPOLOGIA_ORDER = ['NC', 'DTI', 'FRH', 'ASC', 'DPC'];
+const TIPOLOGIA_LABELS = {
+  NC: 'Nuevo Conocimiento',
+  DTI: 'Desarrollo Tecnologico e Innovacion',
+  FRH: 'Formacion del Recurso Humano',
+  ASC: 'Apropiacion Social del Conocimiento',
+  DPC: 'Divulgacion Publica de la Ciencia'
+};
+
+// Colores institucionales UNAC (intercalados para la grafica).
+const CHART_COLOR_PRIMARY = '#2A5783';
+const CHART_COLOR_ACCENT = '#F5A800';
+
+function normalizeText(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function tokenize(text) {
+  const stopwords = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'y', 'docente', 'unac']);
+  return normalizeText(text)
+    .split(' ')
+    .filter((token) => token.length > 1 && !stopwords.has(token));
+}
+
+function tokenSimilar(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.startsWith(b) || b.startsWith(a)) return true;
+
+  // Tolerancia para variaciones pequeñas (ej: cordoba/cordova).
+  if (a.length >= 5 && b.length >= 5 && a.slice(0, 5) === b.slice(0, 5)) {
+    return true;
+  }
+
+  return false;
+}
+
+function getInvestigatorImage(nombre) {
+  const normalizedName = normalizeText(nombre);
+  const nameTokens = tokenize(nombre);
+  if (!normalizedName || nameTokens.length === 0) return null;
+
+  const entries = Object.entries(assetImages);
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const [path, src] of entries) {
+    const fileName = path.split('/').pop() || '';
+    const baseName = fileName.replace(/\.[^.]+$/, '');
+    const normalizedFileName = normalizeText(baseName);
+    const fileTokens = tokenize(baseName);
+
+    // Excluir imágenes de branding/fondo.
+    if (normalizedFileName.includes('logo') || normalizedFileName.includes('fondo')) {
+      continue;
+    }
+
+    // Coincidencia exacta o por contención completa.
+    if (normalizedName.includes(normalizedFileName) || normalizedFileName.includes(normalizedName)) {
+      return src;
+    }
+
+    // Coincidencia por tokens (nombre/apellido) con tolerancia a variaciones.
+    const overlap = nameTokens.filter((nameToken) =>
+      fileTokens.some((fileToken) =>
+        tokenSimilar(fileToken, nameToken)
+      )
+    );
+
+    const score = overlap.length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = src;
+    }
+  }
+
+  // Requerimos al menos 2 tokens coincidentes para evitar asignaciones erróneas.
+  return bestScore >= 2 ? bestMatch : null;
+}
+
+function tipologiaToSigla(tipologia) {
+  const t = normalizeText(tipologia);
+  if (!t) return null;
+  if (t.includes('nuevo conocimiento')) return 'NC';
+  if (t.includes('desarrollo tecnologico') || t.includes('innovacion')) return 'DTI';
+  if (t.includes('formacion') || t.includes('recurso humano')) return 'FRH';
+  if (t.includes('apropiacion social')) return 'ASC';
+  if (t.includes('divulgacion publica')) return 'DPC';
+  return null;
+}
+
+function getOrderedTipologiaData(productosPorTipologia) {
+  const acumulado = { NC: 0, DTI: 0, FRH: 0, ASC: 0, DPC: 0 };
+
+  Object.entries(productosPorTipologia || {}).forEach(([tipologia, cantidad]) => {
+    const sigla = tipologiaToSigla(tipologia);
+    if (sigla) {
+      acumulado[sigla] += Number(cantidad) || 0;
+    }
+  });
+
+  return {
+    labels: TIPOLOGIA_ORDER,
+    values: TIPOLOGIA_ORDER.map((sigla) => acumulado[sigla])
+  };
+}
 
 export default function DirectorioInvestigadores() {
   const [resultados, setResultados] = React.useState([]);
@@ -14,6 +144,9 @@ export default function DirectorioInvestigadores() {
     link_cvlac: '',
     facultad: '',
     programa_academico: '',
+    correo: '',
+    google_scholar: '',
+    orcid: '',
   });
   const [formLoading, setFormLoading] = React.useState(false);
   const [formError, setFormError] = React.useState(null);
@@ -88,6 +221,9 @@ export default function DirectorioInvestigadores() {
         link_cvlac: '',
         facultad: '',
         programa_academico: '',
+        correo: '',
+        google_scholar: '',
+        orcid: '',
       });
       setTimeout(() => {
         setShowAddModal(false);
@@ -111,7 +247,7 @@ export default function DirectorioInvestigadores() {
     return opts;
   }, [resultados]);
 
-  // Obtener lista única de investigadores con conteo de productos
+  // Obtener lista única de investigadores con conteo de productos por tipología
   const investigadores = React.useMemo(() => {
     const investigadoresMap = {};
     
@@ -122,21 +258,35 @@ export default function DirectorioInvestigadores() {
           nombre,
           facultad: r.facultad || 'Sin facultad',
           programa: r.programa || 'Sin programa',
-          cantidad_productos: 0,
-          tipologias: new Set()
+          productosPorTipologia: {},
+          articulosCount: 0,
+          totalProductos: 0
         };
       }
-      investigadoresMap[nombre].cantidad_productos += 1;
-      if (r.nodo_padre) {
-        investigadoresMap[nombre].tipologias.add(r.nodo_padre);
+
+      investigadoresMap[nombre].totalProductos += 1;
+
+      const tipoProyectoNormalizado = normalizeText(r.tipo_proyecto || '');
+      if (tipoProyectoNormalizado.includes('articulo')) {
+        investigadoresMap[nombre].articulosCount += 1;
       }
+
+      const tipologia = r.nodo_padre || 'Sin tipología';
+      if (!investigadoresMap[nombre].productosPorTipologia[tipologia]) {
+        investigadoresMap[nombre].productosPorTipologia[tipologia] = 0;
+      }
+      investigadoresMap[nombre].productosPorTipologia[tipologia] += 1;
     });
 
-    // Convertir Set a Array en cada objeto
-    return Object.values(investigadoresMap).map(inv => ({
-      ...inv,
-      tipologias: Array.from(inv.tipologias)
-    }));
+    return Object.values(investigadoresMap).sort((a, b) => {
+      if (b.articulosCount !== a.articulosCount) {
+        return b.articulosCount - a.articulosCount;
+      }
+      if (b.totalProductos !== a.totalProductos) {
+        return b.totalProductos - a.totalProductos;
+      }
+      return a.nombre.localeCompare(b.nombre, 'es');
+    });
   }, [resultados]);
 
   // Filtrar investigadores por búsqueda
@@ -258,7 +408,7 @@ export default function DirectorioInvestigadores() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-1 text-xs">Facultad</label>
                   <select
@@ -310,48 +460,106 @@ export default function DirectorioInvestigadores() {
 
                 {/* Grid de investigadores */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filtered.map((inv, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer"
-                    >
+                  {filtered.map((inv, idx) => {
+                    const fotoInvestigador = getInvestigatorImage(inv.nombre);
+                    const chartTipologia = getOrderedTipologiaData(inv.productosPorTipologia);
+                    const investigatorChartColor = idx % 2 === 0 ? CHART_COLOR_PRIMARY : CHART_COLOR_ACCENT;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer"
+                      >
                       <div className="flex items-start gap-3 mb-3">
                         <div className="bg-primary/10 rounded-full border border-primary/20 flex items-center justify-center w-12 h-12 flex-shrink-0">
-                          <span className="material-symbols-outlined text-primary">person</span>
+                          {fotoInvestigador ? (
+                            <img
+                              src={fotoInvestigador}
+                              alt={`Foto de ${inv.nombre}`}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          ) : (
+                            <span className="material-symbols-outlined text-primary">person</span>
+                          )}
                         </div>
                         <div className="flex-1">
-                          <h3 className="text-lg font-bold text-primary break-words">{inv.nombre}</h3>
+                          <Link
+                            to="/PerfilInvestigador"
+                            state={{ user, nombreInvestigador: inv.nombre }}
+                            className="hover:underline"
+                          >
+                            <h3 className="text-lg font-bold text-primary break-words hover:text-primary/80 transition-colors cursor-pointer">
+                              {inv.nombre}
+                            </h3>
+                          </Link>
                           <p className="text-xs text-slate-600">{inv.facultad}</p>
                           <p className="text-xs text-slate-500">{inv.programa}</p>
                         </div>
                       </div>
 
-                      <div className="mb-3 pb-3 border-t border-slate-200">
-                        <div className="flex items-center justify-between mt-3">
-                          <span className="text-sm font-semibold text-slate-700">Productos:</span>
-                          <span className="bg-primary text-white px-3 py-1 rounded-full text-sm font-bold">
-                            {inv.cantidad_productos}
-                          </span>
+                      {/* Gráfica horizontal por tipología */}
+                      <div className="mb-3 pb-3 border-t border-slate-200 pt-3">
+                        <p className="text-xs font-semibold text-slate-700 mb-2">Productos por Tipología:</p>
+                        <div className="h-[200px]">
+                          <Bar
+                            data={{
+                              labels: chartTipologia.labels,
+                              datasets: [{
+                                label: 'Productos',
+                                data: chartTipologia.values,
+                                backgroundColor: investigatorChartColor,
+                                borderColor: investigatorChartColor,
+                                borderWidth: 1
+                              }]
+                            }}
+                            options={{
+                              indexAxis: 'y',
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                legend: {
+                                  display: false
+                                },
+                                datalabels: {
+                                  color: investigatorChartColor === CHART_COLOR_ACCENT ? '#1E3A5F' : '#ffffff',
+                                  font: {
+                                    weight: 'bold',
+                                    size: 12
+                                  },
+                                  anchor: 'center',
+                                  align: 'center',
+                                  offset: 0,
+                                  padding: {
+                                    right: 6
+                                  }
+                                },
+                                tooltip: {
+                                  callbacks: {
+                                    title: function(context) {
+                                      const sigla = chartTipologia.labels[context[0].dataIndex];
+                                      return `${sigla} - ${TIPOLOGIA_LABELS[sigla] || sigla}`;
+                                    }
+                                  }
+                                }
+                              },
+                              scales: {
+                                x: {
+                                  beginAtZero: true,
+                                  ticks: {
+                                    stepSize: 1,
+                                    font: { size: 10 }
+                                  }
+                                },
+                                y: {
+                                  ticks: {
+                                    font: { size: 9 }
+                                  }
+                                }
+                              }
+                            }}
+                          />
                         </div>
                       </div>
-
-                      {inv.tipologias.length > 0 && (
-                        <div className="mb-3">
-                          <p className="text-xs font-semibold text-slate-700 mb-2">Tipologías:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {inv.tipologias.slice(0, 2).map((tip, i) => (
-                              <span key={i} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-                                {tip}
-                              </span>
-                            ))}
-                            {inv.tipologias.length > 2 && (
-                              <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-                                +{inv.tipologias.length - 2} más
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
 
                       <Link
                         to="/datos"
@@ -361,8 +569,9 @@ export default function DirectorioInvestigadores() {
                         Ver productos
                         <span className="material-symbols-outlined text-sm">arrow_forward</span>
                       </Link>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -448,6 +657,30 @@ export default function DirectorioInvestigadores() {
                   <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="https://scienti.minciencias.gov.co/cvlac/..." type="url" name="link_cvlac" value={formData.link_cvlac} onChange={handleInputChange} />
                 </div>
               </div>
+              {/* Correo Electrónico */}
+              <div className="col-span-1">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Correo Electrónico</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">mail</span>
+                  <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="correo@ejemplo.com" type="email" name="correo" value={formData.correo} onChange={handleInputChange} />
+                </div>
+              </div>
+              {/* Link Google Scholar */}
+              <div className="col-span-1">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Link de Google Scholar</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">school</span>
+                  <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="https://scholar.google.com/..." type="url" name="google_scholar" value={formData.google_scholar} onChange={handleInputChange} />
+                </div>
+              </div>
+              {/* Link ORCID */}
+              <div className="col-span-1">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Link de ORCID</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">fingerprint</span>
+                  <input className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="https://orcid.org/0000-0000-0000-0000" type="url" name="orcid" value={formData.orcid} onChange={handleInputChange} />
+                </div>
+              </div>
               {/* Facultad */}
               <div className="col-span-1">
                 <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Facultad</label>
@@ -455,10 +688,10 @@ export default function DirectorioInvestigadores() {
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">account_balance</span>
                   <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="facultad" value={formData.facultad} onChange={handleInputChange}>
                     <option value="">Seleccione Facultad</option>
-                    <option value="ingenieria">Facultad de Ingeniería</option>
-                    <option value="ciencias_salud">Facultad de Ciencias de la Salud</option>
-                    <option value="educacion">Facultad de Educación</option>
-                    <option value="teologia">Facultad de Teología</option>
+                    <option value="Facultad de Ingeniería">Facultad de Ingeniería</option>
+                    <option value="Facultad de Ciencias de la Salud">Facultad de Ciencias de la Salud</option>
+                    <option value="Facultad de Educación">Facultad de Educación</option>
+                    <option value="Facultad de Teología">Facultad de Teología</option>
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
@@ -467,12 +700,12 @@ export default function DirectorioInvestigadores() {
               <div className="col-span-1">
                 <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programa Académico</label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">school</span>
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">library_books</span>
                   <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="programa_academico" value={formData.programa_academico} onChange={handleInputChange}>
                     <option value="">Seleccione Programa</option>
-                    <option value="sistemas">Ingeniería de Sistemas</option>
-                    <option value="electronica">Ingeniería Electrónica</option>
-                    <option value="industrial">Ingeniería Industrial</option>
+                    <option value="Ingeniería de Sistemas">Ingeniería de Sistemas</option>
+                    <option value="Ingeniería Electrónica">Ingeniería Electrónica</option>
+                    <option value="Ingeniería Industrial">Ingeniería Industrial</option>
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>

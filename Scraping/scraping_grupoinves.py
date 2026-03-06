@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 import os
 import unicodedata
 import mysql.connector
+import subprocess
+import sys
 
 URL = 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000005830'
 
@@ -659,3 +661,18 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # Ejecutar limpieza + actualización de tablas/vistas automáticamente.
+    script_dir = os.path.dirname(__file__)
+    post_scripts = [
+        "crear_titulo_grouplab_clean_v2.py",
+        "crear_tabla_resultados_coincidentes.py",
+        "crear_vista_normalizada_final.py",
+        "crear_vistas_sin_coincidencias.py",
+    ]
+    print("\n🔄 Ejecutando postproceso automático...")
+    for script_name in post_scripts:
+        script_path = os.path.join(script_dir, script_name)
+        print(f"  → Ejecutando {script_name}...")
+        subprocess.run([sys.executable, script_path], check=True)
+    print("✅ Postproceso completado. Datos listos.")

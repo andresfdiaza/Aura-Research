@@ -112,6 +112,30 @@ export default function Datos() {
     }
     return colors;
   };
+
+  // Helper function to normalize text for comparison
+  const normalizeText = (text) => {
+    return String(text || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  };
+
+  // Convert full tipologia name to abbreviated form (sigla)
+  const tipologiaToSigla = (tipologia) => {
+    const t = normalizeText(tipologia);
+    if (!t) return tipologia; // Return original if empty
+    if (t.includes('nuevo conocimiento')) return 'NC';
+    if (t.includes('desarrollo tecnologico') || t.includes('innovacion')) return 'DTI';
+    if (t.includes('formacion') || t.includes('recurso humano')) return 'FRH';
+    if (t.includes('apropiacion social')) return 'ASC';
+    if (t.includes('divulgacion publica')) return 'DPC';
+    // If no match, return original
+    return tipologia;
+  };
+
   const userName = user?.email?.split('@')[0] || 'Usuario';
 
   const labelMap = {
@@ -264,7 +288,7 @@ export default function Datos() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/resultados`);
+        const res = await fetch(`${API_BASE}/resultados?source=normalizada`);
         if (!res.ok) throw new Error('Error fetching resultados');
         const data = await res.json();
         setResultados(data);
@@ -447,25 +471,11 @@ export default function Datos() {
                     data={{
                       labels: drillMode
                         ? [
-                            // Parent bar: show initials if long
-                            parentSelected.length > 18
-                              ? parentSelected.split(' ').map(w => w[0].toUpperCase()).join('')
-                              : parentSelected.length > 10
-                                ? parentSelected.slice(0, 10) + '...'
-                                : parentSelected,
-                            ...childColumns.map(c =>
-                              c.nodo.length > 18
-                                ? c.nodo.split(' ').map(w => w[0].toUpperCase()).join('')
-                                : c.nodo.length > 10
-                                  ? c.nodo.slice(0, 10) + '...'
-                                  : c.nodo
-                            )
+                            // Use abbreviations for parent
+                            tipologiaToSigla(parentSelected),
+                            ...childColumns.map(c => tipologiaToSigla(c.nodo))
                           ]
-                        : topTipos.map(([t]) => {
-                            if (t.length > 18) return t.split(' ').map(w => w[0].toUpperCase()).join('');
-                            else if (t.length > 10) return t.slice(0, 10) + '...';
-                            else return t;
-                          }),
+                        : topTipos.map(([t]) => tipologiaToSigla(t)),
                       datasets: [
                         {
                           label: drillMode ? 'Cantidad por nodo' : 'Cantidad',

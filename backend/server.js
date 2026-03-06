@@ -123,11 +123,27 @@ app.use((req, res, next) => {
     // create or refresh the view the frontend will use for exploratory data
     const createViewSql = `
       CREATE OR REPLACE VIEW vista_productos_final AS
-      SELECT r.*, i.facultad, i.programa_academico AS programa,
+      WITH resultados_unicos AS (
+        SELECT
+          r.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              LOWER(TRIM(REGEXP_REPLACE(COALESCE(r.titulo_proyecto, ''), '[[:space:]]+', ' '))),
+              LOWER(TRIM(COALESCE(r.tipo_proyecto, ''))),
+              COALESCE(CAST(r.anio AS CHAR), ''),
+              LOWER(TRIM(COALESCE(r.nodo_padre, '')))
+            ORDER BY r.id
+          ) AS rn
+        FROM resultados r
+      )
+      SELECT ru.id, ru.categoria, ru.nombre, ru.sexo, ru.grado,
+             ru.tipo_proyecto, ru.titulo_proyecto, ru.anio, ru.id_investigador,
+             ru.nodo_padre, i.facultad, i.programa_academico AS programa,
              i.nombre_completo AS investigador, i.link_cvlac, i.cedula,
              i.correo, i.google_scholar, i.orcid
-      FROM resultados r
-      LEFT JOIN investigadores i ON r.id_investigador = i.id;
+      FROM resultados_unicos ru
+      LEFT JOIN investigadores i ON ru.id_investigador = i.id
+      WHERE ru.rn = 1;
     `;
     await pool.query(createViewSql);
     console.log('database view vista_productos_final ensured');
@@ -311,63 +327,108 @@ app.delete('/investigadores/:id', async (req, res) => {
 
 // get resultados with optional filters – selects from the view
 app.get('/api/resultados', async (req, res) => {
-  const { facultad, programa, anio, investigador, tipo, categoria, tipologia, titulo_proyecto } = req.query;
+  const { facultad, programa, anio, investigador, tipo, categoria, tipologia, titulo_proyecto, source } = req.query;
   /*
     Use vista_productos_final (view that joins resultados with investigadores)
     This provides access to local database data
   */
-  let sql = `SELECT
-      id,
-      id_investigador,
-      categoria,
-      nombre,
-      sexo,
-      grado,
-      tipo_proyecto,
-      nodo_padre,
-      titulo_proyecto,
-      anio,
-      facultad,
-      programa,
-      investigador AS nombre_completo,
-      link_cvlac,
-      cedula,
-      correo,
-      google_scholar,
-      orcid
-    FROM vista_productos_final`;
+  const useNormalizedSource = String(source || '').toLowerCase() === 'normalizada';
+  let sql = useNormalizedSource
+    ? `SELECT
+        r.id,
+        r.id_investigador,
+        r.categoria,
+        r.nombre,
+        r.sexo,
+        r.grado,
+        r.tipo_proyecto,
+        r.nodo_padre,
+        r.titulo_proyecto,
+        r.anio,
+        r.facultad,
+        r.programa,
+        r.nombre_completo,
+        r.link_cvlac,
+        r.cedula,
+        r.correo,
+        r.google_scholar,
+        r.orcid
+      FROM (
+        SELECT
+          tn.id,
+          tn.id_investigador,
+          tn.categoria,
+          tn.nombre,
+          rs.sexo,
+          rs.grado,
+          tn.tipo_proyecto,
+          tn.nodo_padre_resultados AS nodo_padre,
+          tn.titulo_proyecto,
+          tn.anio,
+          tn.facultad,
+          tn.programa_academico AS programa,
+          i.nombre_completo,
+          i.link_cvlac,
+          i.cedula,
+          i.correo,
+          i.google_scholar,
+          i.orcid
+        FROM scraping.tabla_Normalizada_final tn
+        LEFT JOIN resultados rs ON tn.id = rs.id
+        LEFT JOIN investigadores i ON tn.id_investigador = i.id
+      ) r`
+    : `SELECT
+        r.id,
+        r.id_investigador,
+        r.categoria,
+        r.nombre,
+        r.sexo,
+        r.grado,
+        r.tipo_proyecto,
+        r.nodo_padre,
+        r.titulo_proyecto,
+        r.anio,
+        r.facultad,
+        r.programa,
+        r.investigador AS nombre_completo,
+        r.link_cvlac,
+        r.cedula,
+        r.correo,
+        r.google_scholar,
+        r.orcid
+      FROM vista_productos_final r`;
   const conditions = [];
   const params = [];
   if (facultad) {
-    conditions.push('facultad = ?');
+    conditions.push('r.facultad = ?');
     params.push(facultad);
   }
   if (programa) {
-    conditions.push('programa = ?');
+    conditions.push('r.programa = ?');
     params.push(programa);
   }
   if (anio) {
-    conditions.push('anio = ?');
+    conditions.push('r.anio = ?');
     params.push(anio);
   }
   if (investigador) {
-    conditions.push('nombre LIKE ?');
+    conditions.push('r.nombre LIKE ?');
     params.push(`%${investigador}%`);
   }
   if (tipo) {
-    conditions.push('tipo_proyecto = ?');
+    conditions.push('r.tipo_proyecto = ?');
     params.push(tipo);
   }
   if (categoria) {
-    conditions.push('categoria = ?');
+    conditions.push('r.categoria = ?');
     params.push(categoria);
   }
   if (tipologia) {
-    conditions.push('nodo_padre = ?');
+    conditions.push('r.nodo_padre = ?');
     params.push(tipologia);
   }
   if (titulo_proyecto) {
-    conditions.push('titulo_proyecto LIKE ?');
+    conditions.push('r.titulo_proyecto LIKE ?');
     params.push(`%${titulo_proyecto}%`);
   }
   if (conditions.length) {

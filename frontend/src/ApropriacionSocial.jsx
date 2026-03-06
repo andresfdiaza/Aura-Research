@@ -21,6 +21,7 @@ export default function ApropriacionSocial() {
       setError(null);
       try {
         const qs = new URLSearchParams();
+        qs.append('source', 'normalizada');
         if (filters.facultad) qs.append('facultad', filters.facultad);
         if (filters.investigador) qs.append('investigador', filters.investigador);
         const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');

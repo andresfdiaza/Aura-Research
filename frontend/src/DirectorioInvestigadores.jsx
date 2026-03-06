@@ -155,6 +155,8 @@ export default function DirectorioInvestigadores() {
     facultad: '',
     programa: ''
   });
+  const [selectedTipologia, setSelectedTipologia] = React.useState(null);
+  const [filtroTipoProyecto, setFiltroTipoProyecto] = React.useState('');
 
   // Obtener datos del backend
   React.useEffect(() => {
@@ -310,6 +312,27 @@ export default function DirectorioInvestigadores() {
   const user = location.state?.user;
   const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
   const userName = user?.email?.split('@')[0] || 'Usuario';
+
+  // Handler para clic en barras de tipología
+  const handleTipologiaClick = (nombreInvestigador, sigla) => {
+    // Filtrar productos del investigador por tipología
+    const productosInvestigador = resultados.filter(r => {
+      const match = (r.nombre || '') === nombreInvestigador;
+      if (!match) return false;
+      
+      const tipologiaSigla = tipologiaToSigla(r.nodo_padre);
+      return tipologiaSigla === sigla;
+    });
+
+    setSelectedTipologia({
+      investigador: nombreInvestigador,
+      sigla: sigla,
+      tipologia: TIPOLOGIA_LABELS[sigla],
+      productos: productosInvestigador,
+      filtroAnio: ''
+    });
+    setFiltroTipoProyecto('');
+  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
@@ -516,6 +539,13 @@ export default function DirectorioInvestigadores() {
                               indexAxis: 'y',
                               responsive: true,
                               maintainAspectRatio: false,
+                              onClick: (event, elements) => {
+                                if (elements.length > 0) {
+                                  const index = elements[0].index;
+                                  const sigla = chartTipologia.labels[index];
+                                  handleTipologiaClick(inv.nombre, sigla);
+                                }
+                              },
                               plugins: {
                                 legend: {
                                   display: false
@@ -730,6 +760,164 @@ export default function DirectorioInvestigadores() {
                 <span className="material-symbols-outlined text-3xl">account_balance</span>
               </div>
               <p className="text-slate-600 dark:text-slate-400 text-xs font-bold tracking-widest uppercase">Facultad de Ingeniería - UNAC</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Productos por Tipología */}
+      {selectedTipologia && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="bg-primary text-white p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">{selectedTipologia.investigador}</h2>
+                <p className="text-white/90 text-sm mt-1">
+                  {selectedTipologia.sigla} - {selectedTipologia.tipologia}
+                </p>
+                <p className="text-white/80 text-xs mt-1">
+                  {(() => {
+                    let count = selectedTipologia.productos.length;
+                    if (filtroTipoProyecto) {
+                      count = selectedTipologia.productos.filter(p => p.tipo_proyecto === filtroTipoProyecto).length;
+                    }
+                    if (selectedTipologia.filtroAnio) {
+                      count = selectedTipologia.productos.filter(p => 
+                        (!filtroTipoProyecto || p.tipo_proyecto === filtroTipoProyecto) &&
+                        String(p.anio) === String(selectedTipologia.filtroAnio)
+                      ).length;
+                    }
+                    return `${count} producto(s) ${(filtroTipoProyecto || selectedTipologia.filtroAnio) ? 'filtrado(s)' : 'encontrado(s)'}`;
+                  })()}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedTipologia(null)}
+                className="bg-[#F5A800] hover:bg-[#d99400] text-primary rounded-full p-2 transition-all shadow-lg"
+              >
+                <span className="material-symbols-outlined text-3xl">close</span>
+              </button>
+            </div>
+
+            {/* Filtros */}
+            <div className="p-4 border-b border-slate-200 bg-slate-50">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Tipo:</label>
+                    <select
+                      className="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
+                      value={filtroTipoProyecto}
+                      onChange={(e) => setFiltroTipoProyecto(e.target.value)}
+                    >
+                      <option value="">Todos los tipos</option>
+                      {[...new Set(selectedTipologia.productos.map(p => p.tipo_proyecto).filter(Boolean))].sort().map(tipo => (
+                        <option key={tipo} value={tipo}>{tipo}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Año:</label>
+                    <select
+                      className="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[150px]"
+                      value={selectedTipologia.filtroAnio || ''}
+                      onChange={(e) => setSelectedTipologia(prev => ({ ...prev, filtroAnio: e.target.value }))}
+                    >
+                      <option value="">Todos los años</option>
+                      {[...new Set(selectedTipologia.productos.map(p => p.anio).filter(Boolean))].sort((a, b) => b - a).map(anio => (
+                        <option key={anio} value={anio}>{anio}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {(filtroTipoProyecto || selectedTipologia.filtroAnio) && (
+                    <button
+                      onClick={() => {
+                        setFiltroTipoProyecto('');
+                        setSelectedTipologia(prev => ({ ...prev, filtroAnio: '' }));
+                      }}
+                      className="ml-auto text-sm text-primary font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-base">filter_alt_off</span>
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Tabla */}
+            <div className="flex-1 overflow-auto p-6">
+              {(() => {
+                let productosFiltrados = selectedTipologia.productos;
+                
+                // Filtrar por tipo de proyecto
+                if (filtroTipoProyecto) {
+                  productosFiltrados = productosFiltrados.filter(p => p.tipo_proyecto === filtroTipoProyecto);
+                }
+                
+                // Filtrar por año
+                if (selectedTipologia.filtroAnio) {
+                  productosFiltrados = productosFiltrados.filter(p => String(p.anio) === String(selectedTipologia.filtroAnio));
+                }
+
+                if (productosFiltrados.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-slate-500">
+                      <span className="material-symbols-outlined text-6xl mb-4 block opacity-30">search_off</span>
+                      <p className="text-lg font-semibold">No se encontraron productos con estos filtros</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 border-b-2 border-slate-300">
+                        <th className="text-left p-3 text-sm font-bold text-slate-700">#</th>
+                        <th className="text-left p-3 text-sm font-bold text-slate-700">Título</th>
+                        <th className="text-left p-3 text-sm font-bold text-slate-700">Tipo</th>
+                        <th className="text-left p-3 text-sm font-bold text-slate-700">Año</th>
+                        <th className="text-left p-3 text-sm font-bold text-slate-700">Categoría</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productosFiltrados.map((producto, index) => (
+                        <tr
+                          key={index}
+                          className="border-b border-slate-200 hover:bg-slate-50 transition-colors"
+                        >
+                          <td className="p-3 text-sm text-slate-600">{index + 1}</td>
+                          <td className="p-3 text-sm text-slate-800">
+                            {producto.titulo_proyecto || 'Sin título'}
+                          </td>
+                          <td className="p-3 text-sm text-slate-600">
+                            {producto.tipo_proyecto || 'N/A'}
+                          </td>
+                          <td className="p-3 text-sm text-slate-600 text-center">
+                            {producto.anio || 'N/A'}
+                          </td>
+                          <td className="p-3 text-sm">
+                            <span className="inline-block px-2 py-1 bg-primary/10 text-primary rounded text-xs font-semibold">
+                              {producto.categoria || 'N/A'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+              <button
+                onClick={() => setSelectedTipologia(null)}
+                className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-semibold transition-all"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

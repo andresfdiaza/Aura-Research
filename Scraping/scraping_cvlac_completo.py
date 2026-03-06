@@ -20,9 +20,19 @@ URL = ""
 import mysql.connector
 from dotenv import load_dotenv
 import os
+import subprocess
+import sys
 
-# cargar variables de entorno (se asume que .env del backend está en el directorio padre)
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+# cargar variables de entorno (prioriza backend/.env, fallback a ../.env)
+_script_dir = os.path.dirname(__file__)
+_dotenv_candidates = [
+    os.path.join(_script_dir, '..', 'backend', '.env'),
+    os.path.join(_script_dir, '..', '.env'),
+]
+for _dotenv_path in _dotenv_candidates:
+    if os.path.exists(_dotenv_path):
+        load_dotenv(_dotenv_path)
+        break
 
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
@@ -2127,3 +2137,16 @@ if __name__ == "__main__":
         print("⚠️ No hay datos para guardar en la base de datos")
 
     print(f"\n🚀 Proceso finalizado. Total registros insertados: {len(todos_los_datos)}")
+
+    # Ejecutar postproceso automáticamente para dejar tablas y vistas listas.
+    post_scripts = [
+        "crear_tabla_resultados_coincidentes.py",
+        "crear_vista_normalizada_final.py",
+        "crear_vistas_sin_coincidencias.py",
+    ]
+    print("\n🔄 Ejecutando postproceso automático...")
+    for script_name in post_scripts:
+        script_path = os.path.join(_script_dir, script_name)
+        print(f"  → Ejecutando {script_name}...")
+        subprocess.run([sys.executable, script_path], check=True)
+    print("✅ Postproceso completado. Datos listos.")

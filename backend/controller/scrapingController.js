@@ -27,3 +27,23 @@ exports.ejecutarGroupLab = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error ejecutando scraping GroupLab', error: err.message });
   }
 };
+
+exports.ejecutarCompleto = async (req, res) => {
+  try {
+    const result = await scrapingService.executeScrapingComplete();
+    console.log('Complete Scraping output:', result.stdout);
+    if (result.stderr) console.error('Complete Scraping stderr:', result.stderr);
+
+    res.json({
+      success: true,
+      message: 'Pipeline completo ejecutado: CVLAC + GroupLab + limpieza + coincidencias + vistas',
+    });
+  } catch (err) {
+    console.error('Error en scraping completo:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error ejecutando scraping completo',
+      error: err.message,
+    });
+  }
+};

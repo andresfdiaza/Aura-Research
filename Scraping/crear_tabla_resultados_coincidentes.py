@@ -28,6 +28,8 @@ cur.execute("""
         r.anio,
         t.tipo AS tipo_grouplab,
         t.nodo_padre AS nodo_padre_grouplab,
+        t.nombre_grupo_investigacion AS nombre_grupo_grouplab,
+        t.sigla_grupo_investigacion AS sigla_grupo_grouplab,
         t.titulo AS titulo_grouplab,
         t.titulo_original AS titulo_original_grouplab,
         t.titulo_normalizado,
@@ -80,6 +82,8 @@ cur.execute("""
                 SELECT
                         t.tipo,
                         t.nodo_padre,
+                        t.nombre_grupo_investigacion,
+                        t.sigla_grupo_investigacion,
                         t.titulo,
                         t.titulo_original,
                         t.titulo_normalizado,

@@ -15,7 +15,7 @@ export default function HomeAdmin() {
     cedula: '',
     link_cvlac: '',
     facultad: '',
-    programa_academico: '',
+    programas: [],
     correo: '',
     google_scholar: '',
     orcid: '',
@@ -26,6 +26,7 @@ export default function HomeAdmin() {
 
   // estado de scraping
   const [scrapingStatus, setScrapingStatus] = React.useState(null);
+  const [scrapingLoading, setScrapingLoading] = React.useState(false);
 
   if (!user) {
     // if accessed directly without login redirect to login
@@ -37,6 +38,16 @@ export default function HomeAdmin() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleProgramaChange = (e) => {
+    const { value, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      programas: checked
+        ? [...prev.programas, value]
+        : prev.programas.filter((p) => p !== value)
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -63,7 +74,7 @@ export default function HomeAdmin() {
         cedula: '',
         link_cvlac: '',
         facultad: '',
-        programa_academico: '',
+        programas: [],
         correo: '',
         google_scholar: '',
         orcid: '',
@@ -224,40 +235,26 @@ export default function HomeAdmin() {
       </div>
       <div className="flex gap-2 justify-end mb-8">
         <button
-          title="Iniciar Scraping"
-          className="flex items-center gap-1 px-4 py-2 bg-[#F5A800] text-white rounded-lg font-bold shadow-md shadow-yellow-300 hover:bg-yellow-500 transition-all text-sm"
+          title="Iniciar Pipeline Completo"
+          className="flex items-center gap-2 px-4 py-2 bg-[#F5A800] text-white rounded-lg font-bold shadow-md shadow-yellow-300 hover:bg-yellow-500 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={scrapingLoading}
           onClick={async () => {
-            setScrapingStatus('Ejecutando...');
+            setScrapingLoading(true);
+            setScrapingStatus('Ejecutando pipeline completo: CVLAC -> GroupLab -> limpieza -> coincidencias -> vistas...');
             try {
-              const res = await fetch(`${API_BASE}/scraping/ejecutar`, { method: 'POST' });
+              const res = await fetch(`${API_BASE}/scraping/ejecutar-completo`, { method: 'POST' });
               const data = await res.json();
-              if (res.ok) setScrapingStatus(data.message || 'Scraping ejecutado correctamente');
-              else setScrapingStatus(data.error || 'Error ejecutando scraping');
+              if (res.ok) setScrapingStatus(data.message || 'Pipeline completo ejecutado correctamente');
+              else setScrapingStatus(data.error || data.message || 'Error ejecutando pipeline completo');
             } catch (err) {
               setScrapingStatus(err.message);
+            } finally {
+              setScrapingLoading(false);
             }
           }}
         >
-          <span className="material-symbols-outlined text-base">web</span>
-          <span>Scraping Cvlac</span>
-        </button>
-        <button
-          title="Iniciar Scraping GroupLab"
-          className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md shadow-green-400 hover:bg-green-700 transition-all text-sm"
-          onClick={async () => {
-            setScrapingStatus('Ejecutando Scraping GroupLab...');
-            try {
-              const res = await fetch(`${API_BASE}/scraping/ejecutar-grouplab`, { method: 'POST' });
-              const data = await res.json();
-              if (res.ok) setScrapingStatus(data.message || 'Scraping GroupLab ejecutado correctamente');
-              else setScrapingStatus(data.error || 'Error ejecutando scraping GroupLab');
-            } catch (err) {
-              setScrapingStatus(err.message);
-            }
-          }}
-        >
-          <span className="material-symbols-outlined text-base">web</span>
-          <span>Scraping GroupLab</span>
+          <span className="material-symbols-outlined text-base">sync</span>
+          <span>{scrapingLoading ? 'Procesando...' : 'Ejecutar Pipeline Completo'}</span>
         </button>
       </div>
       {scrapingStatus && (
@@ -375,18 +372,27 @@ export default function HomeAdmin() {
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
               </div>
-              {/* Programa Académico */}
+              {/* Programas Académicos - Selección Múltiple */}
               <div className="col-span-1">
-                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programa Académico</label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">library_books</span>
-                  <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="programa_academico" value={formData.programa_academico} onChange={handleInputChange}>
-                    <option value="">Seleccione Programa</option>
-                    <option value="Ingeniería de Sistemas">Ingeniería de Sistemas</option>
-                    <option value="Ingeniería Electrónica">Ingeniería Electrónica</option>
-                    <option value="Ingeniería Industrial">Ingeniería Industrial</option>
-                  </select>
-                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programas Académicos (puede seleccionar varios)</label>
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" value="Ingeniería de Sistemas" checked={formData.programas.includes('Ingeniería de Sistemas')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
+                    <span className="text-slate-900 dark:text-slate-100">Ingeniería de Sistemas</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" value="Ingeniería Industrial" checked={formData.programas.includes('Ingeniería Industrial')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
+                    <span className="text-slate-900 dark:text-slate-100">Ingeniería Industrial</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" value="Especialización en Inteligencia de Negocios y Big Data" checked={formData.programas.includes('Especialización en Inteligencia de Negocios y Big Data')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
+                    <span className="text-slate-900 dark:text-slate-100">Especialización en Inteligencia de Negocios y Big Data</span>
+                  </label>
+                  {formData.programas.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Seleccionados: {formData.programas.length}</p>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Form Actions */}

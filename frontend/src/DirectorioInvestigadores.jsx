@@ -132,6 +132,12 @@ function getOrderedTipologiaData(productosPorTipologia) {
   };
 }
 
+function toTitleCase(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\b\p{L}/gu, (char) => char.toUpperCase());
+}
+
 export default function DirectorioInvestigadores() {
   const [resultados, setResultados] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
@@ -143,7 +149,7 @@ export default function DirectorioInvestigadores() {
     cedula: '',
     link_cvlac: '',
     facultad: '',
-    programa_academico: '',
+    programas: [],
     correo: '',
     google_scholar: '',
     orcid: '',
@@ -198,6 +204,16 @@ export default function DirectorioInvestigadores() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleProgramaChange = (e) => {
+    const { value, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      programas: checked
+        ? [...prev.programas, value]
+        : prev.programas.filter((p) => p !== value)
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormLoading(true);
@@ -222,7 +238,7 @@ export default function DirectorioInvestigadores() {
         cedula: '',
         link_cvlac: '',
         facultad: '',
-        programa_academico: '',
+        programas: [],
         correo: '',
         google_scholar: '',
         orcid: '',
@@ -255,15 +271,27 @@ export default function DirectorioInvestigadores() {
     
     resultados.forEach(r => {
       const nombre = r.nombre || 'Sin nombre';
+      const nombreMostrar = r.nombre_completo || toTitleCase(nombre);
       if (!investigadoresMap[nombre]) {
         investigadoresMap[nombre] = {
           nombre,
+          nombreMostrar,
           facultad: r.facultad || 'Sin facultad',
           programa: r.programa || 'Sin programa',
+          grupoInvestigacion: r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A',
+          tipoInvestigador: r.categoria || 'Sin categoría',
           productosPorTipologia: {},
           articulosCount: 0,
           totalProductos: 0
         };
+      }
+
+      // Completar datos de perfil si en registros siguientes aparecen valores más ricos.
+      if (!investigadoresMap[nombre].grupoInvestigacion || investigadoresMap[nombre].grupoInvestigacion === 'GI2A') {
+        investigadoresMap[nombre].grupoInvestigacion = r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || investigadoresMap[nombre].grupoInvestigacion;
+      }
+      if ((!investigadoresMap[nombre].tipoInvestigador || investigadoresMap[nombre].tipoInvestigador === 'Sin categoría') && r.categoria) {
+        investigadoresMap[nombre].tipoInvestigador = r.categoria;
       }
 
       investigadoresMap[nombre].totalProductos += 1;
@@ -484,7 +512,7 @@ export default function DirectorioInvestigadores() {
                 {/* Grid de investigadores */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filtered.map((inv, idx) => {
-                    const fotoInvestigador = getInvestigatorImage(inv.nombre);
+                    const fotoInvestigador = getInvestigatorImage(inv.nombreMostrar || inv.nombre);
                     const chartTipologia = getOrderedTipologiaData(inv.productosPorTipologia);
                     const investigatorChartColor = idx % 2 === 0 ? CHART_COLOR_PRIMARY : CHART_COLOR_ACCENT;
 
@@ -498,7 +526,7 @@ export default function DirectorioInvestigadores() {
                           {fotoInvestigador ? (
                             <img
                               src={fotoInvestigador}
-                              alt={`Foto de ${inv.nombre}`}
+                              alt={`Foto de ${inv.nombreMostrar || inv.nombre}`}
                               className="w-full h-full rounded-full object-cover"
                             />
                           ) : (
@@ -512,11 +540,21 @@ export default function DirectorioInvestigadores() {
                             className="hover:underline"
                           >
                             <h3 className="text-lg font-bold text-primary break-words hover:text-primary/80 transition-colors cursor-pointer">
-                              {inv.nombre}
+                              {inv.nombreMostrar || inv.nombre}
                             </h3>
                           </Link>
                           <p className="text-xs text-slate-600">{inv.facultad}</p>
-                          <p className="text-xs text-slate-500">{inv.programa}</p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-[10px] font-semibold">
+                              Programa: {inv.programa || 'Sin programa'}
+                            </span>
+                            <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
+                              Grupo: {inv.grupoInvestigacion || 'GI2A'}
+                            </span>
+                            <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-semibold">
+                              {inv.tipoInvestigador || 'Sin categoría'}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -726,18 +764,27 @@ export default function DirectorioInvestigadores() {
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
               </div>
-              {/* Programa Académico */}
+              {/* Programas Académicos - Selección Múltiple */}
               <div className="col-span-1">
-                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programa Académico</label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">library_books</span>
-                  <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="programa_academico" value={formData.programa_academico} onChange={handleInputChange}>
-                    <option value="">Seleccione Programa</option>
-                    <option value="Ingeniería de Sistemas">Ingeniería de Sistemas</option>
-                    <option value="Ingeniería Electrónica">Ingeniería Electrónica</option>
-                    <option value="Ingeniería Industrial">Ingeniería Industrial</option>
-                  </select>
-                  <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programas Académicos (puede seleccionar varios)</label>
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" value="Ingeniería de Sistemas" checked={formData.programas.includes('Ingeniería de Sistemas')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
+                    <span className="text-slate-900 dark:text-slate-100">Ingeniería de Sistemas</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" value="Ingeniería Industrial" checked={formData.programas.includes('Ingeniería Industrial')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
+                    <span className="text-slate-900 dark:text-slate-100">Ingeniería Industrial</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" value="Especialización en Inteligencia de Negocios y Big Data" checked={formData.programas.includes('Especialización en Inteligencia de Negocios y Big Data')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
+                    <span className="text-slate-900 dark:text-slate-100">Especialización en Inteligencia de Negocios y Big Data</span>
+                  </label>
+                  {formData.programas.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Seleccionados: {formData.programas.length}</p>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Form Actions */}

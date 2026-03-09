@@ -11,7 +11,8 @@ export default function DesarrolloTecnologico() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [filters, setFilters] = React.useState({
-    facultad: ''
+    facultad: '',
+    grupo: ''
   });
 
   // Obtener datos del backend según filtros (trabaja con la vista)
@@ -40,9 +41,11 @@ export default function DesarrolloTecnologico() {
 
   // Opciones de filtros dinámicas (sin 'Año')
   const filterOptions = React.useMemo(() => {
-    const opts = { facultad: [] };
+    const opts = { facultad: [], grupo: [] };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
+      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
+      if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
     });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
@@ -58,6 +61,10 @@ export default function DesarrolloTecnologico() {
     // Aplicar otros filtros (sin año)
     result = result.filter(r => {
       if (filters.facultad && r.facultad !== filters.facultad) return false;
+      if (filters.grupo) {
+        const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
+        if (grupo !== filters.grupo) return false;
+      }
       return true;
     });
     
@@ -95,14 +102,25 @@ export default function DesarrolloTecnologico() {
     const matched = items
       .filter(item => String(item.anio || 'Sin año') === String(anio))
       .map(item => {
-        const autores = [item.autor_1_grouplab, item.autor_2_grouplab, item.autor_3_grouplab]
+        const autoresGrouplab = [item.autor_1_grouplab, item.autor_2_grouplab, item.autor_3_grouplab]
           .filter(Boolean)
           .join(', ');
+        
+        // Si no hay autores de GroupLab, usar el nombre del autor de CVLAC
+        const tieneAutoresGrouplab = autoresGrouplab.length > 0;
+        const facultad = (item.facultad || 'N/D').toUpperCase();
+        const programa = (item.programa || item.programa_academico || 'N/D').toUpperCase();
+        const autorCvlac = item.nombre
+          ? `${item.nombre.toUpperCase()} (${facultad} - ${programa})`
+          : 'N/D';
+        const autores = tieneAutoresGrouplab ? autoresGrouplab : autorCvlac;
+        
         return {
           titulo: item.titulo_proyecto || item.titulo_grouplab || 'Sin titulo',
           nodoHijo: item.tipo_proyecto || nodo || 'Sin nodo hijo',
           nodoPadre: item.nodo_padre || item.nodo_padre_resultados || 'Sin nodo padre',
-          autores: autores || 'N/D',
+          autores: autores,
+          esCvlac: !tieneAutoresGrouplab, // Indica si el autor viene de CVLAC
           anio: item.anio || 'Sin año',
           facultad: item.facultad || 'N/D',
           programa: item.programa || item.programa_academico || 'N/D'
@@ -278,10 +296,10 @@ export default function DesarrolloTecnologico() {
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              {['facultad'].map(key => (
+              {['facultad', 'grupo'].map(key => (
                 <div key={key} className="w-[180px]">
                   <label className="block text-[12px] font-medium mb-2 truncate text-center">
-                    {key === 'facultad' ? 'Facultad' : key === 'programa' ? 'Programa' : key}
+                    {key === 'facultad' ? 'Facultad' : key === 'grupo' ? 'Grupo de Investigación' : key === 'programa' ? 'Programa' : key}
                   </label>
                   <select
                     className="w-full border rounded px-3 py-2.5 text-[12px] h-10 text-center appearance-none bg-white"
@@ -371,6 +389,15 @@ export default function DesarrolloTecnologico() {
                     Año: <span className="font-semibold">{yearDetailModal.anio}</span> • Registros: <span className="font-semibold">{yearDetailModal.rows.length}</span>
                   </p>
                 </div>
+                {/* Leyenda */}
+                <div className="px-6 py-3 bg-amber-50 border-b border-amber-200">
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 bg-yellow-200 border border-yellow-300 rounded"></div>
+                      <span className="text-slate-600">Fondo amarillo = Autor de CVLAC (sin match en GroupLab)</span>
+                    </div>
+                  </div>
+                </div>
                 <div className="overflow-auto max-h-[60vh]">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-100 sticky top-0 z-10">
@@ -395,7 +422,7 @@ export default function DesarrolloTecnologico() {
                             <td className="p-3 font-medium text-slate-800 max-w-[340px]">{row.titulo}</td>
                             <td className="p-3 text-slate-700">{row.nodoHijo}</td>
                             <td className="p-3 text-slate-700">{row.nodoPadre}</td>
-                            <td className="p-3 text-slate-700">{row.autores}</td>
+                            <td className={`p-3 text-slate-700 ${row.esCvlac ? 'bg-yellow-200' : ''}`}>{row.autores}</td>
                             <td className="p-3"><span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2.5 py-1 text-xs font-semibold">{row.anio}</span></td>
                             <td className="p-3"><span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2.5 py-1 text-xs font-semibold">{row.facultad}</span></td>
                             <td className="p-3"><span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 text-xs font-semibold">{row.programa}</span></td>

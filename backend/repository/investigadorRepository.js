@@ -5,7 +5,7 @@ async function ensureScrapingTable() {
   // create the table if it doesn't exist (minimal version)
   const createSql = `
     CREATE TABLE IF NOT EXISTS investigadores (
-      id INT AUTO_INCREMENT PRIMARY KEY
+      id_investigador INT AUTO_INCREMENT PRIMARY KEY
     ) ENGINE=InnoDB;
   `;
   await pool.query(createSql);
@@ -13,8 +13,8 @@ async function ensureScrapingTable() {
   // add scraping columns if they don't already exist
   // check existing columns so we only add missing ones
   const colsToAdd = [
-    { name: 'nombre', def: 'VARCHAR(100)' },
-    { name: 'link', def: 'TEXT' },
+    { name: 'nombre_completo', def: 'VARCHAR(255)' },
+    { name: 'link_cvlac', def: 'VARCHAR(255)' },
     { name: 'estado', def: "VARCHAR(20) DEFAULT 'pendiente'" },
     { name: 'fecha_creacion', def: 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' },
   ];
@@ -34,7 +34,7 @@ async function ensureScrapingTable() {
 
 // mark all rows that have a link as pending so scraping script will pick them up
 async function markAllPending() {
-  const sql = "UPDATE investigadores SET estado='pendiente' WHERE (link IS NOT NULL OR link_cvlac IS NOT NULL)";
+  const sql = "UPDATE investigadores SET estado='pendiente' WHERE link_cvlac IS NOT NULL";
   await pool.query(sql);
 }
 

@@ -42,6 +42,7 @@ export default function Datos() {
 
   const [filters, setFilters] = React.useState({
     facultad: '',
+    grupo: '',
     anio: '',
     categoria: '',
     cedula: '',
@@ -140,6 +141,7 @@ export default function Datos() {
 
   const labelMap = {
     facultad: 'Facultad',
+    grupo: 'Grupo de Investigación',
     programa: 'Programa',
     anio: 'Año',
     investigador: 'Investigador',
@@ -156,11 +158,13 @@ export default function Datos() {
   // derive available options for filters once resultados is loaded
   const filterOptions = React.useMemo(() => {
     const opts = {
-      facultad: [], anio: [], tipologia: [],
+      facultad: [], grupo: [], anio: [], tipologia: [],
       categoria: [], cedula: [], sexo: [], grado: [], tipo_proyecto: [], tipologia_productos: [], titulo_proyecto: []
     };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
+      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
+      if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
       if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);
       if (r.categoria && !opts.categoria.includes(r.categoria)) opts.categoria.push(r.categoria);
       if (r.cedula && !opts.cedula.includes(r.cedula)) opts.cedula.push(r.cedula);
@@ -182,6 +186,10 @@ export default function Datos() {
   const filtered = React.useMemo(() => {
     return resultados.filter(r => {
       if (filters.facultad && r.facultad !== filters.facultad) return false;
+      if (filters.grupo) {
+        const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
+        if (grupo !== filters.grupo) return false;
+      }
       if (filters.anio && r.anio !== filters.anio) return false;
       if (filters.categoria && r.categoria !== filters.categoria) return false;
       if (filters.cedula && r.cedula !== filters.cedula) return false;
@@ -199,12 +207,36 @@ export default function Datos() {
     });
   }, [resultados, filters]);
 
-  // chart rows fetched from server
-  const [topTipos, setTopTipos] = React.useState([]);
   // drill state for padre-hijo chart
   const [drillMode, setDrillMode] = React.useState(false);
   const [parentSelected, setParentSelected] = React.useState('');
-  const [childColumns, setChildColumns] = React.useState([]);
+  const topTipos = React.useMemo(() => {
+    const counts = {};
+    filtered.forEach((r) => {
+      const tip = (r.nodo_padre || '').toString().trim();
+      if (!tip) return;
+      counts[tip] = (counts[tip] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  }, [filtered]);
+
+  const childColumns = React.useMemo(() => {
+    if (!drillMode || !parentSelected) return [];
+    const counts = {};
+    filtered.forEach((r) => {
+      const tip = (r.nodo_padre || '').toString().trim();
+      if (tip !== parentSelected) return;
+      const nodo = (r.tipo_proyecto || '').toString().trim();
+      if (!nodo) return;
+      counts[nodo] = (counts[nodo] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([nodo, cantidad]) => ({ nodo, cantidad }));
+  }, [drillMode, parentSelected, filtered]);
+
   const computeParentCount = () => {
     const rec = topTipos.find(([t]) => t === parentSelected);
     return rec ? rec[1] : 0;
@@ -230,58 +262,6 @@ export default function Datos() {
     });
     return ks;
   }, [yearCounts]);
-
-  // whenever filters change trigger new aggregation request for top tipologias
-  React.useEffect(() => {
-    const loadAgg = async () => {
-      try {
-        const qs = new URLSearchParams();
-        if (filters.facultad) qs.append('facultad', filters.facultad);
-        if (filters.anio) qs.append('anio', filters.anio);
-        if (filters.categoria) qs.append('categoria', filters.categoria);
-        if (filters.cedula) qs.append('cedula', filters.cedula);
-        if (filters.sexo) qs.append('sexo', filters.sexo);
-        if (filters.grado) qs.append('grado', filters.grado);
-        if (filters.tipo_proyecto) qs.append('tipo', filters.tipo_proyecto);
-        if (filters.tipologia_productos) qs.append('tipologia', filters.tipologia_productos);
-        if (filters.titulo_proyecto) qs.append('titulo_proyecto', filters.titulo_proyecto);
-        const res = await fetch(`${API_BASE}/tipologia-cantidades?` + qs.toString());
-        if (!res.ok) throw new Error('Error fetching agregados');
-        const data = await res.json();
-        setTopTipos(data.map(r => [r.tipologia, r.cantidad]));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    loadAgg();
-  }, [filters]);
-
-  // when parent changes in drill mode fetch children columns
-  React.useEffect(() => {
-    if (!drillMode || !parentSelected) return;
-    const loadChildren = async () => {
-      try {
-        const qs = new URLSearchParams();
-        if (filters.facultad) qs.append('facultad', filters.facultad);
-        if (filters.anio) qs.append('anio', filters.anio);
-        if (filters.categoria) qs.append('categoria', filters.categoria);
-        if (filters.cedula) qs.append('cedula', filters.cedula);
-        if (filters.sexo) qs.append('sexo', filters.sexo);
-        if (filters.grado) qs.append('grado', filters.grado);
-        if (filters.tipo_proyecto) qs.append('tipo', filters.tipo_proyecto);
-        if (filters.tipologia_productos) qs.append('tipologia', filters.tipologia_productos);
-        if (filters.titulo_proyecto) qs.append('titulo_proyecto', filters.titulo_proyecto);
-        qs.append('tipologia', parentSelected);
-        const res = await fetch(`${API_BASE}/nodo-hijo-cantidades?` + qs.toString());
-        if (!res.ok) throw new Error('Error fetching nodo hijo agregados');
-        const data = await res.json();
-        setChildColumns(data.map(r => ({ nodo: r.nodo, cantidad: r.cantidad }))); 
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    loadChildren();
-  }, [drillMode, parentSelected, filters]);
 
   React.useEffect(() => {
     const load = async () => {
@@ -436,7 +416,7 @@ export default function Datos() {
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              {['facultad', 'anio', 'tipologia'].map(key => (
+              {['facultad', 'grupo', 'anio', 'tipologia'].map(key => (
                 <div key={key} className="w-[120px]">
                   <label className="block text-[9px] font-medium mb-1 truncate text-center">
                     {displayLabel(key)}
@@ -491,6 +471,14 @@ export default function Datos() {
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          max: drillMode 
+                            ? Math.max(computeParentCount(), ...childColumns.map(c => c.cantidad)) * 1.1111
+                            : Math.max(...topTipos.map(([, c]) => c)) * 1.1111
+                        }
+                      },
                       plugins: {
                         legend: { display: false },
                         title: {
@@ -506,7 +494,7 @@ export default function Datos() {
                           // put values outside the bar instead of inside
                           anchor: 'end',
                           align: 'top',
-                          offset: 4,
+                          offset: 12,
                           formatter: value => value,
                           font: { weight: 'bold' }
                         },
@@ -575,13 +563,19 @@ export default function Datos() {
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          max: Math.max(...years.map(y => yearCounts[y])) * 1.1111
+                        }
+                      },
                       plugins: {
                         legend: { display: false },
                         title: { display: true, text: 'Cantidad de Productos por Año' },
                         datalabels: {
                           anchor: 'end',
                           align: 'top',
-                          offset: 4,
+                          offset: 12,
                           formatter: value => value,
                           font: { weight: 'bold' }
                         }

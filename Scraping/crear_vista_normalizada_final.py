@@ -42,6 +42,8 @@ WITH ranked_records AS (
     rcm.anio,
     rcm.tipo_grouplab,
     rcm.nodo_padre_grouplab,
+    rcm.nombre_grupo_grouplab,
+    rcm.sigla_grupo_grouplab,
     rcm.titulo_grouplab,
     rcm.titulo_original_grouplab,
     rcm.titulo_normalizado,
@@ -54,19 +56,29 @@ WITH ranked_records AS (
     rcm.isbn,
     rcm.revista,
     rcm.ano_grouplab,
-    inv.facultad,
-    inv.programa_academico,
+    rel.facultad,
+    rel.programa_academico,
     ROW_NUMBER() OVER (
       PARTITION BY rcm.tipo_proyecto, rcm.titulo_normalizado, rcm.anio 
       ORDER BY (CASE WHEN rcm.nodo_padre_resultados IS NOT NULL THEN 1 ELSE 0 END) DESC,
                rcm.tabla_id
     ) as rn
   FROM resultados_coincidentes_materializada rcm
-  LEFT JOIN investigadores inv ON rcm.id_investigador = inv.id
+  LEFT JOIN investigadores inv ON rcm.id_investigador = inv.id_investigador
+  LEFT JOIN (
+    SELECT
+      ipf.id_investigador,
+      GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ' / ') AS facultad,
+      GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ' / ') AS programa_academico
+    FROM investigador_programa_facultad ipf
+    LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
+    LEFT JOIN programa p ON p.id_programa = ipf.id_programa
+    GROUP BY ipf.id_investigador
+  ) rel ON rel.id_investigador = inv.id_investigador
 )
 SELECT 
   tabla_id, id, id_investigador, nombre, categoria, tipo_proyecto, titulo_proyecto,
-  nodo_padre_resultados, anio, tipo_grouplab, nodo_padre_grouplab, titulo_grouplab,
+  nodo_padre_resultados, anio, tipo_grouplab, nodo_padre_grouplab, nombre_grupo_grouplab, sigla_grupo_grouplab, titulo_grouplab,
   titulo_original_grouplab, titulo_normalizado, autor_1_grouplab, autor_2_grouplab,
   autor_3_grouplab, autor_4_grouplab, autor_5_grouplab, issn, isbn, revista,
   ano_grouplab, facultad, programa_academico

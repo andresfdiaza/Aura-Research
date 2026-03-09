@@ -262,6 +262,28 @@ def extraer_titulos(html):
     return resultados
 
 
+def extraer_info_grupo(html_content):
+    """Extrae nombre y sigla del grupo desde el encabezado principal de GroupLAC."""
+    soup = BeautifulSoup(html_content, "html.parser")
+    encabezado = soup.find("span", class_="celdaEncabezado")
+
+    if not encabezado:
+        return {"nombre_grupo": "", "sigla_grupo": ""}
+
+    nombre_grupo = encabezado.get_text(" ", strip=True)
+    nombre_grupo = html.unescape(nombre_grupo)
+    nombre_grupo = re.sub(r"\s+", " ", nombre_grupo).strip()
+
+    # La sigla suele venir al final (ej. GI2A). Si no existe, queda vacía.
+    sigla_match = re.search(r"\b([A-Z][A-Z0-9]{1,})\b$", nombre_grupo)
+    sigla_grupo = sigla_match.group(1) if sigla_match else ""
+
+    return {
+        "nombre_grupo": nombre_grupo,
+        "sigla_grupo": sigla_grupo,
+    }
+
+
 def extraer_titulos_de_seccion(tabla, tipo_seccion=None):
     """Extrae todos los títulos y autores de una tabla de sección específica."""
     registros = []
@@ -488,6 +510,8 @@ def crear_tabla():
         CREATE TABLE titulo_grouplab (
             tipo VARCHAR(150) NOT NULL,
             nodo_padre VARCHAR(150),
+            nombre_grupo_investigacion VARCHAR(255),
+            sigla_grupo_investigacion VARCHAR(50),
             titulo TEXT NOT NULL,
             autor_1 VARCHAR(255),
             autor_2 VARCHAR(255),
@@ -507,7 +531,7 @@ def crear_tabla():
     conexion.commit()
     cursor.close()
     conexion.close()
-    print("✓ Tabla 'titulo_grouplab' recreada con columnas: tipo, nodo_padre, titulo, autor_1...autor_8, issn, isbn, revista, ano")
+    print("✓ Tabla 'titulo_grouplab' recreada con columnas: tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1...autor_8, issn, isbn, revista, ano")
 
 
 def crear_tabla_tipologia_proyecto():
@@ -554,14 +578,14 @@ def limpiar_datos_anteriores():
         print("🗑️ Archivo CSV anterior eliminado")
 
 
-def guardar_en_bd(titulos_por_tipo):
+def guardar_en_bd(titulos_por_tipo, info_grupo):
     """Guarda los títulos y autores en la base de datos organizados por tipo"""
     conexion = conectar_bd()
     cursor = conexion.cursor()
     
     query = """INSERT INTO titulo_grouplab 
-               (tipo, nodo_padre, titulo, autor_1, autor_2, autor_3, autor_4, autor_5, autor_6, autor_7, autor_8, issn, isbn, revista, ano) 
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+               (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4, autor_5, autor_6, autor_7, autor_8, issn, isbn, revista, ano) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     
     total = 0
     for tipo, registros in titulos_por_tipo.items():
@@ -573,6 +597,8 @@ def guardar_en_bd(titulos_por_tipo):
                 nodo_hijo = normalizar_nodo_hijo(tipo)
             
             nodo_padre = obtener_nodo_padre(nodo_hijo)
+            nombre_grupo = info_grupo.get('nombre_grupo', '')
+            sigla_grupo = info_grupo.get('sigla_grupo', '')
             titulo = registro['titulo']
             autores = registro['autores']
             issn = registro.get('issn')  # Puede ser None
@@ -585,7 +611,7 @@ def guardar_en_bd(titulos_por_tipo):
             for i, autor in enumerate(autores[:8]):  # Tomar máximo 8 autores
                 valores_autores[i] = autor
             
-            cursor.execute(query, (nodo_hijo, nodo_padre, titulo, *valores_autores, issn, isbn, revista, ano))
+            cursor.execute(query, (nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano))
         total += len(registros)
     
     conexion.commit()
@@ -594,13 +620,13 @@ def guardar_en_bd(titulos_por_tipo):
     print(f"✓ {total} títulos guardados en BD")
 
 
-def guardar_csv(titulos_por_tipo):
+def guardar_csv(titulos_por_tipo, info_grupo):
     """Guarda los títulos y autores en un archivo CSV organizado por tipo"""
     archivo = "titulos_grouplab.csv"
 
     with open(archivo, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["tipo", "nodo_padre", "titulo", "autor_1", "autor_2", "autor_3", "autor_4", "autor_5", "autor_6", "autor_7", "autor_8", "issn", "isbn", "revista", "ano"])  # Encabezados
+        writer.writerow(["tipo", "nodo_padre", "nombre_grupo_investigacion", "sigla_grupo_investigacion", "titulo", "autor_1", "autor_2", "autor_3", "autor_4", "autor_5", "autor_6", "autor_7", "autor_8", "issn", "isbn", "revista", "ano"])  # Encabezados
         
         for tipo, registros in titulos_por_tipo.items():
             for registro in registros:
@@ -611,6 +637,8 @@ def guardar_csv(titulos_por_tipo):
                     nodo_hijo = normalizar_nodo_hijo(tipo)
                 
                 nodo_padre = obtener_nodo_padre(nodo_hijo)
+                nombre_grupo = info_grupo.get('nombre_grupo', '')
+                sigla_grupo = info_grupo.get('sigla_grupo', '')
                 titulo = registro['titulo']
                 autores = registro['autores']
                 issn = registro.get('issn', '')  # Vacío si no hay ISSN
@@ -623,7 +651,7 @@ def guardar_csv(titulos_por_tipo):
                 for i, autor in enumerate(autores[:8]):  # Tomar máximo 8 autores
                     valores_autores[i] = autor
                 
-                writer.writerow([nodo_hijo, nodo_padre, titulo, *valores_autores, issn, isbn, revista, ano])
+                writer.writerow([nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano])
     
     ruta_completa = os.path.abspath(archivo)
     total = sum(len(registros) for registros in titulos_por_tipo.values())
@@ -646,12 +674,17 @@ def main():
     # Obtener HTML y extraer títulos
     print("\n📥 Obteniendo datos de GrupLAC...\n")
     html = obtener_html()
+    info_grupo = extraer_info_grupo(html)
+    if info_grupo.get('nombre_grupo'):
+        print(f"✓ Grupo detectado: {info_grupo['nombre_grupo']}")
+    if info_grupo.get('sigla_grupo'):
+        print(f"✓ Sigla detectada: {info_grupo['sigla_grupo']}")
     titulos_por_tipo = extraer_titulos(html)
     
     # Guardar en BD y CSV
     print("\n💾 Guardando resultados...\n")
-    guardar_en_bd(titulos_por_tipo)
-    guardar_csv(titulos_por_tipo)
+    guardar_en_bd(titulos_por_tipo, info_grupo)
+    guardar_csv(titulos_por_tipo, info_grupo)
     
     total = sum(len(registros) for registros in titulos_por_tipo.values())
     
@@ -662,17 +695,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-    # Ejecutar limpieza + actualización de tablas/vistas automáticamente.
-    script_dir = os.path.dirname(__file__)
-    post_scripts = [
-        "crear_titulo_grouplab_clean_v2.py",
-        "crear_tabla_resultados_coincidentes.py",
-        "crear_vista_normalizada_final.py",
-        "crear_vistas_sin_coincidencias.py",
-    ]
-    print("\n🔄 Ejecutando postproceso automático...")
-    for script_name in post_scripts:
-        script_path = os.path.join(script_dir, script_name)
-        print(f"  → Ejecutando {script_name}...")
-        subprocess.run([sys.executable, script_path], check=True)
-    print("✅ Postproceso completado. Datos listos.")
+    # Nota: el postproceso (clean/join/vistas) se ejecuta desde backend/service/scrapingService.js
+    # para mantener un único flujo consistente en el orden correcto.
+    print("\nℹ️ Scraping GroupLAC finalizado. El pipeline de normalización se ejecuta desde el backend.")

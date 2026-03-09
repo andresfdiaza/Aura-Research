@@ -2,6 +2,46 @@ const { exec } = require('child_process');
 const path = require('path');
 const repo = require('../repository/investigadorRepository');
 
+const runPythonScript = (scriptPath, env) =>
+  new Promise((resolve, reject) => {
+    exec(`python "${scriptPath}"`, { env, maxBuffer: 1024 * 500 }, (error, stdout, stderr) => {
+      if (error) {
+        return reject(error);
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+
+const runNormalizationPipeline = async (env) => {
+  const base = path.resolve(__dirname, '..', '..', 'Scraping');
+  const scripts = [
+    'crear_titulo_grouplab_clean_v2.py',
+    'crear_tabla_resultados_coincidentes.py',
+    'crear_vista_normalizada_final.py',
+    'crear_vistas_sin_coincidencias.py',
+  ];
+
+  let pipelineStdout = '\n--- Normalization pipeline ---\n';
+  let pipelineStderr = '';
+
+  for (const script of scripts) {
+    const scriptPath = path.resolve(base, script);
+    const result = await runPythonScript(scriptPath, env);
+    pipelineStdout += `\n[${script}]\n${result.stdout || ''}`;
+    if (result.stderr) {
+      pipelineStderr += `\n[${script}]\n${result.stderr}`;
+    }
+  }
+
+  return { pipelineStdout, pipelineStderr };
+};
+
+const getPythonEnv = () =>
+  Object.assign({}, process.env, {
+    PYTHONIOENCODING: 'utf-8',
+    PYTHONUTF8: '1'
+  });
+
 // run python scraping logic. the real processing lives in scraping_cvlac_completo.py
 exports.executeScraping = async () => {
   // ensure the scraping table exists and has necessary columns
@@ -19,15 +59,18 @@ exports.executeScraping = async () => {
     const scriptPath = path.resolve(__dirname, '..', '..', 'Scraping', 'scraping_cvlac_completo.py');
     // set environment variables so Python uses UTF-8 for I/O (prevents
     // UnicodeEncodeError when printing emojis on Windows)
-    const env = Object.assign({}, process.env, {
-      PYTHONIOENCODING: 'utf-8',
-      PYTHONUTF8: '1'
-    });
-    exec(`python "${scriptPath}"`, { env, maxBuffer: 1024 * 500 }, (error, stdout, stderr) => {
+    const env = getPythonEnv();
+    exec(`python "${scriptPath}"`, { env, maxBuffer: 1024 * 500 }, async (error, stdout, stderr) => {
       if (error) {
         return reject(error);
       }
-      resolve({ stdout, stderr });
+
+      try {
+        const { pipelineStdout, pipelineStderr } = await runNormalizationPipeline(env);
+        resolve({ stdout: (stdout || '') + pipelineStdout, stderr: (stderr || '') + pipelineStderr });
+      } catch (pipelineError) {
+        reject(pipelineError);
+      }
     });
   });
 };
@@ -40,24 +83,44 @@ exports.executeScrapingGroupLab = async () => {
     const scriptPath = path.resolve(__dirname, '..', '..', 'Scraping', 'scraping_grupoinves.py');
     // set environment variables so Python uses UTF-8 for I/O (prevents
     // UnicodeEncodeError when printing emojis on Windows)
-    const env = Object.assign({}, process.env, {
-      PYTHONIOENCODING: 'utf-8',
-      PYTHONUTF8: '1'
-    });
-    exec(`python "${scriptPath}"`, { env, maxBuffer: 1024 * 500 }, (error, stdout, stderr) => {
+    const env = getPythonEnv();
+    exec(`python "${scriptPath}"`, { env, maxBuffer: 1024 * 500 }, async (error, stdout, stderr) => {
       if (error) {
         return reject(error);
       }
-      // After scraping succeeds, regenerate the clean table
-      const cleanScriptPath = path.resolve(__dirname, '..', '..', 'Scraping', 'crear_titulo_grouplab_clean_v2.py');
-      exec(`python "${cleanScriptPath}"`, { env, maxBuffer: 1024 * 500 }, (cleanError, cleanStdout, cleanStderr) => {
-        if (cleanError) {
-          console.error('Error regenerating clean table:', cleanError);
-          // Still resolve even if clean table generation fails - scraping succeeded
-          return resolve({ stdout: stdout + '\n--- Clean table generation ---\n' + cleanStdout, stderr: stderr });
-        }
-        resolve({ stdout: stdout + '\n--- Clean table generation ---\n' + cleanStdout, stderr: stderr });
-      });
+
+      try {
+        const { pipelineStdout, pipelineStderr } = await runNormalizationPipeline(env);
+        resolve({ stdout: (stdout || '') + pipelineStdout, stderr: (stderr || '') + pipelineStderr });
+      } catch (pipelineError) {
+        reject(pipelineError);
+      }
     });
   });
+};
+
+// run complete flow in one endpoint: CVLAC + GroupLab + normalization pipeline (single pass)
+exports.executeScrapingComplete = async () => {
+  await repo.ensureScrapingTable();
+  await repo.markAllPending();
+
+  const env = getPythonEnv();
+  const base = path.resolve(__dirname, '..', '..', 'Scraping');
+  const cvlacScript = path.resolve(base, 'scraping_cvlac_completo.py');
+  const groupLabScript = path.resolve(base, 'scraping_grupoinves.py');
+
+  const cvlacResult = await runPythonScript(cvlacScript, env);
+  const groupLabResult = await runPythonScript(groupLabScript, env);
+  const { pipelineStdout, pipelineStderr } = await runNormalizationPipeline(env);
+
+  return {
+    stdout:
+      '\n--- CVLAC ---\n' + (cvlacResult.stdout || '') +
+      '\n--- GroupLab ---\n' + (groupLabResult.stdout || '') +
+      pipelineStdout,
+    stderr:
+      (cvlacResult.stderr || '') +
+      (groupLabResult.stderr || '') +
+      pipelineStderr,
+  };
 };

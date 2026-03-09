@@ -26,9 +26,9 @@ def ensure_table():
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS investigadores (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        nombre VARCHAR(100) NOT NULL,
-        link TEXT NOT NULL,
+        id_investigador INT AUTO_INCREMENT PRIMARY KEY,
+        nombre_completo VARCHAR(255) NOT NULL,
+        link_cvlac VARCHAR(255) NOT NULL,
         estado VARCHAR(20) DEFAULT 'pendiente',
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;
@@ -46,9 +46,9 @@ def obtener_investigadores():
     cursor.execute(
         """
         SELECT 
-            id,
-            COALESCE(nombre, nombre_completo) AS nombre,
-            COALESCE(link, link_cvlac) AS link
+            id_investigador,
+            nombre_completo AS nombre,
+            link_cvlac AS link
         FROM investigadores
         WHERE estado = 'pendiente' OR estado IS NULL
         """
@@ -64,7 +64,7 @@ def marcar_completado(id_investigador):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "UPDATE investigadores SET estado = 'procesado' WHERE id = %s",
+            "UPDATE investigadores SET estado = 'procesado' WHERE id_investigador = %s",
             (id_investigador,)
         )
         conn.commit()
@@ -96,7 +96,7 @@ def main():
         try:
             hacer_scraping(inv['link'])
         except Exception as e:
-            print(f"Error scraping {inv['id']}: {e}")
+            print(f"Error scraping {inv['id_investigador']}: {e}")
             continue
         try:
             marcar_completado(inv['id'])

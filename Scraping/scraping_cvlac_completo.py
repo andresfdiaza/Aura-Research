@@ -14,7 +14,7 @@ from conexion_sql import guardar_en_mysql
 URL = ""
 
 # en lugar de escribir manualmente las URL vamos a leerlas desde la tabla
-# `investigadores` de MySQL; sacamos el campo `link` (o `link_cvlac`)
+# `investigadores` de MySQL; sacamos el campo `link_cvlac`
 # y sólo procesamos aquellos con estado 'pendiente'.
 
 import mysql.connector
@@ -48,7 +48,7 @@ def obtener_urls_db():
     conn = mysql.connector.connect(**DB_CONFIG)
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, COALESCE(link, link_cvlac) FROM investigadores WHERE estado='pendiente' AND (link IS NOT NULL OR link_cvlac IS NOT NULL)"
+        "SELECT id_investigador, link_cvlac FROM investigadores WHERE estado='pendiente' AND link_cvlac IS NOT NULL"
     )
     rows = cur.fetchall()
     cur.close()
@@ -64,7 +64,7 @@ def marcar_todos_pendientes():
     conn = mysql.connector.connect(**DB_CONFIG)
     cur = conn.cursor()
     cur.execute(
-        "UPDATE investigadores SET estado = 'pendiente' WHERE (link IS NOT NULL OR link_cvlac IS NOT NULL)"
+        "UPDATE investigadores SET estado = 'pendiente' WHERE link_cvlac IS NOT NULL"
     )
     conn.commit()
     cur.close()
@@ -2086,7 +2086,7 @@ if __name__ == "__main__":
     if len(URLS) == 0:
         print("⚠️ No hay URLs pendientes. Todas ya fueron procesadas.")
         print("Si necesitas procesar de nuevo, ejecuta en MySQL:")
-        print("UPDATE investigadores SET estado='pendiente' WHERE link IS NOT NULL OR link_cvlac IS NOT NULL;")
+        print("UPDATE investigadores SET estado='pendiente' WHERE link_cvlac IS NOT NULL;")
         exit()
 
     # 🔥 1️⃣ Limpiar tabla SOLO UNA VEZ
@@ -2117,7 +2117,7 @@ if __name__ == "__main__":
             conn_update = mysql.connector.connect(**DB_CONFIG)
             cur_update = conn_update.cursor()
             cur_update.execute(
-                "UPDATE investigadores SET estado = 'procesado' WHERE id = %s",
+                "UPDATE investigadores SET estado = 'procesado' WHERE id_investigador = %s",
                 (investigator_id,)
             )
             conn_update.commit()
@@ -2138,15 +2138,6 @@ if __name__ == "__main__":
 
     print(f"\n🚀 Proceso finalizado. Total registros insertados: {len(todos_los_datos)}")
 
-    # Ejecutar postproceso automáticamente para dejar tablas y vistas listas.
-    post_scripts = [
-        "crear_tabla_resultados_coincidentes.py",
-        "crear_vista_normalizada_final.py",
-        "crear_vistas_sin_coincidencias.py",
-    ]
-    print("\n🔄 Ejecutando postproceso automático...")
-    for script_name in post_scripts:
-        script_path = os.path.join(_script_dir, script_name)
-        print(f"  → Ejecutando {script_name}...")
-        subprocess.run([sys.executable, script_path], check=True)
-    print("✅ Postproceso completado. Datos listos.")
+    # Nota: el postproceso (clean/join/vistas) se ejecuta desde backend/service/scrapingService.js
+    # para mantener un único flujo consistente en el orden correcto.
+    print("\nℹ️ Scraping CVLAC finalizado. El pipeline de normalización se ejecuta desde el backend.")

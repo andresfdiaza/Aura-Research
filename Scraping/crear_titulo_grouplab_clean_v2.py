@@ -47,7 +47,7 @@ print("\n🔄 Cargando datos de titulo_grouplab...")
 cur = conn.cursor()
 cur.execute("""
 SELECT 
-    tipo, nodo_padre, titulo, autor_1, autor_2, autor_3, autor_4,
+    tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4,
     autor_5, autor_6, autor_7, autor_8, issn, isbn, revista, ano
 FROM titulo_grouplab
 """)
@@ -61,7 +61,7 @@ print("\n🧹 Identificando duplicados (tipo + título + año, mantener más aut
 groups_by_base = defaultdict(list)
 
 for row in rows_raw:
-    tipo, nodo_padre, titulo, a1, a2, a3, a4, a5, a6, a7, a8, issn, isbn, revista, ano = row
+    tipo, nodo_padre, nombre_grupo, sigla_grupo, titulo, a1, a2, a3, a4, a5, a6, a7, a8, issn, isbn, revista, ano = row
     
     # Clave base: solo tipo + título normalizado + año
     key_base = (tipo or '', normalize_title(titulo or ''), ano or '')
@@ -71,6 +71,8 @@ for row in rows_raw:
     row_data = {
         'tipo': tipo,
         'nodo_padre': nodo_padre,
+        'nombre_grupo_investigacion': nombre_grupo,
+        'sigla_grupo_investigacion': sigla_grupo,
         'titulo': titulo,
         'titulo_original': titulo,
         'titulo_normalizado': normalize_title(titulo),
@@ -189,6 +191,8 @@ cur.execute("""
 CREATE TABLE titulo_grouplab_clean (
     tipo VARCHAR(255),
     nodo_padre VARCHAR(255),
+    nombre_grupo_investigacion VARCHAR(255),
+    sigla_grupo_investigacion VARCHAR(50),
     titulo LONGTEXT,
     titulo_original LONGTEXT,
     titulo_normalizado LONGTEXT,
@@ -219,6 +223,8 @@ for row in dedup_map.values():
     rows_to_insert.append((
         row['tipo'],
         row['nodo_padre'],
+        row['nombre_grupo_investigacion'],
+        row['sigla_grupo_investigacion'],
         row['titulo'],
         row['titulo_original'],
         row['titulo_normalizado'],
@@ -242,10 +248,10 @@ for i in range(0, len(rows_to_insert), batch_size):
     batch = rows_to_insert[i:i+batch_size]
     cur.executemany("""
         INSERT INTO titulo_grouplab_clean 
-        (tipo, nodo_padre, titulo, titulo_original, titulo_normalizado,
+        (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado,
          autor_1, autor_2, autor_3, autor_4, autor_5, autor_6, autor_7, autor_8,
          issn, isbn, revista, ano)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, batch)
     conn.commit()
     print(f"   ... {min(i + batch_size, len(rows_to_insert))} / {len(rows_to_insert)}")

@@ -779,7 +779,7 @@ app.get('/api/resultados', async (req, res) => {
         tn.issn,
         tn.isbn,
         tn.revista
-      FROM scraping.tabla_Normalizada_final tn
+      FROM scraping.tabla_normalizada_final tn
       LEFT JOIN resultados rs ON tn.id = rs.id
       LEFT JOIN investigadores i ON tn.id_investigador = i.id_investigador
     ) r${whereClause}`;
@@ -973,7 +973,7 @@ app.get('/api/tabla-normalizada-final', async (req, res) => {
       revista,
       nombre_grupo_grouplab,
       sigla_grupo_grouplab
-    FROM scraping.tabla_Normalizada_final`;
+    FROM scraping.tabla_normalizada_final`;
   const conditions = [];
   const params = [];
   if (facultad) {

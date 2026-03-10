@@ -283,12 +283,13 @@ export default function DirectorioInvestigadores() {
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       parseProgramas(r.programa).forEach((p) => {
-        if (!opts.programa.includes(p)) opts.programa.push(p);
+        if (p && !opts.programa.includes(p)) opts.programa.push(p);
       });
     });
-    if (programasCatalogo.length > 0) {
-      opts.programa = [...programasCatalogo];
-    }
+    // Si hay catálogo, agregar solo los que no están ya
+    programasCatalogo.forEach((p) => {
+      if (p && !opts.programa.includes(p)) opts.programa.push(p);
+    });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
   }, [resultados, programasCatalogo]);

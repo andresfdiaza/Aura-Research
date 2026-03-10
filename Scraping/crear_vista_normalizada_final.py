@@ -42,8 +42,6 @@ WITH ranked_records AS (
     rcm.anio,
     rcm.tipo_grouplab,
     rcm.nodo_padre_grouplab,
-    rcm.nombre_grupo_grouplab,
-    rcm.sigla_grupo_grouplab,
     rcm.titulo_grouplab,
     rcm.titulo_original_grouplab,
     rcm.titulo_normalizado,
@@ -59,8 +57,8 @@ WITH ranked_records AS (
     rel.facultad,
     rel.programa_academico,
     ROW_NUMBER() OVER (
-      PARTITION BY rcm.tipo_proyecto, rcm.titulo_normalizado, rcm.anio 
-      ORDER BY (CASE WHEN rcm.nodo_padre_resultados IS NOT NULL THEN 1 ELSE 0 END) DESC,
+      PARTITION BY rcm.tipo_proyecto, rcm.titulo_normalizado, rcm.anio
+      ORDER BY (CASE WHEN rcm.nodo_padre_grouplab IS NOT NULL THEN 1 ELSE 0 END) DESC,
                rcm.tabla_id
     ) as rn
   FROM resultados_coincidentes_materializada rcm
@@ -78,7 +76,7 @@ WITH ranked_records AS (
 )
 SELECT 
   tabla_id, id, id_investigador, nombre, categoria, tipo_proyecto, titulo_proyecto,
-  nodo_padre_resultados, anio, tipo_grouplab, nodo_padre_grouplab, nombre_grupo_grouplab, sigla_grupo_grouplab, titulo_grouplab,
+  nodo_padre_resultados, anio, tipo_grouplab, nodo_padre_grouplab, titulo_grouplab,
   titulo_original_grouplab, titulo_normalizado, autor_1_grouplab, autor_2_grouplab,
   autor_3_grouplab, autor_4_grouplab, autor_5_grouplab, issn, isbn, revista,
   ano_grouplab, facultad, programa_academico

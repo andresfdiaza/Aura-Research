@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { API_BASE, SERVER_BASE } from './config';
+import AuraLogo from './components/AuraLogo';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -138,8 +139,16 @@ function toTitleCase(value) {
     .replace(/\b\p{L}/gu, (char) => char.toUpperCase());
 }
 
+function parseProgramas(programaValue) {
+  return String(programaValue || '')
+    .split(/[,/]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function DirectorioInvestigadores() {
   const [resultados, setResultados] = React.useState([]);
+  const [programasCatalogo, setProgramasCatalogo] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -172,7 +181,6 @@ export default function DirectorioInvestigadores() {
       try {
         const qs = new URLSearchParams();
         if (filters.facultad) qs.append('facultad', filters.facultad);
-        if (filters.programa) qs.append('programa', filters.programa);
         const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');
         console.log('[DirectorioInvestigadores] Fetching resultados', { url, filters });
         const res = await fetch(url);
@@ -197,7 +205,22 @@ export default function DirectorioInvestigadores() {
       }
     };
     load();
-  }, [filters]);
+  }, [filters.facultad]);
+
+  // Cargar catálogo oficial de programas para el filtro.
+  React.useEffect(() => {
+    const loadProgramas = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/programas`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setProgramasCatalogo(Array.isArray(data) ? data : []);
+      } catch (_err) {
+        setProgramasCatalogo([]);
+      }
+    };
+    loadProgramas();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -259,11 +282,16 @@ export default function DirectorioInvestigadores() {
     const opts = { facultad: [], programa: [] };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
-      if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
+      parseProgramas(r.programa).forEach((p) => {
+        if (!opts.programa.includes(p)) opts.programa.push(p);
+      });
     });
+    if (programasCatalogo.length > 0) {
+      opts.programa = [...programasCatalogo];
+    }
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
-  }, [resultados]);
+  }, [resultados, programasCatalogo]);
 
   // Obtener lista única de investigadores con conteo de productos por tipología
   const investigadores = React.useMemo(() => {
@@ -277,7 +305,7 @@ export default function DirectorioInvestigadores() {
           nombre,
           nombreMostrar,
           facultad: r.facultad || 'Sin facultad',
-          programa: r.programa || 'Sin programa',
+          programas: [],
           grupoInvestigacion: r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A',
           tipoInvestigador: r.categoria || 'Sin categoría',
           productosPorTipologia: {},
@@ -285,6 +313,13 @@ export default function DirectorioInvestigadores() {
           totalProductos: 0
         };
       }
+
+      // Agregar programa si no está ya en la lista
+      parseProgramas(r.programa).forEach((p) => {
+        if (!investigadoresMap[nombre].programas.includes(p)) {
+          investigadoresMap[nombre].programas.push(p);
+        }
+      });
 
       // Completar datos de perfil si en registros siguientes aparecen valores más ricos.
       if (!investigadoresMap[nombre].grupoInvestigacion || investigadoresMap[nombre].grupoInvestigacion === 'GI2A') {
@@ -324,12 +359,12 @@ export default function DirectorioInvestigadores() {
     return investigadores.filter(inv => {
       const nombre = (inv.nombre || '').toLowerCase();
       const facultad = (inv.facultad || '').toLowerCase();
-      const programa = (inv.programa || '').toLowerCase();
+      const programasStr = (inv.programas || []).join(' ').toLowerCase();
       const search = searchTerm.toLowerCase();
 
-      const matchSearch = nombre.includes(search) || facultad.includes(search) || programa.includes(search);
+      const matchSearch = nombre.includes(search) || facultad.includes(search) || programasStr.includes(search);
       const matchFacultad = !filters.facultad || inv.facultad === filters.facultad;
-      const matchPrograma = !filters.programa || inv.programa === filters.programa;
+      const matchPrograma = !filters.programa || inv.programas.includes(filters.programa);
 
       return matchSearch && matchFacultad && matchPrograma;
     });
@@ -367,10 +402,10 @@ export default function DirectorioInvestigadores() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
-            <span className="material-symbols-outlined text-2xl">group</span>
+            <AuraLogo />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">GI2A UNAC</h2>
+            <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
             <span className="text-xs text-neutral-muted font-medium uppercase tracking-wider">
               Facultad de Ingeniería
             </span>
@@ -386,7 +421,7 @@ export default function DirectorioInvestigadores() {
           </Link>
           <Link
             className="text-primary text-sm font-bold border-b-2 border-accent pb-1"
-            to="/investigadores"
+            to="/DirectorioInvestigadores"
             state={{ user }}
           >
             Investigadores
@@ -546,7 +581,7 @@ export default function DirectorioInvestigadores() {
                           <p className="text-xs text-slate-600">{inv.facultad}</p>
                           <div className="mt-1 flex flex-wrap gap-1">
                             <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-[10px] font-semibold">
-                              Programa: {inv.programa || 'Sin programa'}
+                              Programa: {inv.programas && inv.programas.length > 0 ? inv.programas.join(', ') : 'Sin programa'}
                             </span>
                             <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
                               Grupo: {inv.grupoInvestigacion || 'GI2A'}

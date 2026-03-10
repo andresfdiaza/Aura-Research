@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { SERVER_BASE } from './config';
+import AuraLogo from './components/AuraLogo';
 
 export default function Investigadores() {
   const location = useLocation();
@@ -117,7 +118,7 @@ export default function Investigadores() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
-            <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+            <AuraLogo />
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">GI2A UNAC</h2>
@@ -136,14 +137,18 @@ export default function Investigadores() {
           </Link>
           <Link
             className="text-primary text-sm font-bold border-b-2 border-accent pb-1"
-            to="/investigadores"
+            to="/DirectorioInvestigadores"
             state={{ user }}
           >
             Investigadores
           </Link>
-          <a className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors" href="#">
-            Proyectos
-          </a>
+          <Link
+            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+            to="/analisis"
+            state={{ user }}
+          >
+            Análisis
+          </Link>
         </nav>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">

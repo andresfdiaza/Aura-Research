@@ -2,12 +2,32 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const scrapingController = require('./controller/scrapingController');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const smtpConfigured = Boolean(
+  process.env.SMTP_HOST &&
+  process.env.SMTP_USER &&
+  process.env.SMTP_PASS
+);
+
+const mailTransporter = smtpConfigured
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
+  : null;
 
 // Lightweight API request logging for production diagnostics.
 app.use((req, res, next) => {
@@ -44,6 +64,28 @@ app.use((req, res, next) => {
       }
     } catch (err) {
       console.error('Error checking/adding role column:', err.message);
+    }
+
+    // Add reset_token column if it doesn't exist
+    try {
+      const [tokenCols] = await pool.query("SHOW COLUMNS FROM users WHERE Field = 'reset_token'");
+      if (tokenCols.length === 0) {
+        await pool.query("ALTER TABLE users ADD COLUMN reset_token VARCHAR(255)");
+        console.log('Added reset_token column to users table');
+      }
+    } catch (err) {
+      console.error('Error checking/adding reset_token column:', err.message);
+    }
+
+    // Add reset_token_expiry column if it doesn't exist
+    try {
+      const [expiryCols] = await pool.query("SHOW COLUMNS FROM users WHERE Field = 'reset_token_expiry'");
+      if (expiryCols.length === 0) {
+        await pool.query("ALTER TABLE users ADD COLUMN reset_token_expiry DATETIME");
+        console.log('Added reset_token_expiry column to users table');
+      }
+    } catch (err) {
+      console.error('Error checking/adding reset_token_expiry column:', err.message);
     }
 
     const createInvestigadoresSql = `
@@ -448,6 +490,127 @@ const loginHandler = async (req, res) => {
 
 app.post('/api/login', loginHandler);
 app.post('/login', loginHandler);
+
+// Forgot password endpoint
+const forgotPasswordHandler = async (req, res) => {
+  try {
+    if (!mailTransporter) {
+      return res.status(500).json({
+        message: 'Servicio de correo no configurado en el servidor. Configura SMTP en .env',
+      });
+    }
+
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    // Check if user exists
+    const [users] = await pool.query('SELECT id, email FROM users WHERE email = ?', [email]);
+
+    if (users.length === 0) {
+      // Don't reveal if email exists for security reasons
+      return res.json({ message: 'Si el correo existe, recibirás un enlace de recuperación' });
+    }
+
+    const user = users[0];
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = Date.now() + 1000 * 60 * 60; // 1 hour
+
+    // Save reset token to database
+    await pool.query(
+      'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?',
+      [resetToken, new Date(resetTokenExpiry), user.id]
+    );
+
+    // For now, log the token (in production, send via email)
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}&email=${email}`;
+    console.log(`[PASSWORD RESET] Email: ${email}, Reset Link: ${resetLink}`);
+
+    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
+    await mailTransporter.sendMail({
+      from: fromAddress,
+      to: email,
+      subject: 'Recuperacion de Contrasena - AURA Research',
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+          <h2 style="color: #2A5783;">Recuperacion de Contrasena</h2>
+          <p>Recibimos una solicitud para restablecer tu contrasena.</p>
+          <p>Haz clic en el siguiente enlace para continuar:</p>
+          <p>
+            <a href="${resetLink}" style="display:inline-block;padding:10px 16px;background:#2A5783;color:white;text-decoration:none;border-radius:6px;">
+              Restablecer contrasena
+            </a>
+          </p>
+          <p>Si el boton no funciona, copia y pega este enlace en tu navegador:</p>
+          <p>${resetLink}</p>
+          <p>Este enlace expira en 1 hora.</p>
+          <p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+        </div>
+      `,
+    });
+
+    res.json({ message: 'Si el correo existe, recibirás un enlace de recuperación' });
+  } catch (err) {
+    console.error('Forgot password error:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+};
+app.post('/api/forgot-password', forgotPasswordHandler);
+app.post('/forgot-password', forgotPasswordHandler);
+
+// Reset password endpoint
+const resetPasswordHandler = async (req, res) => {
+  try {
+    const { token, email, newPassword } = req.body;
+
+    if (!token || !email || !newPassword) {
+      return res.status(400).json({ message: 'Token, email, and password are required' });
+    }
+
+    // Find user with valid reset token
+    const [users] = await pool.query(
+      'SELECT id FROM users WHERE email = ? AND reset_token = ? AND reset_token_expiry > NOW()',
+      [email, token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ message: 'Token inválido o expirado' });
+    }
+
+    const user = users[0];
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await pool.query(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+      [hashedPassword, user.id]
+    );
+
+    res.json({ message: 'Contraseña actualizada exitosamente' });
+  } catch (err) {
+    console.error('Reset password error:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+};
+app.post('/api/reset-password', resetPasswordHandler);
+app.post('/reset-password', resetPasswordHandler);
+
+// list programas catalogo
+app.get('/api/programas', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT nombre_programa
+       FROM programa
+       ORDER BY id_programa`
+    );
+    res.json(rows.map((row) => row.nombre_programa).filter(Boolean));
+  } catch (err) {
+    console.error('Error fetching programas:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
 
 // list investigadores (nombre, cedula, facultad, programa) - grouped by investigador
 app.get('/api/investigadores', async (req, res) => {

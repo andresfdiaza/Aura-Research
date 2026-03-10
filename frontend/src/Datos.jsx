@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { API_BASE } from './config';
+import AuraLogo from './components/AuraLogo';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -43,6 +44,7 @@ export default function Datos() {
   const [filters, setFilters] = React.useState({
     facultad: '',
     grupo: '',
+    programa: '',
     anio: '',
     categoria: '',
     cedula: '',
@@ -158,13 +160,14 @@ export default function Datos() {
   // derive available options for filters once resultados is loaded
   const filterOptions = React.useMemo(() => {
     const opts = {
-      facultad: [], grupo: [], anio: [], tipologia: [],
+      facultad: [], grupo: [], programa: [], anio: [], tipologia: [],
       categoria: [], cedula: [], sexo: [], grado: [], tipo_proyecto: [], tipologia_productos: [], titulo_proyecto: []
     };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
+      if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
       if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);
       if (r.categoria && !opts.categoria.includes(r.categoria)) opts.categoria.push(r.categoria);
       if (r.cedula && !opts.cedula.includes(r.cedula)) opts.cedula.push(r.cedula);
@@ -190,6 +193,7 @@ export default function Datos() {
         const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
         if (grupo !== filters.grupo) return false;
       }
+      if (filters.programa && r.programa !== filters.programa) return false;
       if (filters.anio && r.anio !== filters.anio) return false;
       if (filters.categoria && r.categoria !== filters.categoria) return false;
       if (filters.cedula && r.cedula !== filters.cedula) return false;
@@ -283,25 +287,62 @@ export default function Datos() {
 
   // fetch distribution of nodo hijo according to current filters (tipologia optional)
 
-  const handleDownloadCSV = () => {
-    if (filtered.length === 0) {
-      alert('No hay datos para descargar');
-      return;
-    }
-    const headers = Object.keys(filtered[0]);
-    const csvContent = [
-      headers.join(','),
-      ...filtered.map(row => headers.map(h => `"${row[h] || ''}"`).join(','))
-    ].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+  const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+  const downloadCsvText = (csvText, fileName) => {
+    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `resultados_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadCSV = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const resultadosRows = Array.isArray(filtered) ? filtered : [];
+    let normalizadaRows = [];
+
+    // Traer tabla_Normalizada_final con filtros compatibles del backend.
+    try {
+      const qs = new URLSearchParams();
+      if (filters.facultad) qs.append('facultad', filters.facultad);
+      if (filters.programa) qs.append('programa', filters.programa);
+      const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? `?${qs.toString()}` : ''}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        normalizadaRows = Array.isArray(data) ? data : [];
+      }
+    } catch (_err) {
+      normalizadaRows = [];
+    }
+
+    if (resultadosRows.length === 0 && normalizadaRows.length === 0) {
+      alert('No hay datos para descargar');
+      return;
+    }
+
+    const headersSet = new Set(['fuente']);
+    resultadosRows.forEach((row) => Object.keys(row || {}).forEach((k) => headersSet.add(k)));
+    normalizadaRows.forEach((row) => Object.keys(row || {}).forEach((k) => headersSet.add(k)));
+    const headers = Array.from(headersSet);
+
+    const toCsvRow = (fuente, row) => headers.map((h) => {
+      if (h === 'fuente') return escapeCsv(fuente);
+      return escapeCsv(row?.[h] ?? '');
+    }).join(',');
+
+    const csvContent = [
+      headers.join(','),
+      ...resultadosRows.map((row) => toCsvRow('resultados_filtrados', row)),
+      ...normalizadaRows.map((row) => toCsvRow('tabla_normalizada_final', row)),
+    ].join('\n');
+
+    downloadCsvText(csvContent, `resultados_y_normalizada_${today}.csv`);
   };
 
   return (
@@ -309,7 +350,7 @@ export default function Datos() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
-            <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+            <AuraLogo />
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
@@ -416,7 +457,7 @@ export default function Datos() {
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              {['facultad', 'grupo', 'anio', 'tipologia'].map(key => (
+              {['facultad', 'grupo', 'programa', 'anio', 'tipologia'].map(key => (
                 <div key={key} className="w-[120px]">
                   <label className="block text-[9px] font-medium mb-1 truncate text-center">
                     {displayLabel(key)}

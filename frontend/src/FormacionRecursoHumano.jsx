@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
+import AuraLogo from './components/AuraLogo';
 import { API_BASE } from './config';
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
@@ -12,7 +13,8 @@ export default function FormacionRecursoHumano() {
   const [error, setError] = React.useState(null);
   const [filters, setFilters] = React.useState({
     facultad: '',
-    grupo: ''
+    grupo: '',
+    programa: ''
   });
 
   // Obtener datos del backend según filtros (trabaja con la vista)
@@ -41,11 +43,12 @@ export default function FormacionRecursoHumano() {
 
   // Opciones de filtros dinámicas (sin 'Año')
   const filterOptions = React.useMemo(() => {
-    const opts = { facultad: [], grupo: [] };
+    const opts = { facultad: [], grupo: [], programa: [] };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
+      if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
     });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
@@ -65,6 +68,7 @@ export default function FormacionRecursoHumano() {
         const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
         if (grupo !== filters.grupo) return false;
       }
+      if (filters.programa && r.programa !== filters.programa) return false;
       return true;
     });
     
@@ -194,7 +198,7 @@ export default function FormacionRecursoHumano() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
-            <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+            <AuraLogo />
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
@@ -297,7 +301,7 @@ export default function FormacionRecursoHumano() {
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              {['facultad', 'grupo'].map(key => (
+              {['facultad', 'grupo', 'programa'].map(key => (
                 <div key={key} className="w-[180px]">
                   <label className="block text-[12px] font-medium mb-2 truncate text-center">
                     {key === 'facultad' ? 'Facultad' : key === 'grupo' ? 'Grupo de Investigación' : key === 'programa' ? 'Programa' : key}

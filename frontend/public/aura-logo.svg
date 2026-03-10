@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer aura circles -->
+  <circle cx="16" cy="16" r="14" stroke="#0284C7" strokeWidth="1" opacity="0.3" />
+  <circle cx="16" cy="16" r="10.5" stroke="#0284C7" strokeWidth="1.2" opacity="0.6" />
+
+  <!-- Central research symbol - magnifying glass with data points -->
+  <circle cx="16" cy="16" r="6.5" stroke="#0284C7" strokeWidth="1.5" fill="none" />
+
+  <!-- Magnifying glass handle -->
+  <line x1="21" y1="21" x2="26" y2="26" stroke="#0284C7" strokeWidth="1.5" strokeLinecap="round" />
+
+  <!-- Data points inside representing analysis -->
+  <circle cx="13" cy="13" r="0.8" fill="#0284C7" />
+  <circle cx="19" cy="13" r="0.8" fill="#0284C7" />
+  <circle cx="13" cy="19" r="0.8" fill="#0284C7" />
+  <circle cx="19" cy="19" r="0.8" fill="#0284C7" />
+  <circle cx="16" cy="16" r="0.8" fill="#0284C7" />
+
+  <!-- Small accent lines suggesting research/knowledge -->
+  <line x1="16" y1="9.5" x2="16" y2="10.5" stroke="#0284C7" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+  <line x1="22.5" y1="16" x2="23.5" y2="16" stroke="#0284C7" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+</svg>

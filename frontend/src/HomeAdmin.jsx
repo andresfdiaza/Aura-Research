@@ -3,6 +3,7 @@ import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import './home.css';
 import { SERVER_BASE } from './config';
 import { API_BASE } from './config';
+import AuraLogo from './components/AuraLogo';
 
 export default function HomeAdmin() {
   const location = useLocation();
@@ -95,7 +96,7 @@ export default function HomeAdmin() {
       <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
-            <span className="material-symbols-outlined text-2xl">rocket_launch</span>
+            <AuraLogo />
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>

@@ -9,10 +9,9 @@
   width: 100%;
   height: 100%;
   background-color: #ffffff;
-  overflow: hidden; /* keep overlay within bounds */
+  overflow: hidden;
 }
 
-/* dark overlay on top of background image */
 .login-page::before {
   content: '';
   position: absolute;
@@ -20,7 +19,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4); /* adjust opacity here */
+  background: rgba(0, 0, 0, 0.4);
   z-index: 1;
 }
 
@@ -48,14 +47,14 @@
 .login-card h1 {
   text-align: center;
   font-size: 1.5rem;
-  color: #2A5783;
-  margin-bottom: 0.4375rem;
+  color: #2a5783;
+  margin-bottom: 0.75rem;
 }
 
 .login-card label {
   display: block;
   font-size: 0.75rem;
-  color: #2A5783;
+  color: #2a5783;
   margin-bottom: 0.25rem;
 }
 
@@ -65,6 +64,7 @@
   margin-bottom: 0.4375rem;
   border: 1px solid #ccc;
   border-radius: 0.5rem;
+  box-sizing: border-box;
 }
 
 .password-wrapper {
@@ -78,35 +78,30 @@
   transform: translateY(-50%);
   cursor: pointer;
   user-select: none;
-  font-size: 1.1rem; /* bigger eye */
-  color: #8F9FBF; /* monochrome */
-  /* material symbols are usually black by default but enforce it */
+  font-size: 1.1rem;
+  color: #8f9fbf;
 }
 
 .options {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  margin-bottom: 0.4375rem;
+  justify-content: flex-end;
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
 }
 
-.options label {
-  display: flex;
-  align-items: center;
-  white-space: nowrap; /* keep text on one line */
+.options a {
+  color: #4c5cff;
+  text-decoration: none;
 }
 
-.options input[type="checkbox"] {
-  margin-right: 0.25rem;
-  width: 0.1rem;
-  height: 0.1rem;
-  vertical-align: middle;
+.options a:hover {
+  text-decoration: underline;
 }
 
 .login-card button {
   width: 100%;
   padding: 0.75rem;
-  background: #F5A800;
+  background: #f5a800;
   border: none;
   border-radius: 0.5rem;
   color: #fff;
@@ -120,15 +115,62 @@
 
 .login-card .footer {
   margin-top: 1.5rem;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: #666;
   text-align: center;
   line-height: 1.2;
 }
 
 .login-card .error {
-  color: red;
+  color: #d32f2f;
   font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 0.4375rem;
+}
+
+.success {
+  color: #2e7d32;
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.forgot-form-inline {
+  margin-top: 0.5rem;
+}
+
+.forgot-description {
+  margin: 0 0 0.85rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.modal-buttons .btn-primary,
+.modal-buttons .btn-secondary {
+  flex: 1;
+  width: auto;
+}
+
+.modal-buttons .btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.modal-buttons .btn-secondary {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.modal-buttons .btn-secondary:hover {
+  background: #d1d5db;
+}
   text-align: center;
   margin-bottom: 0.4375rem;
 }

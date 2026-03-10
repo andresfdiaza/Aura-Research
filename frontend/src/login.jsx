@@ -22,9 +22,12 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     try {
-      // Compatibility: try configured endpoint first, then legacy /login if needed.
+      // In production use only the configured login endpoint.
+      // The legacy /login fallback is kept for local/dev compatibility.
       const fallbackUrl = LOGIN_URL.replace('/api/login', '/login');
-      const loginUrls = [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx);
+      const loginUrls = import.meta.env.DEV
+        ? [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx)
+        : [LOGIN_URL];
 
       let data = null;
       let lastError = null;

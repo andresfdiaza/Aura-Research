@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { SERVER_BASE } from './config';
+import { SERVER_BASE, API_BASE } from './config';
 import AuraLogo from './components/AuraLogo';
 
 export default function Investigadores() {

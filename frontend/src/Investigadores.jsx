@@ -23,7 +23,7 @@ export default function Investigadores() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${SERVER_BASE}/api/investigadores`);
+        const res = await fetch(`${API_BASE}/investigadores`);
         if (!res.ok) throw new Error('Error fetching investigadores');
         const data = await res.json();
         setInvestigadores(data);

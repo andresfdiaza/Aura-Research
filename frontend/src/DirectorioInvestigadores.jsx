@@ -244,7 +244,7 @@ export default function DirectorioInvestigadores() {
     setFormSuccess(false);
 
     try {
-      const res = await fetch(`${SERVER_BASE}/investigadores`, {
+      const res = await fetch(`${API_BASE}/investigadores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

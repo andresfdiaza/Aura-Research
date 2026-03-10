@@ -681,6 +681,8 @@ export default function PerfilInvestigador() {
                           Tipo {sortDir === 'asc' ? '↑' : '↓'}
                         </th>
                         <th className="text-left p-3 text-sm font-bold text-slate-700">Año</th>
+                        <th className="text-left p-3 text-sm font-bold text-slate-700">Facultad</th>
+                        <th className="text-left p-3 text-sm font-bold text-slate-700">Programa</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -690,6 +692,8 @@ export default function PerfilInvestigador() {
                           <td className="p-3 text-sm text-slate-900">{producto.titulo_proyecto || producto.titulo_grouplab || 'Sin título'}</td>
                           <td className="p-3 text-sm text-slate-600">{producto.tipo_proyecto || producto.tipo_grouplab || 'N/A'}</td>
                           <td className="p-3 text-sm text-slate-600">{producto.anio || 'N/A'}</td>
+                          <td className="p-3 text-sm text-slate-600">{producto.facultad || 'N/D'}</td>
+                          <td className="p-3 text-sm text-slate-600">{producto.programa || 'N/D'}</td>
                         </tr>
                       ))}
                     </tbody>

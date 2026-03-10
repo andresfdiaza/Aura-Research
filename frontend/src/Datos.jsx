@@ -272,7 +272,8 @@ export default function Datos() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/resultados?source=normalizada`);
+        // Usar la vista tabla_normalizada_final
+        const res = await fetch(`${API_BASE}/tabla-normalizada-final`);
         if (!res.ok) throw new Error('Error fetching resultados');
         const data = await res.json();
         setResultados(data);

@@ -48,9 +48,13 @@ export default function DivulgacionPublica() {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
-      if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
     });
     Object.values(opts).forEach(arr => arr.sort());
+    opts.programa = [
+      'Ingeniería de Sistemas',
+      'Ingeniería Industrial',
+      'Especialización en Inteligencia de Negocios y Big Data'
+    ];
     return opts;
   }, [resultados]);
 
@@ -68,7 +72,11 @@ export default function DivulgacionPublica() {
         const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
         if (grupo !== filters.grupo) return false;
       }
-      if (filters.programa && r.programa !== filters.programa) return false;
+      if (filters.programa) {
+        const programa = (r.programa || '').toString();
+        const programasArr = programa.split(' / ').map(p => p.trim());
+        if (!programasArr.includes(filters.programa)) return false;
+      }
       return true;
     });
     

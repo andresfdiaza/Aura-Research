@@ -12,7 +12,7 @@ def limpiar_tabla():
         use_unicode=True
     )
     cursor = conexion.cursor()
-    cursor.execute("TRUNCATE TABLE resultados")
+    # cursor.execute("TRUNCATE TABLE resultados")  # Eliminado para no borrar los datos
     conexion.commit()
     cursor.close()
     conexion.close()

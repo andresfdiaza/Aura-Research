@@ -241,12 +241,12 @@ export default function HomeAdmin() {
           disabled={scrapingLoading}
           onClick={async () => {
             setScrapingLoading(true);
-            setScrapingStatus('Ejecutando pipeline completo: CVLAC -> GroupLab -> limpieza -> coincidencias -> vistas...');
+            setScrapingStatus('Ejecutando... : CVLAC -> GroupLab -> limpieza -> coincidencias -> vistas...');
             try {
               const res = await fetch(`${API_BASE}/scraping/ejecutar-completo`, { method: 'POST' });
               const data = await res.json();
-              if (res.ok) setScrapingStatus(data.message || 'Pipeline completo ejecutado correctamente');
-              else setScrapingStatus(data.error || data.message || 'Error ejecutando pipeline completo');
+              if (res.ok) setScrapingStatus(data.message || 'Scraping ejecutado correctamente');
+              else setScrapingStatus(data.error || data.message || 'Error ejecutando el scraping');
             } catch (err) {
               setScrapingStatus(err.message);
             } finally {
@@ -255,7 +255,7 @@ export default function HomeAdmin() {
           }}
         >
           <span className="material-symbols-outlined text-base">sync</span>
-          <span>{scrapingLoading ? 'Procesando...' : 'Ejecutar Pipeline Completo'}</span>
+          <span>{scrapingLoading ? 'Procesando...' : 'Ejecutar scraping'}</span>
         </button>
       </div>
       {scrapingStatus && (

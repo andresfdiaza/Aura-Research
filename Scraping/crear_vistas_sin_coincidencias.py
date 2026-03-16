@@ -67,9 +67,6 @@ SELECT
     t.autor_3,
     t.autor_4,
     t.autor_5,
-    t.autor_6,
-    t.autor_7,
-    t.autor_8,
     t.issn,
     t.isbn,
     t.revista,
@@ -125,29 +122,6 @@ print()
 print(f"✅ Verificación CVLAC: {total_cvlac} = {total_coincidencias_cvlac_unicas} + {count_resultados_sin} = {total_coincidencias_cvlac_unicas + count_resultados_sin}")
 print(f"✅ Verificación GroupLab: {total_grouplab} = {total_coincidencias_grouplab_unicas} + {count_grouplab_sin} = {total_coincidencias_grouplab_unicas + count_grouplab_sin}")
 
-# Mostrar ejemplos
-print()
-print("📋 Ejemplos de CVLAC sin match (primeros 3):")
-cur.execute("""
-    SELECT nombre, tipo_proyecto, LEFT(titulo_proyecto, 60), anio
-    FROM vista_resultados_sin_coincidencia
-    LIMIT 3
-""")
-for nombre, tipo, titulo, anio in cur.fetchall():
-    print(f"  • {nombre} | {tipo} | {titulo}... | {anio}")
-
-print()
-print("📋 Ejemplos de GroupLab sin match (primeros 3):")
-cur.execute("""
-    SELECT tipo, LEFT(titulo, 60), ano
-    FROM vista_grouplab_clean_sin_coincidencia
-    LIMIT 3
-""")
-for tipo, titulo, ano in cur.fetchall():
-    print(f"  • {tipo} | {titulo}... | {ano}")
-
-cur.close()
-conn.close()
 
 print()
 print("✅ Vistas de no-coincidencias creadas exitosamente")

@@ -504,31 +504,12 @@ def crear_tabla():
     conexion = conectar_bd()
     cursor = conexion.cursor()
 
-    cursor.execute("DROP TABLE IF EXISTS titulo_grouplab")
+    # cursor.execute("DROP TABLE IF EXISTS titulo_grouplab")  # Eliminado para no borrar la tabla
     
-    cursor.execute("""
-        CREATE TABLE titulo_grouplab (
-            tipo VARCHAR(150) NOT NULL,
-            nodo_padre VARCHAR(150),
-            nombre_grupo_investigacion VARCHAR(255),
-            sigla_grupo_investigacion VARCHAR(50),
-            titulo TEXT NOT NULL,
-            autor_1 VARCHAR(255),
-            autor_2 VARCHAR(255),
-            autor_3 VARCHAR(255),
-            autor_4 VARCHAR(255),
-            autor_5 VARCHAR(255),
-            issn VARCHAR(50),
-            isbn VARCHAR(50),
-            revista TEXT,
-            ano VARCHAR(4)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    """)
-    
-    conexion.commit()
+    # Ya no se recrea la tabla, solo se usa la existente
+    print("✓ Usando tabla 'titulo_grouplab' existente para agregar datos nuevos.")
     cursor.close()
     conexion.close()
-    print("✓ Tabla 'titulo_grouplab' recreada con columnas: tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1...autor_8, issn, isbn, revista, ano")
 
 
 def crear_tabla_tipologia_proyecto():
@@ -536,23 +517,18 @@ def crear_tabla_tipologia_proyecto():
     conexion = conectar_bd()
     cursor = conexion.cursor()
 
-    cursor.execute("DROP TABLE IF EXISTS tipologia_proyecto")
+    # cursor.execute("DROP TABLE IF EXISTS tipologia_proyecto")  # Eliminado para no borrar la tabla
     
-    cursor.execute("""
-        CREATE TABLE tipologia_proyecto (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            tipo VARCHAR(150) NOT NULL UNIQUE,
-            nodo_padre VARCHAR(150) NOT NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    """)
-    
-    # Insertar los tipos canónicos con sus nodos padres
+    # Ya no se recrea la tabla, solo se usa la existente y se agregan datos nuevos si no existen
     for tipo, nodo_padre in NODO_PADRE_MAP.items():
-        cursor.execute("INSERT INTO tipologia_proyecto (tipo, nodo_padre) VALUES (%s, %s)", (tipo, nodo_padre))
-    
+        cursor.execute("SELECT COUNT(*) FROM tipologia_proyecto WHERE tipo = %s", (tipo,))
+        existe = cursor.fetchone()[0]
+        if existe == 0:
+            cursor.execute("INSERT INTO tipologia_proyecto (tipo, nodo_padre) VALUES (%s, %s)", (tipo, nodo_padre))
     conexion.commit()
     cursor.close()
     conexion.close()
+    print("✓ Usando tabla 'tipologia_proyecto' existente y agregando solo tipos nuevos.")
     print("✓ Tabla 'tipologia_proyecto' recreada con tipos y nodos padres")
 
 
@@ -561,7 +537,7 @@ def limpiar_datos_anteriores():
     # Limpiar BD
     conexion = conectar_bd()
     cursor = conexion.cursor()
-    cursor.execute("DELETE FROM titulo_grouplab")
+    # cursor.execute("DELETE FROM titulo_grouplab")  # Eliminado para no borrar los datos
     filas_eliminadas = cursor.rowcount
     conexion.commit()
     cursor.close()
@@ -581,8 +557,8 @@ def guardar_en_bd(titulos_por_tipo, info_grupo):
     cursor = conexion.cursor()
     
     query = """INSERT INTO titulo_grouplab 
-               (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4, autor_5, autor_6, autor_7, autor_8, issn, isbn, revista, ano) 
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+               (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     
     total = 0
     for tipo, registros in titulos_por_tipo.items():
@@ -603,11 +579,11 @@ def guardar_en_bd(titulos_por_tipo, info_grupo):
             revista = registro.get('revista')  # Puede ser None
             ano = registro.get('ano')  # Puede ser None
             
-            # Preparar valores para hasta 8 autores
-            valores_autores = [None] * 8
-            for i, autor in enumerate(autores[:8]):  # Tomar máximo 8 autores
+            # Preparar valores para hasta 5 autores
+            valores_autores = [None] * 5
+            for i, autor in enumerate(autores[:5]):  # Tomar máximo 5 autores
                 valores_autores[i] = autor
-            
+
             cursor.execute(query, (nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano))
         total += len(registros)
     
@@ -623,7 +599,7 @@ def guardar_csv(titulos_por_tipo, info_grupo):
 
     with open(archivo, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["tipo", "nodo_padre", "nombre_grupo_investigacion", "sigla_grupo_investigacion", "titulo", "autor_1", "autor_2", "autor_3", "autor_4", "autor_5", "autor_6", "autor_7", "autor_8", "issn", "isbn", "revista", "ano"])  # Encabezados
+        writer.writerow(["tipo", "nodo_padre", "nombre_grupo_investigacion", "sigla_grupo_investigacion", "titulo", "autor_1", "autor_2", "autor_3", "autor_4", "autor_5", "issn", "isbn", "revista", "ano"])  # Encabezados
         
         for tipo, registros in titulos_por_tipo.items():
             for registro in registros:
@@ -643,11 +619,11 @@ def guardar_csv(titulos_por_tipo, info_grupo):
                 revista = registro.get('revista', '')  # Vacío si no hay revista
                 ano = registro.get('ano', '')  # Vacío si no hay año
                 
-                # Preparar valores para hasta 8 autores
-                valores_autores = [''] * 8
-                for i, autor in enumerate(autores[:8]):  # Tomar máximo 8 autores
+                # Preparar valores para hasta 5 autores
+                valores_autores = [''] * 5
+                for i, autor in enumerate(autores[:5]):  # Tomar máximo 5 autores
                     valores_autores[i] = autor
-                
+
                 writer.writerow([nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano])
     
     ruta_completa = os.path.abspath(archivo)

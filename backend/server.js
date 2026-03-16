@@ -981,8 +981,8 @@ app.get('/api/tabla-normalizada-final', async (req, res) => {
     params.push(facultad);
   }
   if (programa) {
-    conditions.push('programa_academico = ?');
-    params.push(programa);
+     conditions.push('programa_academico LIKE ?');
+     params.push(`%${programa}%`);
   }
   if (conditions.length) {
     sql += ' WHERE ' + conditions.join(' AND ');

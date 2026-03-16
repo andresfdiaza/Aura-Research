@@ -185,75 +185,61 @@ for i, (key_base, group) in enumerate(sorted(groups_by_base.items(), key=lambda 
         print()
 
 # 4) Crear tabla limpia en BD
-print("\n💾 Creando tabla titulo_grouplab_clean...")
-cur.execute("DROP TABLE IF EXISTS titulo_grouplab_clean")
-cur.execute("""
-CREATE TABLE titulo_grouplab_clean (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    tipo VARCHAR(255),
-    nodo_padre VARCHAR(255),
-    nombre_grupo_investigacion VARCHAR(255),
-    sigla_grupo_investigacion VARCHAR(50),
-    titulo LONGTEXT,
-    titulo_original LONGTEXT,
-    titulo_normalizado LONGTEXT,
-    autor_1 VARCHAR(255),
-    autor_2 VARCHAR(255),
-    autor_3 VARCHAR(255),
-    autor_4 VARCHAR(255),
-    autor_5 VARCHAR(255),
-    issn VARCHAR(50),
-    isbn VARCHAR(50),
-    revista VARCHAR(255),
-    ano VARCHAR(10),
-    INDEX idx_tgc_tipo (tipo),
-    INDEX idx_tgc_nodo_padre (nodo_padre),
-    INDEX idx_tgc_ano (ano),
-    INDEX idx_tgc_titulo_norm (titulo_normalizado(255))
-)
-""")
-conn.commit()
+print("\n💾 Usando tabla 'titulo_grouplab_clean' existente y agregando solo registros nuevos...")
 
 # Insertar 1 registro por grupo (los duplicados los descarta)
 print("   Insertando registros únicos...")
-rows_to_insert = []
+
+inserted_count = 0
 for row in dedup_map.values():
-    rows_to_insert.append((
+    # Check if record exists
+    cur.execute("""
+        SELECT id FROM titulo_grouplab_clean WHERE tipo=%s AND titulo_normalizado=%s AND ano=%s AND 
+        autor_1=%s AND autor_2=%s AND autor_3=%s AND autor_4=%s AND autor_5=%s
+    """, (
         row['tipo'],
-        row['nodo_padre'],
-        row['nombre_grupo_investigacion'],
-        row['sigla_grupo_investigacion'],
-        row['titulo'],
-        row['titulo_original'],
         row['titulo_normalizado'],
+        row['ano'],
         row['autores_orig'][0] if len(row['autores_orig']) > 0 else None,
         row['autores_orig'][1] if len(row['autores_orig']) > 1 else None,
         row['autores_orig'][2] if len(row['autores_orig']) > 2 else None,
         row['autores_orig'][3] if len(row['autores_orig']) > 3 else None,
-        row['autores_orig'][4] if len(row['autores_orig']) > 4 else None,
-        row['issn'],
-        row['isbn'],
-        row['revista'],
-        row['ano']
+        row['autores_orig'][4] if len(row['autores_orig']) > 4 else None
     ))
-
-# Insert en batches
-batch_size = 100
-for i in range(0, len(rows_to_insert), batch_size):
-    batch = rows_to_insert[i:i+batch_size]
-    cur.executemany("""
-        INSERT INTO titulo_grouplab_clean 
-        (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado,
-         autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, batch)
-    conn.commit()
-    print(f"   ... {min(i + batch_size, len(rows_to_insert))} / {len(rows_to_insert)}")
+    exists = cur.fetchone()
+    if not exists:
+        cur.execute("""
+            INSERT INTO titulo_grouplab_clean 
+            (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado,
+             autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            row['tipo'],
+            row['nodo_padre'],
+            row['nombre_grupo_investigacion'],
+            row['sigla_grupo_investigacion'],
+            row['titulo'],
+            row['titulo_original'],
+            row['titulo_normalizado'],
+            row['autores_orig'][0] if len(row['autores_orig']) > 0 else None,
+            row['autores_orig'][1] if len(row['autores_orig']) > 1 else None,
+            row['autores_orig'][2] if len(row['autores_orig']) > 2 else None,
+            row['autores_orig'][3] if len(row['autores_orig']) > 3 else None,
+            row['autores_orig'][4] if len(row['autores_orig']) > 4 else None,
+            row['issn'],
+            row['isbn'],
+            row['revista'],
+            row['ano']
+        ))
+        conn.commit()
+        inserted_count += 1
+        print(f"   ... {inserted_count} / {len(dedup_map)} insertados")
 
 # Validación final
 cur.execute("SELECT COUNT(*) FROM titulo_grouplab_clean")
 total_clean = cur.fetchone()[0]
 
+print(f"\n🆕 Datos nuevos insertados: {inserted_count}")
 print("\n" + "=" * 80)
 print("RESUMEN")
 print("=" * 80)

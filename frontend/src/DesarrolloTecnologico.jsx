@@ -9,6 +9,7 @@ ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartD
 
 export default function DesarrolloTecnologico() {
   const [resultados, setResultados] = React.useState([]);
+  const [totalResultados, setTotalResultados] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [filters, setFilters] = React.useState({
@@ -17,21 +18,31 @@ export default function DesarrolloTecnologico() {
     programa: ''
   });
 
-  // Obtener datos del backend según filtros (trabaja con la vista)
+  // Obtener datos del backend desde la vista deduplicada
   React.useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
+        // Fetch filtrados
         const qs = new URLSearchParams();
-        qs.append('source', 'normalizada');
-        if (filters.facultad) qs.append('facultad', filters.facultad);
-        if (filters.investigador) qs.append('investigador', filters.investigador);
-        const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');
+        Object.entries(filters).forEach(([k, v]) => {
+          if (v) qs.append(k, v);
+        });
+        qs.append('tipologia', 'Desarrollo Tecnológico e Innovación');
+        const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? '?' + qs.toString() : ''}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error('Error fetching resultados');
         const data = await res.json();
         setResultados(data);
+        // Fetch total (solo tipología, sin filtros)
+        const qsTotal = new URLSearchParams();
+        qsTotal.append('tipologia', 'Desarrollo Tecnológico e Innovación');
+        const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final?${qsTotal.toString()}`);
+        if (resTotal.ok) {
+          const dataTotal = await resTotal.json();
+          setTotalResultados(Array.isArray(dataTotal) ? dataTotal.length : 0);
+        }
       } catch (err) {
         setError('Error al cargar datos');
       } finally {
@@ -285,7 +296,7 @@ export default function DesarrolloTecnologico() {
               <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
                 <div>
                   <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
-                  <p className="text-lg font-bold text-primary">{resultados.length.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-primary">{totalResultados.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xxs text-slate-500">Regs</p>

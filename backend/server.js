@@ -173,13 +173,13 @@ app.use((req, res, next) => {
     ];
 
     // Insert 3 programs as catalog
-    for (const programName of programNames) {
-      await pool.query(
-        `INSERT IGNORE INTO programa (nombre_programa, id_facultad) VALUES (?, ?)`,
-        [programName, id_facultad]
-      );
-    }
-    console.log(`Created ${programNames.length} programs in catalog`);
+    // for (const programName of programNames) {
+    //   await pool.query(
+    //     `INSERT IGNORE INTO programa (nombre_programa, id_facultad) VALUES (?, ?)`,
+    //     [programName, id_facultad]
+    //   );
+    // }
+    // console.log(`Created ${programNames.length} programs in catalog`);
 
     // Get program IDs
     const [programas] = await pool.query(`SELECT id_programa, nombre_programa FROM programa ORDER BY id_programa`);
@@ -958,7 +958,7 @@ app.get('/api/tabla-normalizada-final', async (req, res) => {
       categoria,
       nombre,
       tipo_proyecto,
-      nodo_padre_resultados AS nodo_padre,
+      nodo_padre_grouplab AS nodo_padre,
       titulo_proyecto,
       anio,
       tipo_grouplab,
@@ -991,44 +991,7 @@ app.get('/api/tabla-normalizada-final', async (req, res) => {
     const [rows] = await pool.query(sql, params);
     res.json(rows);
   } catch (err) {
-    console.warn('tabla_normalizada_final unavailable, using vista_productos_final fallback:', err.message);
-    let fallbackSql = `SELECT
-        r.facultad,
-        r.programa,
-        r.categoria,
-        r.nombre,
-        r.tipo_proyecto,
-        r.nodo_padre,
-        r.titulo_proyecto,
-        r.anio,
-        NULL AS tipo_grouplab,
-        NULL AS nodo_padre_grouplab,
-        NULL AS autor_1_grouplab,
-        NULL AS autor_2_grouplab,
-        NULL AS autor_3_grouplab,
-        NULL AS autor_4_grouplab,
-        NULL AS autor_5_grouplab,
-        NULL AS issn,
-        NULL AS isbn,
-        NULL AS revista,
-        NULL AS nombre_grupo_grouplab,
-        NULL AS sigla_grupo_grouplab
-      FROM vista_productos_final r`;
-    const fallbackConditions = [];
-    const fallbackParams = [];
-    if (facultad) {
-      fallbackConditions.push('r.facultad = ?');
-      fallbackParams.push(facultad);
-    }
-    if (programa) {
-      fallbackConditions.push('r.programa = ?');
-      fallbackParams.push(programa);
-    }
-    if (fallbackConditions.length) {
-      fallbackSql += ' WHERE ' + fallbackConditions.join(' AND ');
-    }
-    const [rows] = await pool.query(fallbackSql, fallbackParams);
-    res.json(rows);
+    res.status(500).json({ message: 'internal server error', error: err.message });
   }
 });
 

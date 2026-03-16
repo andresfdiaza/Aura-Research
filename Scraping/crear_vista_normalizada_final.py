@@ -1,142 +1,204 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import mysql.connector
 
-# Conectar a la DB
 conn = mysql.connector.connect(
     host="localhost",
     user="root",
     password="Amaamama12345.",
     database="scraping",
-    charset='utf8mb4'
+    charset="utf8mb4"
 )
+
 cur = conn.cursor()
 
-print("🔄 Convirtiendo tabla_Normalizada_final en VISTA...")
-print("   Esto hará que se actualice automáticamente cada vez que cambien los datos")
+print("🔄 Recreando vista tabla_normalizada_final...")
 
-# Primero, dropear la tabla/vista si existe
+# eliminar si existe
 try:
-    cur.execute("DROP TABLE IF EXISTS tabla_Normalizada_final")
-    cur.execute("DROP VIEW IF EXISTS tabla_Normalizada_final")
-    print("   ✅ Tabla/Vista anterior eliminada")
-except Exception as e:
-    print(f"   ℹ️  Tabla no existía o error: {str(e)[:50]}")
+    cur.execute("DROP VIEW IF EXISTS tabla_normalizada_final")
+    cur.execute("DROP TABLE IF EXISTS tabla_normalizada_final")
+    print("✅ Vista anterior eliminada")
+except:
+    print("ℹ️ No existía vista anterior")
 
-# Crear la VISTA con deduplicación automática
-print("\n💾 Creando VISTA tabla_Normalizada_final...")
+print("\n💾 Creando nueva vista optimizada...")
 
-# Usar CTEs y window functions para deduplicar
 sql_vista = """
-CREATE VIEW tabla_Normalizada_final AS
-WITH ranked_records AS (
-  SELECT 
-    rcm.tabla_id,
-    rcm.id,
-    rcm.id_investigador,
-    rcm.nombre,
-    rcm.categoria,
-    rcm.tipo_proyecto,
-    rcm.titulo_proyecto,
-    rcm.nodo_padre_resultados,
-    rcm.anio,
-    rcm.tipo_grouplab,
-    rcm.nodo_padre_grouplab,
-    rcm.titulo_grouplab,
-    rcm.titulo_original_grouplab,
-    rcm.titulo_normalizado,
-    rcm.autor_1_grouplab,
-    rcm.autor_2_grouplab,
-    rcm.autor_3_grouplab,
-    rcm.autor_4_grouplab,
-    rcm.autor_5_grouplab,
-    rcm.issn,
-    rcm.isbn,
-    rcm.revista,
-    rcm.ano_grouplab,
-    rel.facultad,
-    rel.programa_academico,
-    ROW_NUMBER() OVER (
-      PARTITION BY rcm.tipo_proyecto, rcm.titulo_normalizado, rcm.anio
-      ORDER BY (CASE WHEN rcm.nodo_padre_grouplab IS NOT NULL THEN 1 ELSE 0 END) DESC,
-               rcm.tabla_id
-    ) as rn
-  FROM resultados_coincidentes_materializada rcm
-  LEFT JOIN investigadores inv ON rcm.id_investigador = inv.id_investigador
-  LEFT JOIN (
+
+CREATE VIEW tabla_normalizada_final AS
+
+WITH autores_expandido AS (
+
+    SELECT rcm.*, inv.id_investigador AS autor_id
+    FROM resultados_coincidentes_materializada rcm
+    LEFT JOIN investigadores inv
+        ON LOWER(inv.nombre_completo) = LOWER(rcm.autor_1_grouplab)
+
+    UNION ALL
+
+    SELECT rcm.*, inv.id_investigador
+    FROM resultados_coincidentes_materializada rcm
+    LEFT JOIN investigadores inv
+        ON LOWER(inv.nombre_completo) = LOWER(rcm.autor_2_grouplab)
+
+    UNION ALL
+
+    SELECT rcm.*, inv.id_investigador
+    FROM resultados_coincidentes_materializada rcm
+    LEFT JOIN investigadores inv
+        ON LOWER(inv.nombre_completo) = LOWER(rcm.autor_3_grouplab)
+
+    UNION ALL
+
+    SELECT rcm.*, inv.id_investigador
+    FROM resultados_coincidentes_materializada rcm
+    LEFT JOIN investigadores inv
+        ON LOWER(inv.nombre_completo) = LOWER(rcm.autor_4_grouplab)
+
+    UNION ALL
+
+    SELECT rcm.*, inv.id_investigador
+    FROM resultados_coincidentes_materializada rcm
+    LEFT JOIN investigadores inv
+        ON LOWER(inv.nombre_completo) = LOWER(rcm.autor_5_grouplab)
+
+),
+
+autores_validos AS (
+
+    SELECT *
+    FROM autores_expandido
+    WHERE autor_id IS NOT NULL
+
+),
+
+programas_autores AS (
+
     SELECT
-      ipf.id_investigador,
-      GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ' / ') AS facultad,
-      GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ' / ') AS programa_academico
+        ipf.id_investigador,
+        GROUP_CONCAT(DISTINCT f.nombre_facultad SEPARATOR ' / ') AS facultad,
+        GROUP_CONCAT(DISTINCT p.nombre_programa SEPARATOR ' / ') AS programa
     FROM investigador_programa_facultad ipf
-    LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
-    LEFT JOIN programa p ON p.id_programa = ipf.id_programa
+    LEFT JOIN facultad f
+        ON f.id_facultad = ipf.id_facultad
+    LEFT JOIN programa p
+        ON p.id_programa = ipf.id_programa
     GROUP BY ipf.id_investigador
-  ) rel ON rel.id_investigador = inv.id_investigador
+
+),
+
+titulo_programas AS (
+
+    SELECT
+
+        av.tabla_id,
+        GROUP_CONCAT(DISTINCT pa.facultad SEPARATOR ' / ') AS facultad,
+        GROUP_CONCAT(DISTINCT pa.programa SEPARATOR ' / ') AS programa_academico
+
+    FROM autores_validos av
+
+    LEFT JOIN programas_autores pa
+        ON pa.id_investigador = av.autor_id
+
+    GROUP BY av.tabla_id
+
+),
+
+deduplicados AS (
+
+    SELECT
+
+        rcm.*,
+
+        ROW_NUMBER() OVER(
+            PARTITION BY rcm.tipo_proyecto, rcm.titulo_normalizado, rcm.anio
+            ORDER BY
+                (CASE WHEN rcm.nodo_padre_grouplab IS NOT NULL THEN 1 ELSE 0 END) DESC,
+                rcm.tabla_id
+        ) AS rn
+
+    FROM resultados_coincidentes_materializada rcm
+
 )
-SELECT 
-  tabla_id, id, id_investigador, nombre, categoria, tipo_proyecto, titulo_proyecto,
-  nodo_padre_resultados, anio, tipo_grouplab, nodo_padre_grouplab, titulo_grouplab,
-  titulo_original_grouplab, titulo_normalizado, autor_1_grouplab, autor_2_grouplab,
-  autor_3_grouplab, autor_4_grouplab, autor_5_grouplab, issn, isbn, revista,
-  ano_grouplab, facultad, programa_academico
-FROM ranked_records
-WHERE rn = 1
+
+SELECT
+
+    d.tabla_id,
+    d.id,
+    d.id_investigador,
+    d.nombre,
+    d.categoria,
+    d.tipo_proyecto,
+    d.titulo_proyecto,
+    d.nodo_padre_resultados,
+    d.anio,
+    d.tipo_grouplab,
+    d.nodo_padre_grouplab,
+    d.nombre_grupo_grouplab,
+    d.sigla_grupo_grouplab,
+    d.titulo_grouplab,
+    d.titulo_original_grouplab,
+    d.titulo_normalizado,
+    d.autor_1_grouplab,
+    d.autor_2_grouplab,
+    d.autor_3_grouplab,
+    d.autor_4_grouplab,
+    d.autor_5_grouplab,
+    d.issn,
+    d.isbn,
+    d.revista,
+    d.ano_grouplab,
+
+    tp.facultad,
+    tp.programa_academico
+
+FROM deduplicados d
+
+LEFT JOIN titulo_programas tp
+    ON tp.tabla_id = d.tabla_id
+
+WHERE d.rn = 1
+
 """
 
 try:
     cur.execute(sql_vista)
-    print("   ✅ VISTA creada exitosamente")
+    conn.commit()
+    print("✅ Vista creada correctamente")
 except Exception as e:
-    print(f"   ❌ Error al crear vista: {e}")
+    print("❌ Error creando la vista:", e)
     conn.close()
-    exit(1)
+    exit()
 
-conn.commit()
+# verificación
+cur.execute("SELECT COUNT(*) FROM tabla_normalizada_final")
+total = cur.fetchone()[0]
 
-# Verificación
-cur.execute("SELECT COUNT(*) as total FROM tabla_Normalizada_final")
-result = cur.fetchone()
-total_records = result[0] if result else 0
+print("\n📊 Registros en vista:", total)
 
-print("\n" + "="*80)
-print("📊 RESUMEN")
-print("="*80)
-print(f"✅ tabla_Normalizada_final es ahora una VISTA")
-print(f"📊 Registros: {total_records}")
-print(f"🔄 Se actualiza automáticamente cuando cambian los datos de:")
-print(f"   • resultados_coincidentes_materializada")
-print(f"   • investigadores")
-
-print(f"\n📋 Deduplicación en tiempo real por:")
-print(f"   • tipo_proyecto")
-print(f"   • titulo_normalizado")
-print(f"   • anio")
-print(f"   Mantiene: registro con mejor metadata (nodo_padre)")
-
-print(f"\n📋 Columnas (sin autor_6, 7, 8):")
-cur.execute("DESCRIBE tabla_Normalizada_final")
-cols = cur.fetchall()
-col_names = [col[0] for col in cols]
-print(f"   {', '.join(col_names)}")
-
-# Ejemplos
-print(f"\n📋 Ejemplos:")
+print("\n📋 Ejemplos:")
 cur.execute("""
-    SELECT id, nombre, facultad, programa_academico, tipo_proyecto, anio 
-    FROM tabla_Normalizada_final 
-    LIMIT 5
+SELECT
+nombre,
+programa_academico,
+facultad,
+tipo_proyecto,
+anio
+FROM tabla_normalizada_final
+LIMIT 5
 """)
-ejemplos = cur.fetchall()
 
-for i, row in enumerate(ejemplos, 1):
-    fac = row[2][:20] if row[2] else "N/A"
-    prog = row[3][:20] if row[3] else "N/A"
-    tipo = row[4][:25] if row[4] else "N/A"
-    print(f"   {i}. {row[1][:30]:30} | {fac:20} | {prog:20}")
+rows = cur.fetchall()
+
+for r in rows:
+    print(r)
 
 cur.close()
 conn.close()
 
-print("\n✅ ¡VISTA tabla_Normalizada_final lista!")
-print("   Ahora se actualiza automáticamente en cada scraping\n")
+print("\n✅ Vista tabla_normalizada_final lista")
+print("✔ Un título aparece solo una vez")
+print("✔ Incluye programas de todos sus autores")
+print("✔ Funciona correctamente para los filtros del frontend")

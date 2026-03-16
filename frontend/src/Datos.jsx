@@ -27,6 +27,7 @@ export default function Datos() {
   const initialTipologia = location.state?.tipologia || '';
 
   const [resultados, setResultados] = React.useState([]);
+  const [totalResultados, setTotalResultados] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
 
@@ -272,11 +273,22 @@ export default function Datos() {
       setLoading(true);
       setError(null);
       try {
-        // Usar la vista tabla_normalizada_final
-        const res = await fetch(`${API_BASE}/tabla-normalizada-final`);
-        if (!res.ok) throw new Error('Error fetching resultados');
+        // Fetch filtered
+        const qs = new URLSearchParams();
+        Object.entries(filters).forEach(([k, v]) => {
+          if (v) qs.append(k, v);
+        });
+        const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? '?' + qs.toString() : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Error fetching tabla_normalizada_final');
         const data = await res.json();
         setResultados(data);
+        // Fetch total (sin filtros)
+        const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final`);
+        if (resTotal.ok) {
+          const dataTotal = await resTotal.json();
+          setTotalResultados(Array.isArray(dataTotal) ? dataTotal.length : 0);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -284,7 +296,7 @@ export default function Datos() {
       }
     };
     load();
-  }, []);
+  }, [filters]);
 
   // fetch distribution of nodo hijo according to current filters (tipologia optional)
 
@@ -435,7 +447,7 @@ export default function Datos() {
               <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
                 <div>
                   <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
-                  <p className="text-lg font-bold text-primary">{resultados.length.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-primary">{totalResultados.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-xxs text-slate-500">Regs</p>
@@ -495,7 +507,7 @@ export default function Datos() {
                         ? [
                             // Use abbreviations for parent
                             tipologiaToSigla(parentSelected),
-                            ...childColumns.map(c => tipologiaToSigla(c.nodo))
+                            ...childColumns.map(c => c.nodo)
                           ]
                         : topTipos.map(([t]) => tipologiaToSigla(t)),
                       datasets: [

@@ -48,7 +48,7 @@ cur = conn.cursor()
 cur.execute("""
 SELECT 
     tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4,
-    autor_5, autor_6, autor_7, autor_8, issn, isbn, revista, ano
+    autor_5, issn, isbn, revista, ano
 FROM titulo_grouplab
 """)
 
@@ -61,12 +61,12 @@ print("\n🧹 Identificando duplicados (tipo + título + año, mantener más aut
 groups_by_base = defaultdict(list)
 
 for row in rows_raw:
-    tipo, nodo_padre, nombre_grupo, sigla_grupo, titulo, a1, a2, a3, a4, a5, a6, a7, a8, issn, isbn, revista, ano = row
+    tipo, nodo_padre, nombre_grupo, sigla_grupo, titulo, a1, a2, a3, a4, a5, issn, isbn, revista, ano = row
     
     # Clave base: solo tipo + título normalizado + año
     key_base = (tipo or '', normalize_title(titulo or ''), ano or '')
     
-    auto_set = get_author_set([a1, a2, a3, a4, a5, a6, a7, a8])
+    auto_set = get_author_set([a1, a2, a3, a4, a5])
     
     row_data = {
         'tipo': tipo,
@@ -77,7 +77,7 @@ for row in rows_raw:
         'titulo_original': titulo,
         'titulo_normalizado': normalize_title(titulo),
         'autores_set': auto_set,
-        'autores_orig': [a1, a2, a3, a4, a5, a6, a7, a8],
+        'autores_orig': [a1, a2, a3, a4, a5],
         'issn': issn,
         'isbn': isbn,
         'revista': revista,
@@ -189,6 +189,7 @@ print("\n💾 Creando tabla titulo_grouplab_clean...")
 cur.execute("DROP TABLE IF EXISTS titulo_grouplab_clean")
 cur.execute("""
 CREATE TABLE titulo_grouplab_clean (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     tipo VARCHAR(255),
     nodo_padre VARCHAR(255),
     nombre_grupo_investigacion VARCHAR(255),
@@ -201,9 +202,6 @@ CREATE TABLE titulo_grouplab_clean (
     autor_3 VARCHAR(255),
     autor_4 VARCHAR(255),
     autor_5 VARCHAR(255),
-    autor_6 VARCHAR(255),
-    autor_7 VARCHAR(255),
-    autor_8 VARCHAR(255),
     issn VARCHAR(50),
     isbn VARCHAR(50),
     revista VARCHAR(255),
@@ -233,9 +231,6 @@ for row in dedup_map.values():
         row['autores_orig'][2] if len(row['autores_orig']) > 2 else None,
         row['autores_orig'][3] if len(row['autores_orig']) > 3 else None,
         row['autores_orig'][4] if len(row['autores_orig']) > 4 else None,
-        row['autores_orig'][5] if len(row['autores_orig']) > 5 else None,
-        row['autores_orig'][6] if len(row['autores_orig']) > 6 else None,
-        row['autores_orig'][7] if len(row['autores_orig']) > 7 else None,
         row['issn'],
         row['isbn'],
         row['revista'],
@@ -249,9 +244,8 @@ for i in range(0, len(rows_to_insert), batch_size):
     cur.executemany("""
         INSERT INTO titulo_grouplab_clean 
         (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado,
-         autor_1, autor_2, autor_3, autor_4, autor_5, autor_6, autor_7, autor_8,
-         issn, isbn, revista, ano)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+         autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, batch)
     conn.commit()
     print(f"   ... {min(i + batch_size, len(rows_to_insert))} / {len(rows_to_insert)}")

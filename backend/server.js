@@ -248,26 +248,11 @@ app.use((req, res, next) => {
     // create or refresh the view the frontend will use for exploratory data
     const createViewSql = `
       CREATE OR REPLACE VIEW vista_productos_final AS
-      WITH resultados_unicos AS (
-        SELECT
-          r.*,
-          ROW_NUMBER() OVER (
-            PARTITION BY
-              LOWER(TRIM(REGEXP_REPLACE(COALESCE(r.titulo_proyecto, ''), '[[:space:]]+', ' '))),
-              LOWER(TRIM(COALESCE(r.tipo_proyecto, ''))),
-              COALESCE(CAST(r.anio AS CHAR), ''),
-              LOWER(TRIM(COALESCE(r.nodo_padre, '')))
-            ORDER BY r.id
-          ) AS rn
-        FROM resultados r
-      )
-      SELECT ru.id, ru.categoria, ru.nombre, ru.sexo, ru.grado,
-             ru.tipo_proyecto, ru.titulo_proyecto, ru.anio, ru.id_investigador,
-             ru.nodo_padre, IFNULL(rel.facultad, '') AS facultad, IFNULL(rel.programa, '') AS programa,
+      SELECT r.*, IFNULL(rel.facultad, '') AS facultad, IFNULL(rel.programa, '') AS programa,
              i.nombre_completo AS investigador, i.link_cvlac, i.cedula,
              i.correo, i.google_scholar, i.orcid
-      FROM resultados_unicos ru
-      LEFT JOIN investigadores i ON ru.id_investigador = i.id_investigador
+      FROM resultados r
+      LEFT JOIN investigadores i ON r.id_investigador = i.id_investigador
       LEFT JOIN (
         SELECT
           ipf.id_investigador,
@@ -277,8 +262,7 @@ app.use((req, res, next) => {
         LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
         LEFT JOIN programa p ON p.id_programa = ipf.id_programa
         GROUP BY ipf.id_investigador
-      ) rel ON rel.id_investigador = ru.id_investigador
-      WHERE ru.rn = 1;
+      ) rel ON rel.id_investigador = r.id_investigador;
     `;
     await pool.query(createViewSql);
     console.log('database view vista_productos_final ensured');
@@ -672,16 +656,7 @@ app.delete('/investigadores/:id', async (req, res) => {
 
 // get resultados with optional filters – selects from the view
 app.get('/api/resultados', async (req, res) => {
-  const { facultad, programa, anio, investigador, tipo, categoria, tipologia, titulo_proyecto, source, normalized_mode } = req.query;
-  const sourceValue = String(source || '').toLowerCase();
-  const useNormalizedSource = sourceValue === 'normalizada' || sourceValue === 'normalizada_merge';
-  const normalizedMode = String(normalized_mode || '').toLowerCase();
-  const useMergedNormalized = useNormalizedSource && (
-    normalizedMode === 'merge' ||
-    normalizedMode === 'completo' ||
-    normalizedMode === 'full' ||
-    sourceValue === 'normalizada_merge'
-  );
+  const { facultad, programa, anio, investigador, tipo, categoria, tipologia, titulo_proyecto } = req.query;
   const conditions = [];
   const params = [];
   if (facultad) {
@@ -718,234 +693,18 @@ app.get('/api/resultados', async (req, res) => {
   }
 
   const whereClause = conditions.length ? (' WHERE ' + conditions.join(' AND ')) : '';
-  const normalizedSql = `SELECT
-      r.id,
-      r.id_investigador,
-      r.categoria,
-      r.nombre,
-      r.sexo,
-      r.grado,
-      r.tipo_proyecto,
-      r.nodo_padre,
-      r.titulo_proyecto,
-      r.anio,
-      r.facultad,
-      r.programa,
-      r.nombre_completo,
-      r.link_cvlac,
-      r.cedula,
-      r.correo,
-      r.google_scholar,
-      r.orcid,
-      r.autor_1_grouplab,
-      r.autor_2_grouplab,
-      r.autor_3_grouplab,
-      r.autor_4_grouplab,
-      r.autor_5_grouplab,
-      r.tipo_grouplab,
-      r.nodo_padre_grouplab,
-      r.titulo_grouplab,
-      r.issn,
-      r.isbn,
-      r.revista
-    FROM (
-      SELECT
-        tn.id,
-        tn.id_investigador,
-        tn.categoria,
-        tn.nombre,
-        rs.sexo,
-        rs.grado,
-        tn.tipo_proyecto,
-        tn.nodo_padre_grouplab AS nodo_padre,
-        tn.titulo_proyecto,
-        tn.anio,
-        tn.facultad,
-        tn.programa_academico AS programa,
-        i.nombre_completo,
-        i.link_cvlac,
-        i.cedula,
-        i.correo,
-        i.google_scholar,
-        i.orcid,
-        tn.autor_1_grouplab,
-        tn.autor_2_grouplab,
-        tn.autor_3_grouplab,
-        tn.autor_4_grouplab,
-        tn.autor_5_grouplab,
-        tn.tipo_grouplab,
-        tn.nodo_padre_grouplab,
-        tn.titulo_grouplab,
-        tn.issn,
-        tn.isbn,
-        tn.revista
-      FROM scraping.tabla_normalizada_final tn
-      LEFT JOIN resultados rs ON tn.id = rs.id
-      LEFT JOIN investigadores i ON tn.id_investigador = i.id_investigador
-    ) r${whereClause}`;
-  const fallbackSql = `SELECT
-      r.id,
-      r.id_investigador,
-      r.categoria,
-      r.nombre,
-      r.sexo,
-      r.grado,
-      r.tipo_proyecto,
-      r.nodo_padre,
-      r.titulo_proyecto,
-      r.anio,
-      r.facultad,
-      r.programa,
-      r.investigador AS nombre_completo,
-      r.link_cvlac,
-      r.cedula,
-      r.correo,
-      r.google_scholar,
-      r.orcid,
-      NULL AS autor_1_grouplab,
-      NULL AS autor_2_grouplab,
-      NULL AS autor_3_grouplab,
-      NULL AS autor_4_grouplab,
-      NULL AS autor_5_grouplab,
-      NULL AS tipo_grouplab,
-      NULL AS nodo_padre_grouplab,
-      NULL AS nombre_grupo_grouplab,
-      NULL AS sigla_grupo_grouplab,
-      NULL AS titulo_grouplab,
-      NULL AS issn,
-      NULL AS isbn,
-      NULL AS revista
-    FROM vista_productos_final r${whereClause}`;
-  // Deduplicated fallback that emulates normalized behavior on current schema.
-  const dedupFallbackSql = `WITH ranked AS (
-      SELECT
-        v.id,
-        v.id_investigador,
-        v.categoria,
-        v.nombre,
-        v.sexo,
-        v.grado,
-        v.tipo_proyecto,
-        v.nodo_padre,
-        v.titulo_proyecto,
-        v.anio,
-        v.facultad,
-        v.programa,
-        v.investigador AS nombre_completo,
-        v.link_cvlac,
-        v.cedula,
-        v.correo,
-        v.google_scholar,
-        v.orcid,
-        ROW_NUMBER() OVER (
-          PARTITION BY
-            LOWER(TRIM(REGEXP_REPLACE(COALESCE(v.titulo_proyecto, ''), '[[:space:]]+', ' '))),
-            LOWER(TRIM(COALESCE(v.tipo_proyecto, ''))),
-            COALESCE(CAST(v.anio AS CHAR), ''),
-            LOWER(TRIM(COALESCE(v.nodo_padre, '')))
-          ORDER BY v.id
-        ) AS rn
-      FROM vista_productos_final v
-    )
-    SELECT
-      r.id,
-      r.id_investigador,
-      r.categoria,
-      r.nombre,
-      r.sexo,
-      r.grado,
-      r.tipo_proyecto,
-      r.nodo_padre,
-      r.titulo_proyecto,
-      r.anio,
-      r.facultad,
-      r.programa,
-      r.nombre_completo,
-      r.link_cvlac,
-      r.cedula,
-      r.correo,
-      r.google_scholar,
-      r.orcid,
-      NULL AS autor_1_grouplab,
-      NULL AS autor_2_grouplab,
-      NULL AS autor_3_grouplab,
-      NULL AS autor_4_grouplab,
-      NULL AS autor_5_grouplab,
-      NULL AS tipo_grouplab,
-      NULL AS nodo_padre_grouplab,
-      NULL AS nombre_grupo_grouplab,
-      NULL AS sigla_grupo_grouplab,
-      NULL AS titulo_grouplab,
-      NULL AS issn,
-      NULL AS isbn,
-      NULL AS revista
-    FROM ranked r
-    WHERE r.rn = 1${conditions.length ? (' AND ' + conditions.join(' AND ')) : ''}`;
-  let executedSql = fallbackSql;
+  const sql = `SELECT r.* FROM vista_productos_final r${whereClause}`;
   try {
-    if (useNormalizedSource) {
-      try {
-        const [normalizedRows] = await pool.query(normalizedSql, params);
-        if (!useMergedNormalized) {
-          console.log('[API] /api/resultados success (normalized strict)', {
-            rowCount: normalizedRows.length,
-          });
-          return res.json(normalizedRows);
-        }
-
-        const [dedupRows] = await pool.query(dedupFallbackSql, params);
-
-        // Optional mode: merge both sources to avoid losing rows absent in tabla_Normalizada_final.
-        const mergedMap = new Map();
-        const buildKey = (row) => {
-          const titulo = String(row.titulo_proyecto || '').toLowerCase().replace(/\s+/g, ' ').trim();
-          const tipoProyecto = String(row.tipo_proyecto || '').toLowerCase().trim();
-          const anioValue = String(row.anio || '').trim();
-          const nodoPadre = String(row.nodo_padre || '').toLowerCase().trim();
-          return `${titulo}||${tipoProyecto}||${anioValue}||${nodoPadre}`;
-        };
-
-        for (const row of dedupRows) {
-          mergedMap.set(buildKey(row), row);
-        }
-        // Normalized rows win when duplicate key exists.
-        for (const row of normalizedRows) {
-          mergedMap.set(buildKey(row), row);
-        }
-
-        const mergedRows = Array.from(mergedMap.values());
-        console.log('[API] /api/resultados success (normalized merged)', {
-          normalized: normalizedRows.length,
-          dedupFallback: dedupRows.length,
-          merged: mergedRows.length,
-        });
-        return res.json(mergedRows);
-      } catch (normalizedErr) {
-        console.warn('[API] /api/resultados normalized source failed, using fallback view', {
-          message: normalizedErr.message,
-        });
-        const [dedupRows] = await pool.query(dedupFallbackSql, params);
-        console.log('[API] /api/resultados success (dedup fallback)', { rowCount: dedupRows.length });
-        return res.json(dedupRows);
-      }
-    }
-
-    console.log('[API] /api/resultados SQL built (fallback)', { sql: executedSql, params });
-    const [rows] = await pool.query(executedSql, params);
+    console.log('[API] /api/resultados SQL built', { sql, params });
+    const [rows] = await pool.query(sql, params);
     console.log('[API] /api/resultados success', { rowCount: rows.length });
     res.json(rows);
   } catch (err) {
     console.error('[API] /api/resultados error', {
       message: err.message,
       code: err.code,
-      errno: err.errno,
-      sqlState: err.sqlState,
-      sqlMessage: err.sqlMessage,
-      sql: executedSql,
-      params,
-      stack: err.stack,
     });
-    res.status(500).json({ message: 'internal server error', error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 

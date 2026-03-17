@@ -133,10 +133,10 @@ function getOrderedTipologiaData(productosPorTipologia) {
   };
 }
 
-function toTitleCase(value) {
-  return String(value || '')
+function toTitleCase(str) {
+  return String(str || '')
     .toLowerCase()
-    .replace(/\b\p{L}/gu, (char) => char.toUpperCase());
+    .replace(/(?:^|\s)([a-zñáéíóúü])/g, (match) => match.toUpperCase());
 }
 
 function parseProgramas(programaValue) {
@@ -300,7 +300,7 @@ export default function DirectorioInvestigadores() {
     
     resultados.forEach(r => {
       const nombre = r.nombre || 'Sin nombre';
-      const nombreMostrar = r.nombre_completo || toTitleCase(nombre);
+      const nombreMostrar = r.nombre_completo ? toTitleCase(r.nombre_completo) : toTitleCase(nombre);
       if (!investigadoresMap[nombre]) {
         investigadoresMap[nombre] = {
           nombre,

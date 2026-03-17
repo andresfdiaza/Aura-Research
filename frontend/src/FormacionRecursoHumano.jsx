@@ -57,7 +57,7 @@ export default function FormacionRecursoHumano() {
     const opts = { facultad: [], grupo: [], programa: [] };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
-      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
+      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
     });
     Object.values(opts).forEach(arr => arr.sort());
@@ -80,7 +80,7 @@ export default function FormacionRecursoHumano() {
     result = result.filter(r => {
       if (filters.facultad && r.facultad !== filters.facultad) return false;
       if (filters.grupo) {
-        const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
+        const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
         if (grupo !== filters.grupo) return false;
       }
       if (filters.programa) {

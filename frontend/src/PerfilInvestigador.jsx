@@ -155,7 +155,7 @@ export default function PerfilInvestigador() {
         const ultimoGrado = gradosDisponibles.length > 0 ? gradosDisponibles[gradosDisponibles.length - 1] : 'No disponible';
 
         setDatosInvestigador({
-          nombre_completo: primerRegistro.nombre,
+          nombre_completo: primerRegistro.investigador, // <-- Ahora toma el nombre de la columna 'investigador'
           genero: primerRegistro.sexo || 'No disponible',
           facultad: primerRegistro.facultad || 'No disponible',
           programa: primerRegistro.programa || 'No disponible',

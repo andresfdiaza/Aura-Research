@@ -39,7 +39,18 @@ async function markAllPending() {
 }
 
 // export both functions
+// Poblar la tabla investigador_titulo usando el SQL existente
+async function poblarInvestigadorTitulo() {
+  const fs = require('fs');
+  const path = require('path');
+  const sql = fs.readFileSync(path.join(__dirname, '../poblar_investigador_titulo.sql'), 'utf8');
+  await pool.query('DELETE FROM investigador_titulo');
+  const [result] = await pool.query(sql);
+  console.log('Relaciones insertadas correctamente:', result.affectedRows);
+}
+
 module.exports = {
   ensureScrapingTable,
   markAllPending,
+  poblarInvestigadorTitulo,
 };

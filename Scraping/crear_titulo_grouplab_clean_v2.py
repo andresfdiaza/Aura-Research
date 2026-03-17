@@ -185,7 +185,18 @@ for i, (key_base, group) in enumerate(sorted(groups_by_base.items(), key=lambda 
         print()
 
 # 4) Crear tabla limpia en BD
-print("\n💾 Usando tabla 'titulo_grouplab_clean' existente y agregando solo registros nuevos...")
+
+
+# Borrar primero los registros de investigador_titulo y luego los de la tabla clean
+print("\n💾 Limpiando tabla 'investigador_titulo'...")
+cur.execute("DELETE FROM investigador_titulo")
+conn.commit()
+print("   Todos los registros de investigador_titulo eliminados.")
+
+print("\n💾 Limpiando tabla 'titulo_grouplab_clean'...")
+cur.execute("DELETE FROM titulo_grouplab_clean")
+conn.commit()
+print("   Todos los registros de titulo_grouplab_clean eliminados.")
 
 # Insertar 1 registro por grupo (los duplicados los descarta)
 print("   Insertando registros únicos...")

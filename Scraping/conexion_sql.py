@@ -81,41 +81,31 @@ def guardar_en_mysql(datos):
     )
 
     cursor = conexion.cursor()
-
-    # ensure the resultados table has an id_investigador column when scraping
-    sql = """
-    INSERT INTO resultados
-    (id_investigador, categoria, nombre, sexo, grado, tipo_proyecto, nodo_padre, titulo_proyecto, anio)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """
-
-    valores = [
-        (
-            fila.get("id_investigador"),
-            fila["categoria"],
-            fila["nombre"],
-            fila["sexo"],
-            fila["grado"],
-            fila["tipo_proyecto"],
-            fila.get("nodo_padre", ""),
-            fila["titulo_proyecto"],
-            fila["anio"]
-        )
-        for fila in datos
-    ]
-
-    try:
-        if not valores:
-            print("⚠️ No hay datos para insertar")
-            return
-            
-        print(f"📊 Intentando insertar {len(valores)} registros...")
-        cursor.executemany(sql, valores)
-        conexion.commit()
-        print(f"✅ Se insertaron {len(valores)} registros correctamente")
-    except Exception as e:
-        print(f"❌ Error al insertar datos: {e}")
-        conexion.rollback()
-    finally:
-        cursor.close()
-        conexion.close()
+    nuevos = 0
+    for fila in datos:
+        cursor.execute("""
+            SELECT COUNT(*) FROM resultados
+            WHERE id_investigador = %s AND titulo_proyecto = %s
+        """, (fila.get("id_investigador"), fila["titulo_proyecto"]))
+        existe = cursor.fetchone()[0]
+        if existe == 0:
+            cursor.execute("""
+                INSERT INTO resultados
+                (id_investigador, categoria, nombre, sexo, grado, tipo_proyecto, nodo_padre, titulo_proyecto, anio)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                fila.get("id_investigador"),
+                fila["categoria"],
+                fila["nombre"],
+                fila["sexo"],
+                fila["grado"],
+                fila["tipo_proyecto"],
+                fila.get("nodo_padre", ""),
+                fila["titulo_proyecto"],
+                fila["anio"]
+            ))
+            nuevos += 1
+    conexion.commit()
+    cursor.close()
+    conexion.close()
+    print(f"✅ Se insertaron {nuevos} registros nuevos correctamente")

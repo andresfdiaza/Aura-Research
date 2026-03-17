@@ -561,36 +561,39 @@ def guardar_en_bd(titulos_por_tipo, info_grupo):
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     
     total = 0
+    nuevos = 0
     for tipo, registros in titulos_por_tipo.items():
         for registro in registros:
-            # Si hay tipo_especifico (para trabajos dirigidos), usarlo; si no, normalizar
             if 'tipo_especifico' in registro and registro['tipo_especifico']:
                 nodo_hijo = registro['tipo_especifico']
             else:
                 nodo_hijo = normalizar_nodo_hijo(tipo)
-            
             nodo_padre = obtener_nodo_padre(nodo_hijo)
             nombre_grupo = info_grupo.get('nombre_grupo', '')
             sigla_grupo = info_grupo.get('sigla_grupo', '')
             titulo = registro['titulo']
             autores = registro['autores']
-            issn = registro.get('issn')  # Puede ser None
-            isbn = registro.get('isbn')  # Puede ser None
-            revista = registro.get('revista')  # Puede ser None
-            ano = registro.get('ano')  # Puede ser None
-            
-            # Preparar valores para hasta 5 autores
+            issn = registro.get('issn')
+            isbn = registro.get('isbn')
+            revista = registro.get('revista')
+            ano = registro.get('ano')
             valores_autores = [None] * 5
-            for i, autor in enumerate(autores[:5]):  # Tomar máximo 5 autores
+            for i, autor in enumerate(autores[:5]):
                 valores_autores[i] = autor
-
-            cursor.execute(query, (nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano))
+            # Verificar si ya existe el registro por sigla_grupo, titulo y año
+            cursor.execute("""
+                SELECT COUNT(*) FROM titulo_grouplab
+                WHERE sigla_grupo_investigacion = %s AND titulo = %s AND ano = %s
+            """, (sigla_grupo, titulo, ano))
+            existe = cursor.fetchone()[0]
+            if existe == 0:
+                cursor.execute(query, (nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano))
+                nuevos += 1
         total += len(registros)
-    
     conexion.commit()
     cursor.close()
     conexion.close()
-    print(f"✓ {total} títulos guardados en BD")
+    print(f"✓ {nuevos} títulos nuevos guardados en BD (de {total} procesados)")
 
 
 def guardar_csv(titulos_por_tipo, info_grupo):

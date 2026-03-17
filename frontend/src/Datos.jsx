@@ -166,7 +166,7 @@ export default function Datos() {
     };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
-      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A').toString().trim();
+      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
       if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
       if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);

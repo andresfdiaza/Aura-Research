@@ -113,11 +113,15 @@ exports.executeScrapingComplete = async () => {
   const groupLabResult = await runPythonScript(groupLabScript, env);
   const { pipelineStdout, pipelineStderr } = await runNormalizationPipeline(env);
 
+  // Paso extra: poblar la tabla de relaciones investigador_titulo
+  await repo.poblarInvestigadorTitulo();
+
   return {
     stdout:
       '\n--- CVLAC ---\n' + (cvlacResult.stdout || '') +
       '\n--- GroupLab ---\n' + (groupLabResult.stdout || '') +
-      pipelineStdout,
+      pipelineStdout +
+      '\n--- Relaciones investigador_titulo actualizadas ---\n',
     stderr:
       (cvlacResult.stderr || '') +
       (groupLabResult.stderr || '') +

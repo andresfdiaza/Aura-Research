@@ -14,7 +14,11 @@ export default function Home() {
     return <Navigate to="/" replace />;
   }
 
-  const userName = user.email.split('@')[0];
+  function capitalizeFirst(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  }
+  const userName = capitalizeFirst(user.email.split('@')[0]);
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">

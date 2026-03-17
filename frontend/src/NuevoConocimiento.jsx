@@ -61,7 +61,7 @@ export default function NuevoConocimiento() {
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
     });
     Object.values(opts).forEach(arr => arr.sort());
-    // Restringir programas a los tres definidos en el backend
+    // Limitar programas a solo los tres permitidos
     opts.programa = [
       'Ingeniería de Sistemas',
       'Ingeniería Industrial',

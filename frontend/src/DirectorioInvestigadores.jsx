@@ -400,6 +400,7 @@ export default function DirectorioInvestigadores() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+      {/* Botón volver eliminado de la parte superior, ahora estará junto a Agregar y Editar */}
       <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
@@ -463,21 +464,32 @@ export default function DirectorioInvestigadores() {
             <div className="flex items-center justify-between">
               <h1 className="text-3xl font-bold text-primary">Directorio de Investigadores</h1>
               <div className="flex gap-2">
+                {user?.role === 'admin' && (
+                  <>
+                    <button
+                      title="Agregar Investigador"
+                      className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-sm"
+                      onClick={() => setShowAddModal(true)}
+                    >
+                      <span className="material-symbols-outlined text-base">person_add</span>
+                      <span>Agregar</span>
+                    </button>
+                    <button
+                      title="Editar Investigador"
+                      className="flex items-center gap-1 px-4 py-2 bg-slate-500 text-white rounded-lg font-bold shadow-md shadow-slate-400 hover:bg-slate-600 transition-all text-sm"
+                      onClick={() => navigate('/investigadores', { state: { user } })}
+                    >
+                      <span className="material-symbols-outlined text-base">edit</span>
+                      <span>Editar</span>
+                    </button>
+                  </>
+                )}
                 <button
-                  title="Agregar Investigador"
-                  className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-sm"
-                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1 px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all text-sm"
+                  onClick={() => navigate(homePath, { state: { user } })}
                 >
-                  <span className="material-symbols-outlined text-base">person_add</span>
-                  <span>Agregar</span>
-                </button>
-                <button
-                  title="Editar Investigador"
-                  className="flex items-center gap-1 px-4 py-2 bg-slate-500 text-white rounded-lg font-bold shadow-md shadow-slate-400 hover:bg-slate-600 transition-all text-sm"
-                  onClick={() => navigate('/investigadores', { state: { user } })}
-                >
-                  <span className="material-symbols-outlined text-base">edit</span>
-                  <span>Editar</span>
+                  <span className="material-symbols-outlined text-base">arrow_back</span>
+                  <span>Volver</span>
                 </button>
               </div>
             </div>
@@ -680,16 +692,7 @@ export default function DirectorioInvestigadores() {
               </>
             )}
 
-            {/* Botón volver */}
-            <div className="flex justify-end mt-6">
-              <button
-                className="px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
-                onClick={() => window.history.back()}
-              >
-                <span className="material-symbols-outlined align-middle mr-2">arrow_back</span>
-                Volver
-              </button>
-            </div>
+            {/* Botón volver eliminado de aquí, ahora está arriba */}
           </div>
         </main>
       </div>

@@ -34,7 +34,11 @@ export default function HomeAdmin() {
     return <Navigate to="/" replace />;
   }
 
-  const userName = user.email.split('@')[0];
+  function capitalizeFirst(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  }
+  const userName = capitalizeFirst(user.email.split('@')[0]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

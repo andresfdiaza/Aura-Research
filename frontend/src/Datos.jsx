@@ -168,7 +168,6 @@ export default function Datos() {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
-      if (r.programa && !opts.programa.includes(r.programa)) opts.programa.push(r.programa);
       if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);
       if (r.categoria && !opts.categoria.includes(r.categoria)) opts.categoria.push(r.categoria);
       if (r.cedula && !opts.cedula.includes(r.cedula)) opts.cedula.push(r.cedula);
@@ -181,6 +180,12 @@ export default function Datos() {
       const nodoPadre = (r.nodo_padre || r.tipologia_productos || '').toString().trim();
       if (nodoPadre && !opts.tipologia.includes(nodoPadre)) opts.tipologia.push(nodoPadre);
     });
+    // Limitar programas a solo los tres permitidos
+    opts.programa = [
+      'Ingeniería de Sistemas',
+      'Ingeniería Industrial',
+      'Especialización en Inteligencia de Negocios y Big Data'
+    ];
     // sort options for nicer UI
     Object.values(opts).forEach(arr => arr.sort());
     return opts;

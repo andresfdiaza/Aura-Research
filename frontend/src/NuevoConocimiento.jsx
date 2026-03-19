@@ -18,6 +18,34 @@ export default function NuevoConocimiento() {
     programa: ''
   });
 
+    const [programasCatalogo, setProgramasCatalogo] = React.useState([]);
+  const [facultadesCatalogo, setFacultadesCatalogo] = React.useState([]);
+  // Cargar catálogo de programas y facultades
+  React.useEffect(() => {
+    const loadProgramas = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/programas_full`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setProgramasCatalogo(Array.isArray(data) ? data : []);
+      } catch (_err) {
+        setProgramasCatalogo([]);
+      }
+    };
+    const loadFacultades = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/facultades`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setFacultadesCatalogo(Array.isArray(data) ? data : []);
+      } catch (_err) {
+        setFacultadesCatalogo([]);
+      }
+    };
+    loadProgramas();
+    loadFacultades();
+  }, []);
+
   // Obtener datos del backend según filtros (trabaja con la vista)
   React.useEffect(() => {
     const load = async () => {
@@ -61,14 +89,21 @@ export default function NuevoConocimiento() {
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
     });
     Object.values(opts).forEach(arr => arr.sort());
-    // Limitar programas a solo los tres permitidos
-    opts.programa = [
-      'Ingeniería de Sistemas',
-      'Ingeniería Industrial',
-      'Especialización en Inteligencia de Negocios y Big Data'
-    ];
+    // Programas: todos los de la tabla programa, filtrados por facultad si aplica
+    let programasFiltrados = programasCatalogo;
+    if (filters.facultad) {
+      // Buscar id_facultad de la facultad seleccionada
+      const fac = facultadesCatalogo.find(f => f.nombre_facultad === filters.facultad);
+      const idFac = fac?.id_facultad;
+      if (idFac) {
+        programasFiltrados = programasCatalogo.filter(p => String(p.id_facultad) === String(idFac));
+      } else {
+        programasFiltrados = [];
+      }
+    }
+    opts.programa = programasFiltrados.map(p => p.nombre_programa);
     return opts;
-  }, [resultados]);
+  }, [resultados, programasCatalogo, filters.facultad, facultadesCatalogo]);
 
   // Filtrar resultados solo para tipologia 'Nuevo Conocimiento' (usando nodo_padre de la vista)
   const filtered = React.useMemo(() => {

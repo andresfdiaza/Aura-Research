@@ -56,6 +56,34 @@ export default function Datos() {
     titulo_proyecto: '',
     tipologia: initialTipologia // when set via dropdown or bar click
   });
+
+  // Catálogo de programas y facultades
+  const [programasCatalogo, setProgramasCatalogo] = React.useState([]);
+  const [facultadesCatalogo, setFacultadesCatalogo] = React.useState([]);
+  React.useEffect(() => {
+    const loadProgramas = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/programas_full`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setProgramasCatalogo(Array.isArray(data) ? data : []);
+      } catch (_err) {
+        setProgramasCatalogo([]);
+      }
+    };
+    const loadFacultades = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/facultades`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setFacultadesCatalogo(Array.isArray(data) ? data : []);
+      } catch (_err) {
+        setFacultadesCatalogo([]);
+      }
+    };
+    loadProgramas();
+    loadFacultades();
+  }, []);
   const chartRef = React.useRef();
 
   const openTableInNewTab = () => {
@@ -158,7 +186,7 @@ export default function Datos() {
   };
   const displayLabel = (k) => labelMap[k] || (k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
 
-  // derive available options for filters once resultados is loaded
+  // Opciones de filtros dinámicas (programas y facultades desde catálogo)
   const filterOptions = React.useMemo(() => {
     const opts = {
       facultad: [], grupo: [], programa: [], anio: [], tipologia: [],
@@ -180,16 +208,23 @@ export default function Datos() {
       const nodoPadre = (r.nodo_padre || r.tipologia_productos || '').toString().trim();
       if (nodoPadre && !opts.tipologia.includes(nodoPadre)) opts.tipologia.push(nodoPadre);
     });
-    // Limitar programas a solo los tres permitidos
-    opts.programa = [
-      'Ingeniería de Sistemas',
-      'Ingeniería Industrial',
-      'Especialización en Inteligencia de Negocios y Big Data'
-    ];
+    // Programas: todos los de la tabla programa, filtrados por facultad si aplica
+    let programasFiltrados = programasCatalogo;
+    if (filters.facultad) {
+      // Buscar id_facultad de la facultad seleccionada
+      const fac = facultadesCatalogo.find(f => f.nombre_facultad === filters.facultad);
+      const idFac = fac?.id_facultad;
+      if (idFac) {
+        programasFiltrados = programasCatalogo.filter(p => String(p.id_facultad) === String(idFac));
+      } else {
+        programasFiltrados = [];
+      }
+    }
+    opts.programa = programasFiltrados.map(p => p.nombre_programa);
     // sort options for nicer UI
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
-  }, [resultados]);
+  }, [resultados, programasCatalogo, filters.facultad, facultadesCatalogo]);
 
   // compute filtered dataset
   const filtered = React.useMemo(() => {
@@ -650,9 +685,6 @@ export default function Datos() {
           {!loading && !error && filtered.length === 0 && (
             <p className="text-center text-gray-600 text-lg">No hay datos disponibles en resultados</p>
           )}
-
-          {/* Back button moved to header (next to CSV/Table) */}
-
         </div>
       </main>
       </div>

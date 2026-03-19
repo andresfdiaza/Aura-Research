@@ -6,6 +6,7 @@ import re
 import hashlib
 import unicodedata
 
+
 conn = mysql.connector.connect(
     host='localhost',
     user='root',
@@ -14,6 +15,12 @@ conn = mysql.connector.connect(
     charset='utf8mb4',
     use_unicode=True
 )
+
+# Reiniciar el autoincrement de la tabla clean
+cur_reset = conn.cursor()
+cur_reset.execute("ALTER TABLE titulo_grouplab_clean AUTO_INCREMENT = 1;")
+conn.commit()
+cur_reset.close()
 
 print("\n" + "=" * 80)
 print("DEDUPLICACIÓN AVANZADA: titulo_grouplab_clean (con autores como conjunto)")
@@ -47,11 +54,12 @@ print("\n🔄 Cargando datos de titulo_grouplab...")
 cur = conn.cursor()
 cur.execute("""
 SELECT 
+    id_link_grouplab,
     tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4,
     autor_5, issn, isbn, revista, ano
 FROM titulo_grouplab
-""")
-
+"""
+)
 rows_raw = cur.fetchall()
 total_origen = len(rows_raw)
 print(f"   ✅ {total_origen} registros cargados")
@@ -61,14 +69,12 @@ print("\n🧹 Identificando duplicados (tipo + título + año, mantener más aut
 groups_by_base = defaultdict(list)
 
 for row in rows_raw:
-    tipo, nodo_padre, nombre_grupo, sigla_grupo, titulo, a1, a2, a3, a4, a5, issn, isbn, revista, ano = row
-    
+    id_link_grouplab, tipo, nodo_padre, nombre_grupo, sigla_grupo, titulo, a1, a2, a3, a4, a5, issn, isbn, revista, ano = row
     # Clave base: solo tipo + título normalizado + año
     key_base = (tipo or '', normalize_title(titulo or ''), ano or '')
-    
     auto_set = get_author_set([a1, a2, a3, a4, a5])
-    
     row_data = {
+        'id_link_grouplab': id_link_grouplab,
         'tipo': tipo,
         'nodo_padre': nodo_padre,
         'nombre_grupo_investigacion': nombre_grupo,
@@ -83,7 +89,6 @@ for row in rows_raw:
         'revista': revista,
         'ano': ano
     }
-    
     groups_by_base[key_base].append(row_data)
 
 # 3) Para cada grupo, mantener el con más autores (y si hay empate, el con más metadatos)
@@ -203,11 +208,12 @@ print("   Insertando registros únicos...")
 
 inserted_count = 0
 for row in dedup_map.values():
-    # Check if record exists
+    # Check if record exists (CAMBIO: incluye id_link_grouplab)
     cur.execute("""
-        SELECT id FROM titulo_grouplab_clean WHERE tipo=%s AND titulo_normalizado=%s AND ano=%s AND 
+        SELECT id FROM titulo_grouplab_clean WHERE id_link_grouplab=%s AND tipo=%s AND titulo_normalizado=%s AND ano=%s AND 
         autor_1=%s AND autor_2=%s AND autor_3=%s AND autor_4=%s AND autor_5=%s
     """, (
+        row['id_link_grouplab'],
         row['tipo'],
         row['titulo_normalizado'],
         row['ano'],
@@ -221,10 +227,11 @@ for row in dedup_map.values():
     if not exists:
         cur.execute("""
             INSERT INTO titulo_grouplab_clean 
-            (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado,
+            (id_link_grouplab, tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado,
              autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
+            row['id_link_grouplab'],
             row['tipo'],
             row['nodo_padre'],
             row['nombre_grupo_investigacion'],

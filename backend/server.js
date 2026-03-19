@@ -1,3 +1,5 @@
+
+
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
@@ -9,6 +11,116 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
+// (debe ir después de const app = express() y antes de app.listen)
+
+// Nuevo endpoint: lista completa de programas con facultad
+app.get('/api/programas_full', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.id_programa, p.nombre_programa, p.id_facultad, f.nombre_facultad
+       FROM programa p
+       LEFT JOIN facultad f ON f.id_facultad = p.id_facultad
+       ORDER BY p.id_programa`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching programas_full:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
+// Crear nuevo programa académico
+app.post('/api/programas', async (req, res) => {
+  try {
+    const { nombre_programa, id_facultad } = req.body;
+    if (!nombre_programa || !id_facultad) {
+      return res.status(400).json({ message: 'nombre_programa e id_facultad son requeridos' });
+    }
+    try {
+      const [result] = await pool.query(
+        'INSERT INTO programa (nombre_programa, id_facultad) VALUES (?, ?)',
+        [nombre_programa.trim(), id_facultad]
+      );
+      res.status(201).json({ id_programa: result.insertId, nombre_programa: nombre_programa.trim(), id_facultad });
+    } catch (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ message: 'El programa ya existe' });
+      }
+      console.error('Error creando programa:', err.message, err.stack);
+      res.status(500).json({ message: 'internal server error', error: err.message });
+    }
+  } catch (err) {
+    console.error('Error creando programa:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
+// Crear nueva facultad
+app.post('/api/facultades', async (req, res) => {
+  try {
+    const { nombre_facultad } = req.body;
+    if (!nombre_facultad) {
+      return res.status(400).json({ message: 'nombre_facultad es requerido' });
+    }
+    try {
+      const [result] = await pool.query(
+        'INSERT INTO facultad (nombre_facultad) VALUES (?)',
+        [nombre_facultad.trim()]
+      );
+      res.status(201).json({ id_facultad: result.insertId, nombre_facultad: nombre_facultad.trim() });
+    } catch (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ message: 'La facultad ya existe' });
+      }
+      console.error('Error creando facultad:', err.message, err.stack);
+      res.status(500).json({ message: 'internal server error', error: err.message });
+    }
+  } catch (err) {
+    console.error('Error creando facultad:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
+// Crear nueva facultad
+app.post('/api/grupos', async (req, res) => {
+  try {
+    console.log('[DEBUG] POST /api/grupos headers:', req.headers);
+    console.log('[DEBUG] POST /api/grupos body:', req.body);
+    const { nombre_grupo, sigla_grupo, url, id_facultad } = req.body;
+    if (!nombre_grupo || !url || !id_facultad) {
+      return res.status(400).json({ message: 'nombre_grupo, url e id_facultad requeridos' });
+    }
+    try {
+      const [result] = await pool.query(
+        'INSERT INTO link_grouplab (nombre_grupo, sigla_grupo, url, id_facultad) VALUES (?, ?, ?, ?)',
+        [nombre_grupo, sigla_grupo || null, url, id_facultad]
+      );
+      console.log('[DEBUG] SQL insert grupo result:', result);
+      res.json({ id: result.insertId, nombre_grupo, sigla_grupo, url, id_facultad });
+    } catch (sqlErr) {
+      console.error('[DEBUG] SQL insert grupo error:', sqlErr);
+      res.status(500).json({ message: 'error al guardar grupo', error: sqlErr.message });
+    }
+  } catch (err) {
+    console.error('Error creando grupo:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
+// Listar todas las facultades (todos los datos)
+app.get('/api/facultades', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM facultad ORDER BY nombre_facultad`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching facultades:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
 // Lightweight API request logging for production diagnostics.
 app.use((req, res, next) => {
   if (req.path.startsWith('/api')) {
@@ -18,6 +130,32 @@ app.use((req, res, next) => {
     });
   }
   next();
+});
+
+// Crear nuevo grupo
+app.post('/api/grupos', async (req, res) => {
+  try {
+    console.log('[DEBUG] POST /api/grupos headers:', req.headers);
+    console.log('[DEBUG] POST /api/grupos body:', req.body);
+    const { nombre_grupo, sigla_grupo, url } = req.body;
+    if (!nombre_grupo || !url) {
+      return res.status(400).json({ message: 'nombre_grupo y url requeridos' });
+    }
+    try {
+      const [result] = await pool.query(
+        'INSERT INTO link_grouplab (nombre_grupo, sigla_grupo, url) VALUES (?, ?, ?)',
+        [nombre_grupo, sigla_grupo || null, url]
+      );
+      console.log('[DEBUG] SQL insert grupo result:', result);
+      res.json({ id: result.insertId, nombre_grupo, sigla_grupo, url });
+    } catch (sqlErr) {
+      console.error('[DEBUG] SQL insert grupo error:', sqlErr);
+      res.status(500).json({ message: 'error al guardar grupo', error: sqlErr.message });
+    }
+  } catch (err) {
+    console.error('Error creando grupo:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
 });
 
 // create users and investigadores tables if not exists
@@ -190,6 +328,19 @@ app.use((req, res, next) => {
     
     console.log(`Created ${programas.length} programs. Relationships will be added via API when users assign programs to investigators.`);
 
+
+    // Ensure link_grouplab table exists
+    const ensureLinkGrouplabSql = `
+      CREATE TABLE IF NOT EXISTS link_grouplab (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre_grupo VARCHAR(255),
+        sigla_grupo VARCHAR(255),
+        url VARCHAR(512) NOT NULL
+      ) ENGINE=InnoDB;
+    `;
+    await pool.query(ensureLinkGrouplabSql);
+    console.log('link_grouplab table ensured');
+
     // Ensure resultados table exists with all required columns
     const ensureResultadosSql = `
       CREATE TABLE IF NOT EXISTS resultados (
@@ -248,24 +399,39 @@ app.use((req, res, next) => {
     // create or refresh the view the frontend will use for exploratory data
     const createViewSql = `
       CREATE OR REPLACE VIEW vista_productos_final AS
-      SELECT r.*, IFNULL(rel.facultad, '') AS facultad, IFNULL(rel.programa, '') AS programa,
-             i.nombre_completo AS investigador, i.link_cvlac, i.cedula,
-             i.correo, i.google_scholar, i.orcid
+      SELECT 
+        r.*, 
+        IFNULL(rel.facultad, '') AS facultad, 
+        IFNULL(rel.programa, '') AS programa,
+        IFNULL(rel.sigla_grupo, '') AS sigla_grupo,
+        i.nombre_completo AS investigador, 
+        i.link_cvlac, 
+        i.cedula,
+        i.correo, 
+        i.google_scholar, 
+        i.orcid
       FROM resultados r
-      LEFT JOIN investigadores i ON r.id_investigador = i.id_investigador
+      LEFT JOIN investigadores i 
+        ON r.id_investigador = i.id_investigador
       LEFT JOIN (
         SELECT
           ipf.id_investigador,
-          GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ' / ') AS facultad,
-          GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ' / ') AS programa
+          MAX(f.nombre_facultad) AS facultad,
+          GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ' / ') AS programa,
+          GROUP_CONCAT(DISTINCT lg.sigla_grupo ORDER BY lg.sigla_grupo SEPARATOR ' / ') AS sigla_grupo
         FROM investigador_programa_facultad ipf
-        LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
-        LEFT JOIN programa p ON p.id_programa = ipf.id_programa
+        LEFT JOIN facultad f 
+          ON f.id_facultad = ipf.id_facultad
+        LEFT JOIN programa p 
+          ON p.id_programa = ipf.id_programa
+        LEFT JOIN link_grouplab lg 
+          ON lg.id_facultad = ipf.id_facultad
         GROUP BY ipf.id_investigador
-      ) rel ON rel.id_investigador = r.id_investigador;
+      ) rel 
+        ON rel.id_investigador = r.id_investigador;
     `;
     await pool.query(createViewSql);
-    console.log('database view vista_productos_final ensured');
+console.log('database view vista_productos_final ensured');
 
     /*
      * migration: if the table existed with old column names, rename them.
@@ -506,7 +672,7 @@ app.get('/investigadores/:id', async (req, res) => {
 });
 
 // add investigador route
-app.post('/investigadores', async (req, res) => {
+app.post('/api/investigadores', async (req, res) => {
   const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid } = req.body;
   console.log('Received data:', { nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid });
   
@@ -532,10 +698,7 @@ app.post('/investigadores', async (req, res) => {
     for (const nombreProgramaRaw of programasList) {
       const nombrePrograma = String(nombreProgramaRaw).trim();
       if (!nombrePrograma) continue;
-      await pool.query(
-        'INSERT IGNORE INTO programa (nombre_programa, id_facultad) VALUES (?, ?)',
-        [nombrePrograma, idFacultad]
-      );
+      // Buscar programa existente
       const [progRows] = await pool.query(
         'SELECT id_programa FROM programa WHERE nombre_programa = ? AND id_facultad = ?',
         [nombrePrograma, idFacultad]
@@ -547,6 +710,7 @@ app.post('/investigadores', async (req, res) => {
           [result.insertId, idPrograma, idFacultad]
         );
       }
+      // Si no existe, ignorar
     }
 
     res.status(201).json({ id_investigador: result.insertId, nombre_completo, cedula, link_cvlac, facultad: facultadNombre, programa_academico, correo, google_scholar, orcid });

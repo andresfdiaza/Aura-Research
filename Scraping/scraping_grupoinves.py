@@ -499,17 +499,54 @@ def conectar_bd():
     )
 
 
+
 def crear_tabla():
-    """Recrea la tabla titulo_grouplab con tipo, titulo y columnas de autores"""
+    """Asegura la existencia de las tablas titulo_grouplab y link_grouplab"""
     conexion = conectar_bd()
     cursor = conexion.cursor()
-
-    # cursor.execute("DROP TABLE IF EXISTS titulo_grouplab")  # Eliminado para no borrar la tabla
-    
-    # Ya no se recrea la tabla, solo se usa la existente
-    print("✓ Usando tabla 'titulo_grouplab' existente para agregar datos nuevos.")
+    # Asegurar tabla titulo_grouplab
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS titulo_grouplab (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            id_link_grouplab INT,
+            tipo VARCHAR(255),
+            nodo_padre VARCHAR(255),
+            nombre_grupo_investigacion VARCHAR(255),
+            sigla_grupo_investigacion VARCHAR(255),
+            titulo TEXT,
+            autor_1 VARCHAR(255),
+            autor_2 VARCHAR(255),
+            autor_3 VARCHAR(255),
+            autor_4 VARCHAR(255),
+            autor_5 VARCHAR(255),
+            issn VARCHAR(50),
+            isbn VARCHAR(50),
+            revista VARCHAR(255),
+            ano VARCHAR(10),
+            FOREIGN KEY (id_link_grouplab) REFERENCES link_grouplab(id)
+        ) ENGINE=InnoDB;
+    """)
+    # Asegurar tabla link_grouplab
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS link_grouplab (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nombre_grupo VARCHAR(255),
+            sigla_grupo VARCHAR(255),
+            url VARCHAR(512) NOT NULL
+        ) ENGINE=InnoDB;
+    """)
+    print("✓ Tablas 'titulo_grouplab' y 'link_grouplab' aseguradas.")
     cursor.close()
     conexion.close()
+def obtener_links_grouplab():
+    """Obtiene los links de la tabla link_grouplab"""
+    conexion = conectar_bd()
+    cursor = conexion.cursor()
+    cursor.execute("SELECT id, nombre_grupo, sigla_grupo, url FROM link_grouplab")
+    links = cursor.fetchall()
+    cursor.close()
+    conexion.close()
+    return links
 
 
 def crear_tabla_tipologia_proyecto():
@@ -555,10 +592,10 @@ def guardar_en_bd(titulos_por_tipo, info_grupo):
     """Guarda los títulos y autores en la base de datos organizados por tipo"""
     conexion = conectar_bd()
     cursor = conexion.cursor()
-    
+    id_link_grouplab = info_grupo.get('id_link_grouplab')
     query = """INSERT INTO titulo_grouplab 
-               (tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano) 
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+               (id_link_grouplab, tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     
     total = 0
     nuevos = 0
@@ -580,14 +617,14 @@ def guardar_en_bd(titulos_por_tipo, info_grupo):
             valores_autores = [None] * 5
             for i, autor in enumerate(autores[:5]):
                 valores_autores[i] = autor
-            # Verificar si ya existe el registro por sigla_grupo, titulo y año
+            # Verificar si ya existe el registro por id_link_grouplab, titulo y año
             cursor.execute("""
                 SELECT COUNT(*) FROM titulo_grouplab
-                WHERE sigla_grupo_investigacion = %s AND titulo = %s AND ano = %s
-            """, (sigla_grupo, titulo, ano))
+                WHERE id_link_grouplab = %s AND titulo = %s AND ano = %s
+            """, (id_link_grouplab, titulo, ano))
             existe = cursor.fetchone()[0]
             if existe == 0:
-                cursor.execute(query, (nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano))
+                cursor.execute(query, (id_link_grouplab, nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano))
                 nuevos += 1
         total += len(registros)
     conexion.commit()
@@ -634,38 +671,45 @@ def guardar_csv(titulos_por_tipo, info_grupo):
     print(f"✓ {total} títulos guardados en CSV: {ruta_completa}")
 
 
+
 def main():
     print("\n" + "="*60)
-    print("🔬 EXTRACCIÓN DE TÍTULOS Y AUTORES DE GRUPLAC")
+    print("🔬 EXTRACCIÓN DE TÍTULOS Y AUTORES DE GRUPLAC (multi-link)")
     print("="*60 + "\n")
-    
+
     # Crear tablas
     crear_tabla()
     crear_tabla_tipologia_proyecto()
-    
+
     # Limpiar datos anteriores
     print("\n🔄 Limpiando datos anteriores...\n")
     limpiar_datos_anteriores()
-    
-    # Obtener HTML y extraer títulos
-    print("\n📥 Obteniendo datos de GrupLAC...\n")
-    html = obtener_html()
-    info_grupo = extraer_info_grupo(html)
-    if info_grupo.get('nombre_grupo'):
-        print(f"✓ Grupo detectado: {info_grupo['nombre_grupo']}")
-    if info_grupo.get('sigla_grupo'):
-        print(f"✓ Sigla detectada: {info_grupo['sigla_grupo']}")
-    titulos_por_tipo = extraer_titulos(html)
-    
-    # Guardar en BD y CSV
-    print("\n💾 Guardando resultados...\n")
-    guardar_en_bd(titulos_por_tipo, info_grupo)
-    guardar_csv(titulos_por_tipo, info_grupo)
-    
-    total = sum(len(registros) for registros in titulos_por_tipo.values())
-    
+
+    # Obtener links desde link_grouplab
+    links = obtener_links_grouplab()
+    print(f"\n📥 Obteniendo datos de {len(links)} grupos desde link_grouplab...\n")
+
+    total_titulos = 0
+    for id_link_grouplab, nombre_grupo, sigla_grupo, url in links:
+        print(f"\n--- Procesando grupo: {nombre_grupo} ({sigla_grupo}) ---")
+        try:
+            global URL
+            URL = url
+            html = obtener_html()
+            info_grupo = {
+                'id_link_grouplab': id_link_grouplab,
+                'nombre_grupo': nombre_grupo,
+                'sigla_grupo': sigla_grupo
+            }
+            titulos_por_tipo = extraer_titulos(html)
+            guardar_en_bd(titulos_por_tipo, info_grupo)
+            guardar_csv(titulos_por_tipo, info_grupo)
+            total_titulos += sum(len(registros) for registros in titulos_por_tipo.values())
+        except Exception as e:
+            print(f"⊘ Error procesando grupo {nombre_grupo}: {e}")
+
     print("\n" + "="*60)
-    print(f"✅ COMPLETADO: {total} títulos procesados")
+    print(f"✅ COMPLETADO: {total_titulos} títulos procesados de {len(links)} grupos")
     print("="*60 + "\n")
 
 if __name__ == "__main__":

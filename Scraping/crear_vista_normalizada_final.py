@@ -113,7 +113,7 @@ deduplicados AS (
         rcm.*,
 
         ROW_NUMBER() OVER(
-            PARTITION BY rcm.tipo_proyecto, rcm.titulo_normalizado, rcm.anio
+            PARTITION BY rcm.tipo_proyecto, rcm.titulo_normalizado, rcm.anio, rcm.sigla_grupo_grouplab
             ORDER BY
                 (CASE WHEN rcm.nodo_padre_grouplab IS NOT NULL THEN 1 ELSE 0 END) DESC,
                 rcm.tabla_id

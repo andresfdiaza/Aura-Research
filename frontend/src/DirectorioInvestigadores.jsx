@@ -1,7 +1,7 @@
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { API_BASE, SERVER_BASE } from './config';
-import AuraLogo from './components/AuraLogo';
+import AuraLogo from './components/AuraLogo.jsx';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,12 +14,10 @@ import {
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar } from 'react-chartjs-2';
 
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
-const assetImages = import.meta.glob('./assets/*.{png,jpg,jpeg,webp}', {
-  eager: true,
-  import: 'default'
-});
+
 
 const TIPOLOGIA_ORDER = ['NC', 'DTI', 'FRH', 'ASC', 'DPC'];
 const TIPOLOGIA_LABELS = {
@@ -34,117 +32,17 @@ const TIPOLOGIA_LABELS = {
 const CHART_COLOR_PRIMARY = '#2A5783';
 const CHART_COLOR_ACCENT = '#F5A800';
 
-function normalizeText(text) {
-  return String(text || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function tokenize(text) {
-  const stopwords = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'y', 'docente', 'unac']);
-  return normalizeText(text)
-    .split(' ')
-    .filter((token) => token.length > 1 && !stopwords.has(token));
-}
-
-function tokenSimilar(a, b) {
-  if (!a || !b) return false;
-  if (a === b) return true;
-  if (a.startsWith(b) || b.startsWith(a)) return true;
-
-  // Tolerancia para variaciones pequeñas (ej: cordoba/cordova).
-  if (a.length >= 5 && b.length >= 5 && a.slice(0, 5) === b.slice(0, 5)) {
-    return true;
-  }
-
-  return false;
-}
-
-function getInvestigatorImage(nombre) {
-  const normalizedName = normalizeText(nombre);
-  const nameTokens = tokenize(nombre);
-  if (!normalizedName || nameTokens.length === 0) return null;
-
-  const entries = Object.entries(assetImages);
-  let bestMatch = null;
-  let bestScore = 0;
-
-  for (const [path, src] of entries) {
-    const fileName = path.split('/').pop() || '';
-    const baseName = fileName.replace(/\.[^.]+$/, '');
-    const normalizedFileName = normalizeText(baseName);
-    const fileTokens = tokenize(baseName);
-
-    // Excluir imágenes de branding/fondo.
-    if (normalizedFileName.includes('logo') || normalizedFileName.includes('fondo')) {
-      continue;
-    }
-
-    // Coincidencia exacta o por contención completa.
-    if (normalizedName.includes(normalizedFileName) || normalizedFileName.includes(normalizedName)) {
-      return src;
-    }
-
-    // Coincidencia por tokens (nombre/apellido) con tolerancia a variaciones.
-    const overlap = nameTokens.filter((nameToken) =>
-      fileTokens.some((fileToken) =>
-        tokenSimilar(fileToken, nameToken)
-      )
-    );
-
-    const score = overlap.length;
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = src;
-    }
-  }
-
-  // Requerimos al menos 2 tokens coincidentes para evitar asignaciones erróneas.
-  return bestScore >= 2 ? bestMatch : null;
-}
-
-function tipologiaToSigla(tipologia) {
-  const t = normalizeText(tipologia);
-  if (!t) return null;
-  if (t.includes('nuevo conocimiento')) return 'NC';
-  if (t.includes('desarrollo tecnologico') || t.includes('innovacion')) return 'DTI';
-  if (t.includes('formacion') || t.includes('recurso humano')) return 'FRH';
-  if (t.includes('apropiacion social')) return 'ASC';
-  if (t.includes('divulgacion publica')) return 'DPC';
-  return null;
-}
-
-function getOrderedTipologiaData(productosPorTipologia) {
-  const acumulado = { NC: 0, DTI: 0, FRH: 0, ASC: 0, DPC: 0 };
-
-  Object.entries(productosPorTipologia || {}).forEach(([tipologia, cantidad]) => {
-    const sigla = tipologiaToSigla(tipologia);
-    if (sigla) {
-      acumulado[sigla] += Number(cantidad) || 0;
-    }
-  });
-
-  return {
-    labels: TIPOLOGIA_ORDER,
-    values: TIPOLOGIA_ORDER.map((sigla) => acumulado[sigla])
-  };
-}
-
-function toTitleCase(str) {
-  return String(str || '')
-    .toLowerCase()
-    .replace(/(?:^|\s)([a-zñáéíóúü])/g, (match) => match.toUpperCase());
-}
-
-function parseProgramas(programaValue) {
-  return String(programaValue || '')
-    .split(/[,/]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
+import {
+  normalizeText,
+  tokenize,
+  tokenSimilar,
+  getInvestigatorImage,
+  tipologiaToSigla,
+  getOrderedTipologiaData,
+  toTitleCase,
+  parseProgramas,
+  assetImages
+} from './utils/directorioUtils';
 
 export default function DirectorioInvestigadores() {
   const [resultados, setResultados] = React.useState([]);
@@ -153,6 +51,67 @@ export default function DirectorioInvestigadores() {
   const [error, setError] = React.useState(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [showAddGrupoModal, setShowAddGrupoModal] = React.useState(false);
+  const [showAddFacultadModal, setShowAddFacultadModal] = React.useState(false);
+  const [showAddProgramaModal, setShowAddProgramaModal] = React.useState(false);
+  const [programaForm, setProgramaForm] = React.useState({ nombre_programa: '', id_facultad: '' });
+  const [programaLoading, setProgramaLoading] = React.useState(false);
+  const [programaError, setProgramaError] = React.useState(null);
+  const [programaSuccess, setProgramaSuccess] = React.useState(false);
+    const handleProgramaSubmit = async (e) => {
+      e.preventDefault();
+      setProgramaLoading(true);
+      setProgramaError(null);
+      setProgramaSuccess(false);
+      try {
+        const payload = {
+          nombre_programa: programaForm.nombre_programa,
+          id_facultad: programaForm.id_facultad
+        };
+        const res = await fetch(`${API_BASE}/programas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.message || 'Error al guardar programa');
+        }
+        setProgramaSuccess(true);
+        setProgramaForm({ nombre_programa: '', id_facultad: '' });
+        setTimeout(() => {
+          setShowAddProgramaModal(false);
+          setProgramaSuccess(false);
+        }, 2000);
+      } catch (err) {
+        setProgramaError(err.message);
+      } finally {
+        setProgramaLoading(false);
+      }
+    };
+  const [grupoForm, setGrupoForm] = React.useState({ nombre_grupo: '', sigla_grupo: '', url: '', id_facultad: '' });
+  const [facultadForm, setFacultadForm] = React.useState({ nombre_facultad: '' });
+  const [facultadLoading, setFacultadLoading] = React.useState(false);
+  const [facultadError, setFacultadError] = React.useState(null);
+  const [facultadSuccess, setFacultadSuccess] = React.useState(false);
+  const [facultadesCatalogo, setFacultadesCatalogo] = React.useState([]);
+    // Cargar catálogo de facultades para el select
+    const loadFacultades = React.useCallback(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/facultades`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setFacultadesCatalogo(Array.isArray(data) ? data : []);
+      } catch (_err) {
+        setFacultadesCatalogo([]);
+      }
+    }, []);
+    React.useEffect(() => {
+      loadFacultades();
+    }, [loadFacultades]);
+  const [grupoLoading, setGrupoLoading] = React.useState(false);
+  const [grupoError, setGrupoError] = React.useState(null);
+  const [grupoSuccess, setGrupoSuccess] = React.useState(false);
   const [formData, setFormData] = React.useState({
     nombre_completo: '',
     cedula: '',
@@ -207,11 +166,11 @@ export default function DirectorioInvestigadores() {
     load();
   }, [filters.facultad]);
 
-  // Cargar catálogo oficial de programas para el filtro.
+  // Cargar catálogo oficial de programas para el filtro (con facultad)
   React.useEffect(() => {
     const loadProgramas = async () => {
       try {
-        const res = await fetch(`${API_BASE}/programas`);
+        const res = await fetch(`${API_BASE}/programas_full`);
         if (!res.ok) return;
         const data = await res.json();
         setProgramasCatalogo(Array.isArray(data) ? data : []);
@@ -227,6 +186,7 @@ export default function DirectorioInvestigadores() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+
   const handleProgramaChange = (e) => {
     const { value, checked } = e.target;
     setFormData((prev) => ({
@@ -236,6 +196,41 @@ export default function DirectorioInvestigadores() {
         : prev.programas.filter((p) => p !== value)
     }));
   };
+
+  // Handler para cambio de facultad en el formulario de investigador
+  const handleFacultadChange = (e) => {
+    const { value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      facultad: value,
+      programas: []
+    }));
+  };
+
+  // Memo para filtrar programas según la facultad seleccionada
+  const programasFiltrados = React.useMemo(() => {
+    if (!formData.facultad || !Array.isArray(programasCatalogo)) return [];
+
+    const facultadSeleccionada = facultadesCatalogo.find((fac) => {
+      const nombreFacultad = fac.nombre_facultad || fac.nombre || '';
+      return nombreFacultad === formData.facultad;
+    });
+
+    const idFacultadSeleccionada =
+      facultadSeleccionada?.id_facultad || facultadSeleccionada?.id;
+
+    return programasCatalogo.filter((programa) => {
+      const programaIdFacultad = programa.id_facultad;
+      const programaNombreFacultad =
+        programa.nombre_facultad || programa.facultad || '';
+
+      if (idFacultadSeleccionada && programaIdFacultad) {
+        return String(programaIdFacultad) === String(idFacultadSeleccionada);
+      }
+
+      return programaNombreFacultad === formData.facultad;
+    });
+  }, [formData.facultad, programasCatalogo, facultadesCatalogo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -277,6 +272,41 @@ export default function DirectorioInvestigadores() {
     }
   };
 
+  const handleGrupoSubmit = async (e) => {
+    e.preventDefault();
+    setGrupoLoading(true);
+    setGrupoError(null);
+    setGrupoSuccess(false);
+    try {
+      // Enviar nombre_grupo, sigla_grupo, url e id_facultad
+      const payload = {
+        nombre_grupo: grupoForm.nombre_grupo,
+        sigla_grupo: grupoForm.sigla_grupo,
+        url: grupoForm.url,
+        id_facultad: grupoForm.id_facultad
+      };
+      const res = await fetch(`${API_BASE}/grupos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Error al guardar grupo');
+      }
+      setGrupoSuccess(true);
+      setGrupoForm({ nombre_grupo: '', sigla_grupo: '', url: '', id_facultad: '' });
+      setTimeout(() => {
+        setShowAddGrupoModal(false);
+        setGrupoSuccess(false);
+      }, 2000);
+    } catch (err) {
+      setGrupoError(err.message);
+    } finally {
+      setGrupoLoading(false);
+    }
+  };
+
   // Opciones de filtros dinámicas
   const filterOptions = React.useMemo(() => {
     const opts = { facultad: [], programa: [] };
@@ -286,9 +316,9 @@ export default function DirectorioInvestigadores() {
         if (p && !opts.programa.includes(p)) opts.programa.push(p);
       });
     });
-    // Si hay catálogo, agregar solo los que no están ya
+    // Si hay catálogo, agregar solo los nombres de programa que no están ya
     programasCatalogo.forEach((p) => {
-      if (p && !opts.programa.includes(p)) opts.programa.push(p);
+      if (p && p.nombre_programa && !opts.programa.includes(p.nombre_programa)) opts.programa.push(p.nombre_programa);
     });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
@@ -482,6 +512,285 @@ export default function DirectorioInvestigadores() {
                       <span className="material-symbols-outlined text-base">edit</span>
                       <span>Editar</span>
                     </button>
+                    <button
+                      title="Agregar Grupo"
+                      className="flex items-center gap-1 px-4 py-2 bg-accent text-white rounded-lg font-bold shadow-md shadow-accent/20 hover:bg-accent/90 transition-all text-sm"
+                      onClick={() => setShowAddGrupoModal(true)}
+                    >
+                      <span className="material-symbols-outlined text-base">group_add</span>
+                      <span>Agregar Grupo</span>
+                    </button>
+                    {/* Modal para Agregar Grupo */}
+                    {showAddGrupoModal && (
+                      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                        <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[400px] overflow-hidden relative">
+                          <button
+                            className="absolute top-2 left-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
+                            onClick={() => setShowAddGrupoModal(false)}
+                            aria-label="Volver"
+                          >
+                            <span className="material-symbols-outlined text-2xl">arrow_back</span>
+                          </button>
+                          <button
+                            className="absolute top-2 right-2 text-slate-400 hover:text-primary text-xl"
+                            onClick={() => setShowAddGrupoModal(false)}
+                            aria-label="Cerrar"
+                          >
+                            <span className="material-symbols-outlined text-2xl">close</span>
+                          </button>
+                          <div className="relative h-20 bg-accent flex items-center px-8">
+                            <div className="relative z-10 flex items-center gap-4">
+                              <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
+                                <span className="material-symbols-outlined text-3xl">group_add</span>
+                              </div>
+                              <div>
+                                <h1 className="text-white text-xl font-bold">Agregar Grupo</h1>
+                                <p className="text-white/80 text-sm">Registrar nuevo grupo de investigación</p>
+                              </div>
+                            </div>
+                          </div>
+                          <form className="p-8 flex flex-col gap-6" onSubmit={handleGrupoSubmit}>
+                            {grupoSuccess && (
+                              <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded">✓ Grupo guardado exitosamente</div>
+                            )}
+                            {grupoError && (
+                              <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">Error: {grupoError}</div>
+                            )}
+                            <div>
+                              <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Nombre del Grupo</label>
+                              <input
+                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all"
+                                placeholder="Ej: GI2A"
+                                type="text"
+                                name="nombre_grupo"
+                                value={grupoForm.nombre_grupo}
+                                onChange={e => setGrupoForm(prev => ({ ...prev, nombre_grupo: e.target.value }))}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Sigla del Grupo</label>
+                              <input
+                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all"
+                                placeholder="Ej: GI2A"
+                                type="text"
+                                name="sigla_grupo"
+                                value={grupoForm.sigla_grupo}
+                                onChange={e => setGrupoForm(prev => ({ ...prev, sigla_grupo: e.target.value }))}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">URL del Grupo</label>
+                              <input
+                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all"
+                                placeholder="https://..."
+                                type="url"
+                                name="url"
+                                value={grupoForm.url}
+                                onChange={e => setGrupoForm(prev => ({ ...prev, url: e.target.value }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Facultad</label>
+                              <select
+                                className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-accent/20 focus:border-accent outline-none transition-all appearance-none"
+                                name="id_facultad"
+                                value={grupoForm.id_facultad}
+                                onChange={e => setGrupoForm(prev => ({ ...prev, id_facultad: e.target.value }))}
+                                required
+                              >
+                                <option value="">Seleccione Facultad</option>
+                                {facultadesCatalogo.map(fac => (
+                                  <option key={fac.id_facultad} value={fac.id_facultad}>{fac.nombre_facultad}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex justify-end gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                              <button className="px-6 py-3 rounded-lg font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" type="button" onClick={() => setShowAddGrupoModal(false)}>
+                                Cancelar
+                              </button>
+                              <button className="bg-accent hover:bg-accent/90 text-white px-8 py-3 rounded-lg font-semibold shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2" type="submit" disabled={grupoLoading}>
+                                <span className="material-symbols-outlined text-xl">{grupoLoading ? 'hourglass_top' : 'save'}</span>
+                                {grupoLoading ? 'Guardando...' : 'Guardar Grupo'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      title="Agregar Facultad"
+                      className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md shadow-green-400 hover:bg-green-700 transition-all text-sm"
+                      onClick={() => setShowAddFacultadModal(true)}
+                    >
+                      <span className="material-symbols-outlined text-base">school</span>
+                      <span>Agregar Facultad</span>
+                    </button>
+                    <button
+                      title="Añadir Programa"
+                      className="flex items-center gap-1 px-4 py-2 bg-[#2A5783] text-white rounded-lg font-bold shadow-md shadow-[#2A5783]/20 hover:bg-[#1e3a5c] transition-all text-sm"
+                      onClick={() => setShowAddProgramaModal(true)}
+                    >
+                      <span className="material-symbols-outlined text-base">school</span>
+                      <span>Añadir Programa</span>
+                    </button>
+                              {/* Modal para Añadir Programa */}
+                              {showAddProgramaModal && (
+                                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                                  <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[400px] overflow-hidden relative">
+                                    <button
+                                      className="absolute top-2 left-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
+                                      onClick={() => setShowAddProgramaModal(false)}
+                                      aria-label="Volver"
+                                    >
+                                      <span className="material-symbols-outlined text-2xl">arrow_back</span>
+                                    </button>
+                                    <button
+                                      className="absolute top-2 right-2 text-slate-400 hover:text-primary text-xl"
+                                      onClick={() => setShowAddProgramaModal(false)}
+                                      aria-label="Cerrar"
+                                    >
+                                      <span className="material-symbols-outlined text-2xl">close</span>
+                                    </button>
+                                    <div className="relative h-20 bg-[#2A5783] flex items-center px-8">
+                                      <div className="relative z-10 flex items-center gap-4">
+                                        <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
+                                          <span className="material-symbols-outlined text-3xl">school</span>
+                                        </div>
+                                        <div>
+                                          <h1 className="text-white text-xl font-bold">Añadir Programa</h1>
+                                          <p className="text-white/80 text-sm">Registrar nuevo programa académico</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <form className="p-8 flex flex-col gap-6" onSubmit={handleProgramaSubmit}>
+                                      {programaSuccess && (
+                                        <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded">✓ Programa guardado exitosamente</div>
+                                      )}
+                                      {programaError && (
+                                        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">Error: {programaError}</div>
+                                      )}
+                                      <div>
+                                        <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Nombre del Programa</label>
+                                        <input
+                                          className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#2A5783]/20 focus:border-[#2A5783] outline-none transition-all"
+                                          placeholder="Ej: Ingeniería de Sistemas"
+                                          type="text"
+                                          name="nombre_programa"
+                                          value={programaForm.nombre_programa}
+                                          onChange={e => setProgramaForm(prev => ({ ...prev, nombre_programa: e.target.value }))}
+                                          required
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Facultad</label>
+                                        <select
+                                          className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#2A5783]/20 focus:border-[#2A5783] outline-none transition-all appearance-none"
+                                          name="id_facultad"
+                                          value={programaForm.id_facultad}
+                                          onChange={e => setProgramaForm(prev => ({ ...prev, id_facultad: e.target.value }))}
+                                          required
+                                        >
+                                          <option value="">Seleccione Facultad</option>
+                                          {facultadesCatalogo.map(fac => (
+                                            <option key={fac.id_facultad} value={fac.id_facultad}>{fac.nombre_facultad}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div className="flex justify-end gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                        <button className="px-6 py-3 rounded-lg font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" type="button" onClick={() => setShowAddProgramaModal(false)}>
+                                          Cancelar
+                                        </button>
+                                        <button className="bg-[#2A5783] hover:bg-[#1e3a5c] text-white px-8 py-3 rounded-lg font-semibold shadow-lg shadow-[#2A5783]/20 transition-all flex items-center justify-center gap-2" type="submit" disabled={programaLoading}>
+                                          <span className="material-symbols-outlined text-xl">{programaLoading ? 'hourglass_top' : 'save'}</span>
+                                          {programaLoading ? 'Guardando...' : 'Guardar Programa'}
+                                        </button>
+                                      </div>
+                                    </form>
+                                  </div>
+                                </div>
+                              )}
+                        {/* Modal para Agregar Facultad */}
+                        {showAddFacultadModal && (
+                          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                            <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[400px] overflow-hidden relative">
+                              <button
+                                className="absolute top-2 left-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
+                                onClick={() => setShowAddFacultadModal(false)}
+                                aria-label="Volver"
+                              >
+                                <span className="material-symbols-outlined text-2xl">arrow_back</span>
+                              </button>
+                              <button
+                                className="absolute top-2 right-2 text-slate-400 hover:text-primary text-xl"
+                                onClick={() => setShowAddFacultadModal(false)}
+                                aria-label="Cerrar"
+                              >
+                                <span className="material-symbols-outlined text-2xl">close</span>
+                              </button>
+                              <div className="relative h-20 bg-green-600 flex items-center px-8">
+                                <div className="relative z-10 flex items-center gap-4">
+                                  <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
+                                    <span className="material-symbols-outlined text-3xl">school</span>
+                                  </div>
+                                  <div>
+                                    <h1 className="text-white text-xl font-bold">Agregar Facultad</h1>
+                                    <p className="text-white/80 text-sm">Registrar nueva facultad</p>
+                                  </div>
+                                </div>
+                              </div>
+                              <form className="p-8 flex flex-col gap-6" onSubmit={async (e) => {
+                                e.preventDefault();
+                                setFacultadLoading(true);
+                                setFacultadError(null);
+                                setFacultadSuccess(false);
+                                try {
+                                  const res = await fetch(`${API_BASE}/facultades`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(facultadForm),
+                                  });
+                                  if (!res.ok) {
+                                    const data = await res.json();
+                                    throw new Error(data.message || 'Error al guardar facultad');
+                                  }
+                                  setFacultadSuccess(true);
+                                  setFacultadForm({ nombre_facultad: '' });
+                                  await loadFacultades(); // Recargar catálogo
+                                  setTimeout(() => {
+                                    setShowAddFacultadModal(false);
+                                    setFacultadSuccess(false);
+                                  }, 2000);
+                                } catch (err) {
+                                  setFacultadError(err.message);
+                                } finally {
+                                  setFacultadLoading(false);
+                                }
+                              }}>
+                                {facultadSuccess && (
+                                  <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded">✓ Facultad guardada exitosamente</div>
+                                )}
+                                {facultadError && (
+                                  <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">Error: {facultadError}</div>
+                                )}
+                                <div>
+                                  <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Nombre de la Facultad</label>
+                                  <input className="w-full px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-green-600/20 focus:border-green-600 outline-none transition-all" placeholder="Ej: Facultad de Ingeniería" type="text" name="nombre_facultad" value={facultadForm.nombre_facultad} onChange={e => setFacultadForm({ nombre_facultad: e.target.value })} required />
+                                </div>
+                                <div className="flex justify-end gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                  <button className="px-6 py-3 rounded-lg font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" type="button" onClick={() => setShowAddFacultadModal(false)}>
+                                    Cancelar
+                                  </button>
+                                  <button className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg shadow-green-600/20 transition-all flex items-center justify-center gap-2" type="submit" disabled={facultadLoading}>
+                                    <span className="material-symbols-outlined text-xl">{facultadLoading ? 'hourglass_top' : 'save'}</span>
+                                    {facultadLoading ? 'Guardando...' : 'Guardar Facultad'}
+                                  </button>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                        )}
                   </>
                 )}
                 <button
@@ -529,8 +838,8 @@ export default function DirectorioInvestigadores() {
                     onChange={e => setFilters(prev => ({ ...prev, programa: e.target.value }))}
                   >
                     <option value="">Todos</option>
-                    {filterOptions.programa?.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
+                    {programasCatalogo.map(p => (
+                      <option key={p.id_programa} value={p.nombre_programa}>{p.nombre_programa}</option>
                     ))}
                   </select>
                 </div>
@@ -696,8 +1005,6 @@ export default function DirectorioInvestigadores() {
           </div>
         </main>
       </div>
-
-      {/* Modal para Agregar Investigador */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[800px] overflow-hidden relative">
@@ -793,35 +1100,71 @@ export default function DirectorioInvestigadores() {
                 <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Facultad</label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">account_balance</span>
-                  <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="facultad" value={formData.facultad} onChange={handleInputChange}>
+                  <select
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none"
+                    name="facultad"
+                    value={formData.facultad}
+                    onChange={handleFacultadChange}
+                  >
                     <option value="">Seleccione Facultad</option>
-                    <option value="Facultad de Ingeniería">Facultad de Ingeniería</option>
-                    <option value="Facultad de Ciencias de la Salud">Facultad de Ciencias de la Salud</option>
-                    <option value="Facultad de Educación">Facultad de Educación</option>
-                    <option value="Facultad de Teología">Facultad de Teología</option>
+                    {facultadesCatalogo.map((fac) => (
+                      <option
+                        key={fac.id_facultad || fac.id}
+                        value={fac.nombre_facultad || fac.nombre}
+                      >
+                        {fac.nombre_facultad || fac.nombre}
+                      </option>
+                    ))}
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
               </div>
-              {/* Programas Académicos - Selección Múltiple */}
+
+              {/* Programas Académicos - Selección Múltiple dinámica */}
               <div className="col-span-1">
-                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programas Académicos (puede seleccionar varios)</label>
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">
+                  Programas Académicos (puede seleccionar varios)
+                </label>
+
                 <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" value="Ingeniería de Sistemas" checked={formData.programas.includes('Ingeniería de Sistemas')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
-                    <span className="text-slate-900 dark:text-slate-100">Ingeniería de Sistemas</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" value="Ingeniería Industrial" checked={formData.programas.includes('Ingeniería Industrial')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
-                    <span className="text-slate-900 dark:text-slate-100">Ingeniería Industrial</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" value="Especialización en Inteligencia de Negocios y Big Data" checked={formData.programas.includes('Especialización en Inteligencia de Negocios y Big Data')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
-                    <span className="text-slate-900 dark:text-slate-100">Especialización en Inteligencia de Negocios y Big Data</span>
-                  </label>
+                  {!formData.facultad ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Seleccione una facultad para ver sus programas
+                    </p>
+                  ) : programasFiltrados.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      No hay programas registrados para esta facultad
+                    </p>
+                  ) : (
+                    programasFiltrados.map((programa) => {
+                      const nombrePrograma =
+                        programa.nombre_programa || programa.nombre || 'Programa sin nombre';
+
+                      return (
+                        <label
+                          key={programa.id_programa || programa.id || nombrePrograma}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            value={nombrePrograma}
+                            checked={formData.programas.includes(nombrePrograma)}
+                            onChange={handleProgramaChange}
+                            className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary"
+                          />
+                          <span className="text-slate-900 dark:text-slate-100">
+                            {nombrePrograma}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+
                   {formData.programas.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                      <p className="text-xs text-slate-600 dark:text-slate-400">Seleccionados: {formData.programas.length}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Seleccionados: {formData.programas.length}
+                      </p>
                     </div>
                   )}
                 </div>

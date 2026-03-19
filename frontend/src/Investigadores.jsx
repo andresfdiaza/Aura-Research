@@ -4,18 +4,82 @@ import { SERVER_BASE, API_BASE } from './config';
 import AuraLogo from './components/AuraLogo';
 
 export default function Investigadores() {
+    // Catálogo de programas
+    const [programasCatalogo, setProgramasCatalogo] = React.useState([]);
+    // Catálogo de facultades
+    const [facultadesCatalogo, setFacultadesCatalogo] = React.useState([]);
+    const [investigadores, setInvestigadores] = React.useState([]);
+    const [editingId, setEditingId] = React.useState(null);
+    const [editingData, setEditingData] = React.useState({});
+    const [showEditModal, setShowEditModal] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+    const [formLoading, setFormLoading] = React.useState(false);
+    const [formError, setFormError] = React.useState(null);
+    const [formSuccess, setFormSuccess] = React.useState(false);
+    const navigate = useNavigate();
+    // ...existing code...
+
+    // Cargar catálogo de programas
+    React.useEffect(() => {
+      const loadProgramas = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/programas_full`);
+          if (!res.ok) return;
+          const data = await res.json();
+          setProgramasCatalogo(Array.isArray(data) ? data : []);
+        } catch (_err) {
+          setProgramasCatalogo([]);
+        }
+      };
+      loadProgramas();
+    }, []);
+
+    // Cargar catálogo de facultades
+    React.useEffect(() => {
+      const loadFacultades = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/facultades`);
+          if (!res.ok) return;
+          const data = await res.json();
+          setFacultadesCatalogo(Array.isArray(data) ? data : []);
+        } catch (_err) {
+          setFacultadesCatalogo([]);
+        }
+      };
+      loadFacultades();
+    }, []);
+
+    // Handler para cambio de facultad en edición
+    const handleEditFacultadChange = (e) => {
+      const { value } = e.target;
+      setEditingData((prev) => ({
+        ...prev,
+        facultad: value,
+        programas: []
+      }));
+    };
+
+    // Memo para filtrar programas según la facultad seleccionada en edición
+    const programasEditFiltrados = React.useMemo(() => {
+      if (!editingData.facultad || !Array.isArray(programasCatalogo)) return [];
+      const facultadSeleccionada = facultadesCatalogo.find((fac) => {
+        const nombreFacultad = fac.nombre_facultad || fac.nombre || '';
+        return nombreFacultad === editingData.facultad;
+      });
+      const idFacultadSeleccionada = facultadSeleccionada?.id_facultad || facultadSeleccionada?.id;
+      return programasCatalogo.filter((programa) => {
+        const programaIdFacultad = programa.id_facultad;
+        const programaNombreFacultad = programa.nombre_facultad || programa.facultad || '';
+        if (idFacultadSeleccionada && programaIdFacultad) {
+          return String(programaIdFacultad) === String(idFacultadSeleccionada);
+        }
+        return programaNombreFacultad === editingData.facultad;
+      });
+    }, [editingData.facultad, programasCatalogo, facultadesCatalogo]);
   const location = useLocation();
   const homePath = location.state?.user?.role === 'admin' ? '/homeadmin' : '/home';  const user = location.state?.user;
-  const [investigadores, setInvestigadores] = React.useState([]);
-  const [editingId, setEditingId] = React.useState(null);
-  const [editingData, setEditingData] = React.useState({});
-  const [showEditModal, setShowEditModal] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
-  const [formLoading, setFormLoading] = React.useState(false);
-  const [formError, setFormError] = React.useState(null);
-  const [formSuccess, setFormSuccess] = React.useState(false);
-  const navigate = useNavigate();
+
   const userName = user?.email?.split('@')[0] || 'Usuario';
 
   React.useEffect(() => {
@@ -337,13 +401,11 @@ export default function Investigadores() {
                 <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Facultad</label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">account_balance</span>
-                  <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="facultad" value={editingData.facultad} onChange={handleInputChange}>
+                  <select className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none" name="facultad" value={editingData.facultad} onChange={handleEditFacultadChange}>
                     <option value="">Seleccione Facultad</option>
-                    <option value="Facultad de Ingeniería">Facultad de Ingeniería</option>
-                    <option value="Facultad de Ciencias de la Salud">Facultad de Ciencias de la Salud</option>
-                    <option value="Facultad de Economía">Facultad de Economía</option>
-                    <option value="Facultad de Educación">Facultad de Educación</option>
-                    <option value="Facultad de Teología">Facultad de Teología</option>
+                    {facultadesCatalogo.map(fac => (
+                      <option key={fac.id_facultad || fac.id} value={fac.nombre_facultad || fac.nombre}>{fac.nombre_facultad || fac.nombre}</option>
+                    ))}
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
@@ -352,18 +414,21 @@ export default function Investigadores() {
               <div className="col-span-1">
                 <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Programas Académicos (puede seleccionar varios)</label>
                 <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" value="Ingeniería de Sistemas" checked={(editingData.programas || []).includes('Ingeniería de Sistemas')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
-                    <span className="text-slate-900 dark:text-slate-100">Ingeniería de Sistemas</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" value="Ingeniería Industrial" checked={(editingData.programas || []).includes('Ingeniería Industrial')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
-                    <span className="text-slate-900 dark:text-slate-100">Ingeniería Industrial</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" value="Especialización en Inteligencia de Negocios y Big Data" checked={(editingData.programas || []).includes('Especialización en Inteligencia de Negocios y Big Data')} onChange={handleProgramaChange} className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary" />
-                    <span className="text-slate-900 dark:text-slate-100">Especialización en Inteligencia de Negocios y Big Data</span>
-                  </label>
+                  {programasEditFiltrados.length === 0 && (
+                    <p className="text-xs text-slate-500">No hay programas para esta facultad.</p>
+                  )}
+                  {programasEditFiltrados.map(programa => (
+                    <label key={programa.id_programa} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        value={programa.nombre_programa}
+                        checked={(editingData.programas || []).includes(programa.nombre_programa)}
+                        onChange={handleProgramaChange}
+                        className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary"
+                      />
+                      <span className="text-slate-900 dark:text-slate-100">{programa.nombre_programa}</span>
+                    </label>
+                  ))}
                   {(editingData.programas || []).length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
                       <p className="text-xs text-slate-600 dark:text-slate-400">Seleccionados: {(editingData.programas || []).length}</p>

@@ -12,7 +12,7 @@ conn = mysql.connector.connect(
 cur = conn.cursor()
 
 print("🔄 Creando tabla materializada: resultados + titulo_grouplab_clean")
-print("   Criterio: título + tipo + año")
+print("   Criterio: título + tipo + año + facultad")
 
 cur.execute("DROP TABLE IF EXISTS resultados_coincidentes_materializada")
 
@@ -20,7 +20,6 @@ cur.execute("""
 CREATE TABLE resultados_coincidentes_materializada AS
 SELECT
     r.id,
-    
     /* Resolver investigador */
     COALESCE(
         r.id_investigador,
@@ -30,14 +29,12 @@ SELECT
         inv4.id_investigador,
         inv5.id_investigador
     ) AS id_investigador,
-
     r.nombre,
     r.categoria,
     r.tipo_proyecto,
     r.titulo_proyecto,
     r.nodo_padre AS nodo_padre_resultados,
     r.anio,
-
     t.tipo AS tipo_grouplab,
     t.nodo_padre AS nodo_padre_grouplab,
     t.nombre_grupo_investigacion AS nombre_grupo_grouplab,
@@ -45,18 +42,18 @@ SELECT
     t.titulo AS titulo_grouplab,
     t.titulo_original AS titulo_original_grouplab,
     t.titulo_normalizado,
-
     t.autor_1 AS autor_1_grouplab,
     t.autor_2 AS autor_2_grouplab,
     t.autor_3 AS autor_3_grouplab,
     t.autor_4 AS autor_4_grouplab,
     t.autor_5 AS autor_5_grouplab,
-
     t.issn,
     t.isbn,
     t.revista,
-    t.ano AS ano_grouplab
-
+    t.ano AS ano_grouplab,
+    lg.id_facultad AS id_facultad_grupo,
+    ipf.id_facultad AS id_facultad_investigador,
+    'coincidencia_titulo_tipo_ano_facultad' AS coincidencia
 FROM (
         SELECT
             r.*,
@@ -70,7 +67,7 @@ FROM (
                                     '^(Formato Redcolsi: ?|FORMATO REDCOLSI: ?)',
                                     ''
                                 ),
-                                '[\\r\\n\\t]+',
+                                '[\r\n\t]+',
                                 ' '
                             ),
                             '[.,:;]+',
@@ -83,7 +80,6 @@ FROM (
             ) AS titulo_norm_match
         FROM resultados r
 ) r
-
 JOIN (
         SELECT
             t.*,
@@ -124,24 +120,20 @@ ON (
                 t.titulo_norm_match COLLATE utf8mb4_unicode_ci
         )
 )
-
-/* Resolver autores Grouplab → investigadores */
-
 LEFT JOIN investigadores inv1
 ON LOWER(inv1.nombre_completo) = LOWER(t.autor_1)
-
 LEFT JOIN investigadores inv2
 ON LOWER(inv2.nombre_completo) = LOWER(t.autor_2)
-
 LEFT JOIN investigadores inv3
 ON LOWER(inv3.nombre_completo) = LOWER(t.autor_3)
-
 LEFT JOIN investigadores inv4
 ON LOWER(inv4.nombre_completo) = LOWER(t.autor_4)
-
 LEFT JOIN investigadores inv5
 ON LOWER(inv5.nombre_completo) = LOWER(t.autor_5)
-
+LEFT JOIN link_grouplab lg ON t.id_link_grouplab = lg.id
+LEFT JOIN investigador_programa_facultad ipf
+    ON ipf.id_investigador = COALESCE(r.id_investigador, inv1.id_investigador, inv2.id_investigador, inv3.id_investigador, inv4.id_investigador, inv5.id_investigador)
+WHERE ipf.id_facultad = lg.id_facultad
 """)
 
 conn.commit()
@@ -165,6 +157,8 @@ cur.execute("CREATE INDEX idx_rcm_titulo_norm ON resultados_coincidentes_materia
 cur.execute("CREATE INDEX idx_rcm_anio ON resultados_coincidentes_materializada(anio)")
 cur.execute("CREATE INDEX idx_rcm_ano_grouplab ON resultados_coincidentes_materializada(ano_grouplab)")
 cur.execute("CREATE INDEX idx_rcm_investigador ON resultados_coincidentes_materializada(id_investigador)")
+cur.execute("CREATE INDEX idx_rcm_id_facultad_grupo ON resultados_coincidentes_materializada(id_facultad_grupo)")
+cur.execute("CREATE INDEX idx_rcm_id_facultad_investigador ON resultados_coincidentes_materializada(id_facultad_investigador)")
 
 conn.commit()
 
@@ -177,5 +171,3 @@ print(f"\n✅ Total registros: {total}")
 
 cur.close()
 conn.close()
-
-print("\n✅ Tabla resultados_coincidentes_materializada lista")

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { API_BASE, SERVER_BASE } from './config';
@@ -19,7 +20,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
 
 
 
-const TIPOLOGIA_ORDER = ['NC', 'DTI', 'FRH', 'ASC', 'DPC'];
+
 const TIPOLOGIA_LABELS = {
   NC: 'Nuevo Conocimiento',
   DTI: 'Desarrollo Tecnologico e Innovacion',
@@ -58,6 +59,8 @@ export default function DirectorioInvestigadores() {
   const [programaLoading, setProgramaLoading] = React.useState(false);
   const [programaError, setProgramaError] = React.useState(null);
   const [programaSuccess, setProgramaSuccess] = React.useState(false);
+  const [gruposCatalogo, setGruposCatalogo] = React.useState([]);
+  const [gruposSeleccionados, setGruposSeleccionados] = React.useState([]);
     const handleProgramaSubmit = async (e) => {
       e.preventDefault();
       setProgramaLoading(true);
@@ -121,6 +124,7 @@ export default function DirectorioInvestigadores() {
     correo: '',
     google_scholar: '',
     orcid: '',
+    grupos: []
   });
   const [formLoading, setFormLoading] = React.useState(false);
   const [formError, setFormError] = React.useState(null);
@@ -186,6 +190,26 @@ export default function DirectorioInvestigadores() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Cargar grupos de investigación al montar el componente
+  React.useEffect(() => {
+    const fetchGrupos = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/grupos`);
+        if (!res.ok) throw new Error('Error al cargar grupos');
+        const data = await res.json();
+        setGruposCatalogo(data);
+      } catch (err) {
+        console.error('Error cargando grupos:', err);
+      }
+    };
+    fetchGrupos();
+  }, []);
+
+  React.useEffect(() => {
+    console.log(gruposCatalogo);
+  }, [gruposCatalogo]);
+
+
 
   const handleProgramaChange = (e) => {
     const { value, checked } = e.target;
@@ -237,12 +261,15 @@ export default function DirectorioInvestigadores() {
     setFormLoading(true);
     setFormError(null);
     setFormSuccess(false);
-
     try {
+      const payload = {
+        ...formData,
+        grupos: gruposSeleccionados
+      };
       const res = await fetch(`${API_BASE}/investigadores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -260,7 +287,9 @@ export default function DirectorioInvestigadores() {
         correo: '',
         google_scholar: '',
         orcid: '',
+        grupos: []
       });
+      setGruposSeleccionados([]);
       setTimeout(() => {
         setShowAddModal(false);
         setFormSuccess(false);
@@ -337,7 +366,7 @@ export default function DirectorioInvestigadores() {
           nombreMostrar,
           facultad: r.facultad || 'Sin facultad',
           programas: [],
-          grupoInvestigacion: r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || 'GI2A',
+          grupoInvestigacion: '', // Se asigna abajo
           tipoInvestigador: r.categoria || 'Sin categoría',
           productosPorTipologia: {},
           articulosCount: 0,
@@ -352,10 +381,11 @@ export default function DirectorioInvestigadores() {
         }
       });
 
-      // Completar datos de perfil si en registros siguientes aparecen valores más ricos.
-      if (!investigadoresMap[nombre].grupoInvestigacion || investigadoresMap[nombre].grupoInvestigacion === 'GI2A') {
-        investigadoresMap[nombre].grupoInvestigacion = r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || investigadoresMap[nombre].grupoInvestigacion;
+      // Asignar grupo directamente desde la vista (columna sigla_grupo)
+      if (!investigadoresMap[nombre].grupoInvestigacion) {
+        investigadoresMap[nombre].grupoInvestigacion = r.sigla_grupo || 'Sin grupo';
       }
+
       if ((!investigadoresMap[nombre].tipoInvestigador || investigadoresMap[nombre].tipoInvestigador === 'Sin categoría') && r.categoria) {
         investigadoresMap[nombre].tipoInvestigador = r.categoria;
       }
@@ -438,9 +468,6 @@ export default function DirectorioInvestigadores() {
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
-            <span className="text-xs text-neutral-muted font-medium uppercase tracking-wider">
-              Facultad de Ingeniería
-            </span>
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-8">
@@ -1007,7 +1034,7 @@ export default function DirectorioInvestigadores() {
       </div>
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[800px] overflow-hidden relative">
+          <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[800px] max-h-[90vh] overflow-y-auto relative">
             <button
               className="absolute top-2 left-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
               onClick={() => setShowAddModal(false)}
@@ -1031,7 +1058,6 @@ export default function DirectorioInvestigadores() {
                 </div>
                 <div>
                   <h1 className="text-white text-2xl font-bold">Agregar Nuevo Investigador</h1>
-                  <p className="text-white/80 text-sm">Registro oficial para el sistema de gestión GI2A</p>
                 </div>
               </div>
             </div>
@@ -1169,6 +1195,55 @@ export default function DirectorioInvestigadores() {
                   )}
                 </div>
               </div>
+              {/* Grupos de Investigación - Selección Múltiple dinámica */}
+              <div className="col-span-1">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">
+                  Grupos de Investigación (puede seleccionar varios)
+                </label>
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
+                  {gruposCatalogo.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      No hay grupos registrados
+                    </p>
+                  ) : (
+                    gruposCatalogo.map((grupo) => {
+                      const siglaGrupo = grupo.sigla_grupo || '';
+                      return (
+                        <label
+                          key={grupo.id}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            value={grupo.id}
+                            checked={gruposSeleccionados.includes(grupo.id)}
+                            onChange={e => {
+                              const { value, checked } = e.target;
+                              const id = Number(value);
+                              setGruposSeleccionados(prev =>
+                                checked
+                                  ? [...prev, id]
+                                  : prev.filter(g => g !== id)
+                              );
+                            }}
+                            className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary"
+                          />
+                          <span className="text-slate-900 dark:text-slate-100">
+                            {siglaGrupo}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                  {gruposSeleccionados.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Seleccionados: {gruposSeleccionados.length}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
               {/* Form Actions */}
               <div className="col-span-1 md:col-span-2 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-end gap-4">
                 <button className="px-6 py-3 rounded-lg font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" type="button" onClick={() => setShowAddModal(false)}>
@@ -1188,7 +1263,6 @@ export default function DirectorioInvestigadores() {
               <div className="w-16 h-16 bg-slate-300 dark:bg-slate-700 rounded-full flex items-center justify-center mb-2">
                 <span className="material-symbols-outlined text-3xl">account_balance</span>
               </div>
-              <p className="text-slate-600 dark:text-slate-400 text-xs font-bold tracking-widest uppercase">Facultad de Ingeniería - UNAC</p>
             </div>
           </div>
         </div>

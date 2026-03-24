@@ -1,3 +1,11 @@
+// Capitaliza correctamente nombres en español (tildes, ñ, etc.)
+export function toTitleCaseEs(text = '') {
+  return String(text)
+    .toLocaleLowerCase('es')
+    .replace(/([\p{L}ñÑáéíóúÁÉÍÓÚüÜ]+)(\s+|$)/gu, (word) =>
+      word.charAt(0).toLocaleUpperCase('es') + word.slice(1)
+    ).trim();
+}
 export const assetImages = import.meta.glob('./assets/*.{png,jpg,jpeg,webp}', {
   eager: true,
   import: 'default'
@@ -93,8 +101,8 @@ export const getOrderedTipologiaData = (productosPorTipologia = {}) => {
 
 export const toTitleCase = (text = '') =>
   String(text)
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .toLocaleLowerCase('es')
+    .replace(/\b\w/g, (char) => char.toLocaleUpperCase('es'));
 
 export const parseProgramas = (programa) => {
   if (!programa) return [];

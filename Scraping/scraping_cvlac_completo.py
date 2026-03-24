@@ -124,6 +124,7 @@ NODO_PADRE_MAP = {
     "Trabajo de grado de maestría o especialidad clínica": "Formación del Recurso Humano",
     "Trabajos de grado de pregrado": "Formación del Recurso Humano",
     "Investigación y desarrollo": "Formación del Recurso Humano",
+    "Investigación-Creación": "Formación del Recurso Humano",
     "Investigación desarrollo e Innovación": "Formación del Recurso Humano",
     "Extensión y responsabilidad social CTI": "Formación del Recurso Humano",
     "Trabajo dirigido de conclusión de curso de perfeccionamiento/especialización": "Formación del Recurso Humano",

@@ -1,4 +1,5 @@
 
+
 import React from "react";
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { API_BASE, SERVER_BASE } from './config';
@@ -42,7 +43,8 @@ import {
   getOrderedTipologiaData,
   toTitleCase,
   parseProgramas,
-  assetImages
+  assetImages,
+  toTitleCaseEs
 } from './utils/directorioUtils';
 
 export default function DirectorioInvestigadores() {
@@ -169,6 +171,23 @@ export default function DirectorioInvestigadores() {
     };
     load();
   }, [filters.facultad]);
+
+  // Memo para filtrar grupos según la facultad seleccionada
+  const gruposFiltrados = React.useMemo(() => {
+    if (!formData.facultad || !Array.isArray(gruposCatalogo)) return [];
+
+    const facultadSeleccionada = facultadesCatalogo.find((fac) => {
+      const nombreFacultad = fac.nombre_facultad || fac.nombre || '';
+      return nombreFacultad === formData.facultad;
+    });
+
+    const idFacultadSeleccionada = facultadSeleccionada?.id_facultad || facultadSeleccionada?.id;
+
+    return gruposCatalogo.filter((grupo) => {
+      const grupoIdFacultad = grupo.id_facultad;
+      return String(grupoIdFacultad) === String(idFacultadSeleccionada);
+    });
+  }, [formData.facultad, gruposCatalogo, facultadesCatalogo]);
 
   // Cargar catálogo oficial de programas para el filtro (con facultad)
   React.useEffect(() => {
@@ -356,54 +375,47 @@ export default function DirectorioInvestigadores() {
   // Obtener lista única de investigadores con conteo de productos por tipología
   const investigadores = React.useMemo(() => {
     const investigadoresMap = {};
-    
     resultados.forEach(r => {
       const nombre = r.nombre || 'Sin nombre';
-      const nombreMostrar = r.nombre_completo ? toTitleCase(r.nombre_completo) : toTitleCase(nombre);
+      // Capitalización robusta para español (tildes, ñ)
+      const nombreMostrar = toTitleCaseEs(r.nombre_completo ? r.nombre_completo : nombre);
       if (!investigadoresMap[nombre]) {
         investigadoresMap[nombre] = {
           nombre,
           nombreMostrar,
           facultad: r.facultad || 'Sin facultad',
           programas: [],
-          grupoInvestigacion: '', // Se asigna abajo
+          grupos: [], // array de siglas
           tipoInvestigador: r.categoria || 'Sin categoría',
           productosPorTipologia: {},
           articulosCount: 0,
           totalProductos: 0
         };
       }
-
       // Agregar programa si no está ya en la lista
       parseProgramas(r.programa).forEach((p) => {
         if (!investigadoresMap[nombre].programas.includes(p)) {
           investigadoresMap[nombre].programas.push(p);
         }
       });
-
-      // Asignar grupo directamente desde la vista (columna sigla_grupo)
-      if (!investigadoresMap[nombre].grupoInvestigacion) {
-        investigadoresMap[nombre].grupoInvestigacion = r.sigla_grupo || 'Sin grupo';
+      // Agregar grupo (sigla) si no está ya
+      if (r.sigla_grupo && !investigadoresMap[nombre].grupos.includes(r.sigla_grupo)) {
+        investigadoresMap[nombre].grupos.push(r.sigla_grupo);
       }
-
       if ((!investigadoresMap[nombre].tipoInvestigador || investigadoresMap[nombre].tipoInvestigador === 'Sin categoría') && r.categoria) {
         investigadoresMap[nombre].tipoInvestigador = r.categoria;
       }
-
       investigadoresMap[nombre].totalProductos += 1;
-
       const tipoProyectoNormalizado = normalizeText(r.tipo_proyecto || '');
       if (tipoProyectoNormalizado.includes('articulo')) {
         investigadoresMap[nombre].articulosCount += 1;
       }
-
       const tipologia = r.nodo_padre || 'Sin tipología';
       if (!investigadoresMap[nombre].productosPorTipologia[tipologia]) {
         investigadoresMap[nombre].productosPorTipologia[tipologia] = 0;
       }
       investigadoresMap[nombre].productosPorTipologia[tipologia] += 1;
     });
-
     return Object.values(investigadoresMap).sort((a, b) => {
       if (b.articulosCount !== a.articulosCount) {
         return b.articulosCount - a.articulosCount;
@@ -849,7 +861,7 @@ export default function DirectorioInvestigadores() {
                   <select
                     className="w-full border rounded px-2 py-1 text-sm"
                     value={filters.facultad}
-                    onChange={e => setFilters(prev => ({ ...prev, facultad: e.target.value }))}
+                    onChange={e => setFilters(prev => ({ ...prev, facultad: e.target.value, programa: '' }))}
                   >
                     <option value="">Todos</option>
                     {filterOptions.facultad?.map(opt => (
@@ -865,9 +877,14 @@ export default function DirectorioInvestigadores() {
                     onChange={e => setFilters(prev => ({ ...prev, programa: e.target.value }))}
                   >
                     <option value="">Todos</option>
-                    {programasCatalogo.map(p => (
-                      <option key={p.id_programa} value={p.nombre_programa}>{p.nombre_programa}</option>
-                    ))}
+                    {programasCatalogo
+                      .filter(p => {
+                        if (!filters.facultad) return true;
+                        return p.nombre_facultad === filters.facultad;
+                      })
+                      .map(p => (
+                        <option key={p.id_programa} value={p.nombre_programa}>{p.nombre_programa}</option>
+                      ))}
                   </select>
                 </div>
               </div>
@@ -933,7 +950,7 @@ export default function DirectorioInvestigadores() {
                               Programa: {inv.programas && inv.programas.length > 0 ? inv.programas.join(', ') : 'Sin programa'}
                             </span>
                             <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
-                              Grupo: {inv.grupoInvestigacion || 'GI2A'}
+                              Grupo: {inv.grupos && inv.grupos.length > 0 ? inv.grupos.join(', ') : 'Sin grupo'}
                             </span>
                             <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-semibold">
                               {inv.tipoInvestigador || 'Sin categoría'}
@@ -1201,12 +1218,12 @@ export default function DirectorioInvestigadores() {
                   Grupos de Investigación (puede seleccionar varios)
                 </label>
                 <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
-                  {gruposCatalogo.length === 0 ? (
+                  {gruposFiltrados.length === 0 ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      No hay grupos registrados
+                      No hay grupos registrados para esta facultad
                     </p>
                   ) : (
-                    gruposCatalogo.map((grupo) => {
+                    gruposFiltrados.map((grupo) => {
                       const siglaGrupo = grupo.sigla_grupo || '';
                       return (
                         <label

@@ -11,6 +11,7 @@ export default function Investigadores() {
   // Catálogo de grupos
   const [gruposCatalogo, setGruposCatalogo] = React.useState([]);
   const [investigadores, setInvestigadores] = React.useState([]);
+  const [searchEdit, setSearchEdit] = React.useState("");
   const [editingId, setEditingId] = React.useState(null);
   const [editingData, setEditingData] = React.useState({});
   const [editingGrupos, setEditingGrupos] = React.useState([]);
@@ -141,15 +142,10 @@ export default function Investigadores() {
       const programasArray = inv.programa_academico 
         ? inv.programa_academico.split(',').map(p => p.trim()).filter(Boolean)
         : [];
-      // Convertir grupoInvestigacion (string con comas o array de ids) a array de ids
-      let gruposArray = [];
-      if (inv.grupos && Array.isArray(inv.grupos)) {
-        gruposArray = inv.grupos.map(g => String(g));
-      } else if (inv.grupoInvestigacion && typeof inv.grupoInvestigacion === 'string') {
-        // Si viene como siglas separadas por coma, buscar los ids
-        const siglas = inv.grupoInvestigacion.split(',').map(s => s.trim()).filter(Boolean);
-        gruposArray = gruposCatalogo.filter(g => siglas.includes(g.sigla_grupo)).map(g => String(g.id));
-      }
+      // Usar grupos_ids (array de IDs de grupo) para preselección
+      const gruposArray = Array.isArray(inv.grupos_ids)
+        ? inv.grupos_ids.map(id => String(id))
+        : [];
       setEditingData({
         nombre_completo: inv.nombre_completo || '',
         cedula: inv.cedula || '',
@@ -286,56 +282,73 @@ export default function Investigadores() {
       {loading && <p>Cargando investigadores…</p>}
       {error && <p className="text-red-600">Error: {error}</p>}
       {!loading && !error && (
-        <div className="overflow-x-auto">
-          <table className="w-full table-auto bg-white rounded shadow">
-            <thead>
-              <tr className="bg-slate-100">
-                  <th className="px-4 py-2 text-center">ID Investigador</th>
-                  <th className="px-4 py-2 text-center">Nombre</th>
-                  <th className="px-4 py-2 text-center">Cédula</th>
-                  <th className="px-4 py-2 text-center">Programas</th>
-                  <th className="px-4 py-2 text-center">Correo</th>
-                  <th className="px-4 py-2 text-center">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-              {investigadores.map((inv) => (
-                <tr key={inv.id_investigador} className="border-t hover:bg-slate-50">
-                  <td className="px-4 py-2 text-center">{inv.id_investigador}</td>
-                  <td className="px-4 py-2 text-center">{inv.nombre_completo}</td>
-                  <td className="px-4 py-2 text-center">{inv.cedula || '-'}</td>
-                  <td className="px-4 py-2 text-center text-xs">{inv.programa_academico || 'Sin asignar'}</td>
-                  <td className="px-4 py-2 text-center">{inv.correo || '-'}</td>
-                  <td className="px-4 py-2 text-center">
-                    <div className="flex gap-2 justify-center">
-                      <button
-                        className="px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary/90 transition-all"
-                        onClick={() => handleEditClick(inv)}
-                      >
-                        ✏️ Editar
-                      </button>
-                      <button
-                        className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-all"
-                        onClick={async () => {
-                          if (!confirm('¿Eliminar este investigador?')) return;
-                          try {
-                            const res = await fetch(`${SERVER_BASE}/investigadores/${inv.id_investigador}`, { method: 'DELETE' });
-                            if (!res.ok) throw new Error('Delete failed');
-                            setInvestigadores((prev) => prev.filter(p => p.id_investigador !== inv.id_investigador));
-                          } catch (err) {
-                            alert('Error eliminando: ' + err.message);
-                          }
-                        }}
-                      >
-                        🗑️ Eliminar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="mb-4 flex flex-col md:flex-row md:items-center gap-2">
+            <label className="text-sm font-semibold text-primary">Buscar por nombre:</label>
+            <input
+              type="text"
+              className="border rounded px-3 py-1 text-sm w-full md:w-64"
+              placeholder="Nombre del investigador..."
+              value={searchEdit}
+              onChange={e => setSearchEdit(e.target.value)}
+            />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full table-auto bg-white rounded shadow">
+              <thead>
+                <tr className="bg-slate-100">
+                    <th className="px-4 py-2 text-center">ID Investigador</th>
+                    <th className="px-4 py-2 text-center">Nombre</th>
+                    <th className="px-4 py-2 text-center">Cédula</th>
+                    <th className="px-4 py-2 text-center">Programas</th>
+                    <th className="px-4 py-2 text-center">Correo</th>
+                    <th className="px-4 py-2 text-center">Acciones</th>
+                  </tr>
+              </thead>
+              <tbody>
+                {investigadores
+                  .filter(inv =>
+                    searchEdit.trim() === '' ||
+                    (inv.nombre_completo || '').toLowerCase().includes(searchEdit.trim().toLowerCase())
+                  )
+                  .map((inv) => (
+                  <tr key={inv.id_investigador} className="border-t hover:bg-slate-50">
+                    <td className="px-4 py-2 text-center">{inv.id_investigador}</td>
+                    <td className="px-4 py-2 text-center">{inv.nombre_completo}</td>
+                    <td className="px-4 py-2 text-center">{inv.cedula || '-'}</td>
+                    <td className="px-4 py-2 text-center text-xs">{inv.programa_academico || 'Sin asignar'}</td>
+                    <td className="px-4 py-2 text-center">{inv.correo || '-'}</td>
+                    <td className="px-4 py-2 text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          className="px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary/90 transition-all"
+                          onClick={() => handleEditClick(inv)}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-all"
+                          onClick={async () => {
+                            if (!confirm('¿Eliminar este investigador?')) return;
+                            try {
+                              const res = await fetch(`${SERVER_BASE}/investigadores/${inv.id_investigador}`, { method: 'DELETE' });
+                              if (!res.ok) throw new Error('Delete failed');
+                              setInvestigadores((prev) => prev.filter(p => p.id_investigador !== inv.id_investigador));
+                            } catch (err) {
+                              alert('Error eliminando: ' + err.message);
+                            }
+                          }}
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
         </div>
       </main>

@@ -258,9 +258,6 @@ export default function FormacionRecursoHumano() {
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
-            <span className="text-xs text-neutral-muted font-medium uppercase tracking-wider">
-              Facultad de Ingeniería
-            </span>
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-8">

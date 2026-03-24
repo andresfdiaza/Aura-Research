@@ -651,15 +651,22 @@ app.get('/api/investigadores', async (req, res) => {
         i.google_scholar,
         i.orcid,
         GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ', ') AS programa_academico,
-        GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ', ') AS facultad
+        GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ', ') AS facultad,
+        GROUP_CONCAT(DISTINCT ig.id_grupo) AS grupos_ids
       FROM investigadores i
       LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador
       LEFT JOIN programa p ON p.id_programa = ipf.id_programa
       LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
+      LEFT JOIN investigador_grupo ig ON ig.id_investigador = i.id_investigador
       GROUP BY i.id_investigador, i.nombre_completo, i.cedula, i.link_cvlac, i.correo, i.google_scholar, i.orcid
       ORDER BY i.nombre_completo`
     );
-    res.json(rows);
+    // Convertir grupos_ids a array de enteros
+    const result = rows.map(row => ({
+      ...row,
+      grupos_ids: row.grupos_ids ? row.grupos_ids.split(',').map(id => parseInt(id, 10)) : []
+    }));
+    res.json(result);
   } catch (err) {
     console.error('Error fetching investigadores:', err.message, err.stack);
     res.status(500).json({ message: 'internal server error', error: err.message });
@@ -858,6 +865,11 @@ app.put('/investigadores/:id', async (req, res) => {
 app.delete('/investigadores/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    // Primero borrar relaciones en investigador_grupo
+    await pool.query('DELETE FROM investigador_grupo WHERE id_investigador = ?', [id]);
+    // Borrar relaciones en investigador_programa_facultad
+    await pool.query('DELETE FROM investigador_programa_facultad WHERE id_investigador = ?', [id]);
+    // Luego borrar el investigador
     const [result] = await pool.query('DELETE FROM investigadores WHERE id_investigador = ?', [id]);
     if (result.affectedRows === 0) return res.status(404).json({ message: 'Not found' });
     res.json({ success: true });

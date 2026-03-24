@@ -29,9 +29,6 @@ export default function Home() {
           </div>
           <div className="flex flex-col">
             <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
-            <span className="text-xs text-neutral-muted font-medium uppercase tracking-wider">
-              Facultad de Ingeniería
-            </span>
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-8">
@@ -90,6 +87,40 @@ export default function Home() {
       <div className="container mx-auto flex-1 flex flex-col">
         <main className="flex-1 flex flex-col items-center pt-2 px-6 md:px-16">
         <div className="max-w-6xl w-full flex flex-col gap-12">
+          <div className="flex justify-end mb-4">
+            <button
+              className="px-6 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${API_BASE}/resultados`);
+                  if (!res.ok) throw new Error('Error al obtener datos');
+                  const data = await res.json();
+                  if (!Array.isArray(data) || data.length === 0) {
+                    alert('No hay datos para descargar');
+                    return;
+                  }
+                  // Convertir a CSV
+                  const keys = Object.keys(data[0]);
+                  const csvRows = [keys.join(','), ...data.map(row => keys.map(k => '"' + String(row[k]).replace(/"/g, '""') + '"').join(','))];
+                  const csvContent = csvRows.join('\n');
+                  const blob = new Blob([csvContent], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'resultados.csv';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  alert('Error al descargar CSV: ' + err.message);
+                }
+              }}
+            >
+              <span className="material-symbols-outlined text-base">download</span>
+              Descargar CSV de resultados
+            </button>
+          </div>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="flex flex-col gap-3">
               <h1 className="text-primary text-4xl md:text-5xl font-black leading-tight tracking-tight">

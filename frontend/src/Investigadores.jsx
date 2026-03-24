@@ -4,21 +4,37 @@ import { SERVER_BASE, API_BASE } from './config';
 import AuraLogo from './components/AuraLogo';
 
 export default function Investigadores() {
-    // Catálogo de programas
-    const [programasCatalogo, setProgramasCatalogo] = React.useState([]);
-    // Catálogo de facultades
-    const [facultadesCatalogo, setFacultadesCatalogo] = React.useState([]);
-    const [investigadores, setInvestigadores] = React.useState([]);
-    const [editingId, setEditingId] = React.useState(null);
-    const [editingData, setEditingData] = React.useState({});
-    const [showEditModal, setShowEditModal] = React.useState(false);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState(null);
-    const [formLoading, setFormLoading] = React.useState(false);
-    const [formError, setFormError] = React.useState(null);
-    const [formSuccess, setFormSuccess] = React.useState(false);
-    const navigate = useNavigate();
-    // ...existing code...
+  // Catálogo de programas
+  const [programasCatalogo, setProgramasCatalogo] = React.useState([]);
+  // Catálogo de facultades
+  const [facultadesCatalogo, setFacultadesCatalogo] = React.useState([]);
+  // Catálogo de grupos
+  const [gruposCatalogo, setGruposCatalogo] = React.useState([]);
+  const [investigadores, setInvestigadores] = React.useState([]);
+  const [editingId, setEditingId] = React.useState(null);
+  const [editingData, setEditingData] = React.useState({});
+  const [editingGrupos, setEditingGrupos] = React.useState([]);
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [formLoading, setFormLoading] = React.useState(false);
+  const [formError, setFormError] = React.useState(null);
+  const [formSuccess, setFormSuccess] = React.useState(false);
+  const navigate = useNavigate();
+    // Cargar catálogo de grupos
+    React.useEffect(() => {
+      const fetchGrupos = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/grupos`);
+          if (!res.ok) throw new Error('Error al cargar grupos');
+          const data = await res.json();
+          setGruposCatalogo(data);
+        } catch (err) {
+          setGruposCatalogo([]);
+        }
+      };
+      fetchGrupos();
+    }, []);
 
     // Cargar catálogo de programas
     React.useEffect(() => {
@@ -119,23 +135,40 @@ export default function Investigadores() {
     }));
   };
 
-  const handleEditClick = (inv) => {
-    setEditingId(inv.id_investigador);
-    // Convertir programa_academico (string con comas) a array
-    const programasArray = inv.programa_academico 
-      ? inv.programa_academico.split(',').map(p => p.trim()).filter(Boolean)
-      : [];
-    setEditingData({
-      nombre_completo: inv.nombre_completo || '',
-      cedula: inv.cedula || '',
-      link_cvlac: inv.link_cvlac || '',
-      facultad: inv.facultad || '',
-      programas: programasArray,
-      correo: inv.correo || '',
-      google_scholar: inv.google_scholar || '',
-      orcid: inv.orcid || '',
-    });
-    setShowEditModal(true);
+    const handleEditClick = (inv) => {
+      setEditingId(inv.id_investigador);
+      // Convertir programa_academico (string con comas) a array
+      const programasArray = inv.programa_academico 
+        ? inv.programa_academico.split(',').map(p => p.trim()).filter(Boolean)
+        : [];
+      // Convertir grupoInvestigacion (string con comas o array de ids) a array de ids
+      let gruposArray = [];
+      if (inv.grupos && Array.isArray(inv.grupos)) {
+        gruposArray = inv.grupos.map(g => String(g));
+      } else if (inv.grupoInvestigacion && typeof inv.grupoInvestigacion === 'string') {
+        // Si viene como siglas separadas por coma, buscar los ids
+        const siglas = inv.grupoInvestigacion.split(',').map(s => s.trim()).filter(Boolean);
+        gruposArray = gruposCatalogo.filter(g => siglas.includes(g.sigla_grupo)).map(g => String(g.id));
+      }
+      setEditingData({
+        nombre_completo: inv.nombre_completo || '',
+        cedula: inv.cedula || '',
+        link_cvlac: inv.link_cvlac || '',
+        facultad: inv.facultad || '',
+        programas: programasArray,
+        correo: inv.correo || '',
+        google_scholar: inv.google_scholar || '',
+        orcid: inv.orcid || '',
+      });
+      setEditingGrupos(gruposArray);
+      setShowEditModal(true);
+    };
+
+  const handleGrupoEditChange = (e) => {
+    const { value, checked } = e.target;
+    setEditingGrupos((prev) =>
+      checked ? [...prev, value] : prev.filter((g) => g !== value)
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -145,10 +178,14 @@ export default function Investigadores() {
     setFormSuccess(false);
 
     try {
+      const payload = {
+        ...editingData,
+        grupos: editingGrupos
+      };
       const res = await fetch(`${SERVER_BASE}/investigadores/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -169,6 +206,7 @@ export default function Investigadores() {
         setFormSuccess(false);
         setEditingId(null);
         setEditingData({});
+        setEditingGrupos([]);
       }, 2000);
     } catch (err) {
       setFormError(err.message);
@@ -185,10 +223,8 @@ export default function Investigadores() {
             <AuraLogo />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">GI2A UNAC</h2>
-            <span className="text-xs text-neutral-muted font-medium uppercase tracking-wider">
-              Facultad de Ingeniería
-            </span>
+            <h2 className="text-primary text-lg font-bold leading-tight tracking-tight">AURA RESEARCH UNAC</h2>
+            {/* Removed Facultad de Ingeniería for generic branding */}
           </div>
         </div>
         <nav className="hidden md:flex items-center gap-8">
@@ -308,7 +344,7 @@ export default function Investigadores() {
       {/* Modal para Editar Investigador */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[800px] overflow-hidden relative">
+          <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[800px] max-h-[90vh] overflow-y-auto relative">
             <button
               className="absolute top-2 left-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
               onClick={() => setShowEditModal(false)}
@@ -432,6 +468,43 @@ export default function Investigadores() {
                   {(editingData.programas || []).length > 0 && (
                     <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
                       <p className="text-xs text-slate-600 dark:text-slate-400">Seleccionados: {(editingData.programas || []).length}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Grupos de Investigación - Selección Múltiple */}
+              <div className="col-span-1 md:col-span-2">
+                <label className="block mb-2 text-slate-700 dark:text-slate-300 text-sm font-semibold">Grupos de Investigación (puede seleccionar varios)</label>
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
+                  {/* Filtrar grupos por facultad seleccionada */}
+                  {(() => {
+                    const facultadSeleccionada = facultadesCatalogo.find((fac) => {
+                      const nombreFacultad = fac.nombre_facultad || fac.nombre || '';
+                      return nombreFacultad === editingData.facultad;
+                    });
+                    const idFacultadSeleccionada = facultadSeleccionada?.id_facultad || facultadSeleccionada?.id;
+                    const gruposFiltrados = gruposCatalogo.filter((grupo) => {
+                      return String(grupo.id_facultad) === String(idFacultadSeleccionada);
+                    });
+                    if (gruposFiltrados.length === 0) {
+                      return <p className="text-xs text-slate-500">No hay grupos para esta facultad.</p>;
+                    }
+                    return gruposFiltrados.map(grupo => (
+                      <label key={grupo.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          value={String(grupo.id)}
+                          checked={editingGrupos.includes(String(grupo.id))}
+                          onChange={handleGrupoEditChange}
+                          className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary"
+                        />
+                        <span className="text-slate-900 dark:text-slate-100">{grupo.sigla_grupo || grupo.nombre_grupo}</span>
+                      </label>
+                    ));
+                  })()}
+                  {editingGrupos.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Seleccionados: {editingGrupos.length}</p>
                     </div>
                   )}
                 </div>

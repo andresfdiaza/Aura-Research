@@ -1,5 +1,3 @@
-
-
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
@@ -104,6 +102,18 @@ app.post('/api/grupos', async (req, res) => {
     }
   } catch (err) {
     console.error('Error creando grupo:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
+// Listar todos los grupos de investigación
+app.get('/api/grupos', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, nombre_grupo, sigla_grupo, url, id_facultad FROM link_grouplab ORDER BY sigla_grupo`);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching grupos:', err.message, err.stack);
     res.status(500).json({ message: 'internal server error', error: err.message });
   }
 });
@@ -416,16 +426,32 @@ app.post('/api/grupos', async (req, res) => {
       LEFT JOIN (
         SELECT
           ipf.id_investigador,
+          
           MAX(f.nombre_facultad) AS facultad,
-          GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ' / ') AS programa,
-          GROUP_CONCAT(DISTINCT lg.sigla_grupo ORDER BY lg.sigla_grupo SEPARATOR ' / ') AS sigla_grupo
+
+          GROUP_CONCAT(DISTINCT p.nombre_programa 
+            ORDER BY p.nombre_programa 
+            SEPARATOR ' / ') AS programa,
+
+          GROUP_CONCAT(DISTINCT lg.sigla_grupo 
+            ORDER BY lg.sigla_grupo 
+            SEPARATOR ' / ') AS sigla_grupo
+
         FROM investigador_programa_facultad ipf
+
         LEFT JOIN facultad f 
           ON f.id_facultad = ipf.id_facultad
+
         LEFT JOIN programa p 
           ON p.id_programa = ipf.id_programa
+
+        /* 🔥 RELACIÓN CORRECTA CON GRUPOS */
+        LEFT JOIN investigador_grupo ig
+          ON ig.id_investigador = ipf.id_investigador
+
         LEFT JOIN link_grouplab lg 
-          ON lg.id_facultad = ipf.id_facultad
+          ON lg.id = ig.id_grupo
+
         GROUP BY ipf.id_investigador
       ) rel 
         ON rel.id_investigador = r.id_investigador;
@@ -673,8 +699,8 @@ app.get('/investigadores/:id', async (req, res) => {
 
 // add investigador route
 app.post('/api/investigadores', async (req, res) => {
-  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid } = req.body;
-  console.log('Received data:', { nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid });
+  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid, grupos } = req.body;
+  console.log('Received data:', { nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid, grupos });
   
   if (!nombre_completo) {
     return res.status(400).json({ message: 'nombre_completo is required' });
@@ -713,6 +739,16 @@ app.post('/api/investigadores', async (req, res) => {
       // Si no existe, ignorar
     }
 
+    // Guardar grupos
+    if (Array.isArray(grupos) && grupos.length > 0) {
+      for (const id_grupo of grupos) {
+        await pool.query(
+          'INSERT INTO investigador_grupo (id_investigador, id_grupo) VALUES (?, ?)',
+          [result.insertId, id_grupo]
+        );
+      }
+    }
+
     res.status(201).json({ id_investigador: result.insertId, nombre_completo, cedula, link_cvlac, facultad: facultadNombre, programa_academico, correo, google_scholar, orcid });
   } catch (err) {
     console.error('Error inserting investigador:', err.message, err.code);
@@ -727,7 +763,7 @@ app.post('/api/investigadores', async (req, res) => {
 // update investigador by id
 app.put('/investigadores/:id', async (req, res) => {
   const { id } = req.params;
-  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid } = req.body;
+  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid, grupos } = req.body;
   try {
     const fields = [];
     const values = [];
@@ -777,6 +813,19 @@ app.put('/investigadores/:id', async (req, res) => {
           }
           // Si no existe, ignorar
         }
+    }
+
+    // Actualizar grupos de investigación
+    if (Array.isArray(grupos)) {
+      // Eliminar relaciones previas
+      await pool.query('DELETE FROM investigador_grupo WHERE id_investigador = ?', [id]);
+      // Insertar nuevas relaciones
+      for (const id_grupo of grupos) {
+        await pool.query(
+          'INSERT INTO investigador_grupo (id_investigador, id_grupo) VALUES (?, ?)',
+          [id, id_grupo]
+        );
+      }
     }
 
     const [rows] = await pool.query(

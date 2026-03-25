@@ -429,15 +429,17 @@ export default function DirectorioInvestigadores() {
 
   // Filtrar investigadores por búsqueda
   const filtered = React.useMemo(() => {
+    // Función para normalizar texto (sin tildes, minúsculas, sin espacios extra)
+    const normalize = (txt) => (txt || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
     return investigadores.filter(inv => {
       const nombre = (inv.nombre || '').toLowerCase();
       const facultad = (inv.facultad || '').toLowerCase();
-      const programasStr = (inv.programas || []).join(' ').toLowerCase();
+      const programasNorm = (inv.programas || []).map(normalize);
       const search = searchTerm.toLowerCase();
 
-      const matchSearch = nombre.includes(search) || facultad.includes(search) || programasStr.includes(search);
+      const matchSearch = nombre.includes(search) || facultad.includes(search) || programasNorm.some(p => p.includes(normalize(search)));
       const matchFacultad = !filters.facultad || inv.facultad === filters.facultad;
-      const matchPrograma = !filters.programa || inv.programas.includes(filters.programa);
+      const matchPrograma = !filters.programa || programasNorm.includes(normalize(filters.programa));
 
       return matchSearch && matchFacultad && matchPrograma;
     });

@@ -109,8 +109,9 @@ export const parseProgramas = (programa) => {
 
   if (Array.isArray(programa)) return programa.filter(Boolean);
 
+  // Separar por coma, punto y coma, barra vertical o slash
   return String(programa)
-    .split(/[,;|]/)
+    .split(/[,;|\/]/)
     .map((p) => p.trim())
     .filter(Boolean);
 };

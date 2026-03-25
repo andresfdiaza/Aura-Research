@@ -1,4 +1,6 @@
+
 import html
+import sys
 import requests  #sirve para hacer solicitudes HTTP
 import csv  # sirve para escribir archivos CSV
 import re # busca patrones en el texto y extraer información específica y reducir espacios extra
@@ -20,8 +22,7 @@ URL = ""
 import mysql.connector
 from dotenv import load_dotenv
 import os
-import subprocess
-import sys
+
 
 # cargar variables de entorno (prioriza backend/.env, fallback a ../.env)
 _script_dir = os.path.dirname(__file__)
@@ -69,17 +70,6 @@ def marcar_todos_pendientes():
     conn.commit()
     cur.close()
     conn.close()
-
-# antiguas URL comentadas conservadas como referencia, ya no se usan
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0001671425" #Profe Saray
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0001685519" #Jaime Blanco Lopez
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0000113761" #Addriana
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0001740020" #Edna Conde
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0001473049" #Ana Cristina Zuniga
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0000003029" #Javier Cordoba
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0001006690" #Jhon niño
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0000674400&mostrar=produccion" #Walter arboleda
-#URL = "https://scienti.minciencias.gov.co/cvlac/visualizador/generarCurriculoCv.do?cod_rh=0001413648" #Wilson Arana
 
 HEADERS = {
     "User-Agent": (
@@ -131,7 +121,7 @@ NODO_PADRE_MAP = {
     "Trabajos dirigidos/Tutorías de otro tipo": "Formación del Recurso Humano",
     "Monografía de conclusión de curso de perfeccionamiento/especialización": "Formación del Recurso Humano",
     "Tesis de doctorado": "Formación del Recurso Humano",
-    # Tipos de divulgación adicionales
+    "Reglamento Técnico": "Desarrollo Tecnológico e Innovación",
     "redes conocimiento especializado": "Divulgación Pública de la Ciencia",
     "contenido impreso": "Divulgación Pública de la Ciencia",
     "contenido multimedia": "Divulgación Pública de la Ciencia",
@@ -139,6 +129,12 @@ NODO_PADRE_MAP = {
     "estrategias comunicacion conocimiento": "Divulgación Pública de la Ciencia",
     "estrategias pedagogicas cti": "Divulgación Pública de la Ciencia",
     "participacion ciudadana cti": "Divulgación Pública de la Ciencia",
+    "Obras o productos": "Nuevo Conocimiento",
+    "Ediciones/revisiones": "Divulgación Pública de la Ciencia",
+    "Eventos artisticos": "Divulgación Pública de la Ciencia",
+    "Evento artístico": "Divulgación Pública de la Ciencia",
+    "Redes de conocimiento especializado": "Divulgación Pública de la Ciencia",
+    "Producciones de contenido digital - Audiovisuales - Cápsulas de video": "Divulgación Pública de la Ciencia",
 }
 
 def obtener_nodo_padre(nodo_hijo):
@@ -519,6 +515,60 @@ def extraer_consultorias(soup):
     print(f"✅ Total CONSULTORÍAS: {len(resultados)}")
     return resultados
 
+
+
+def extraer_ediciones_revisiones(soup):
+    resultados = []
+    # Buscar la sección "Ediciones/revisiones"
+    h3 = soup.find("h3", string=re.compile(r"Ediciones/revisiones", re.IGNORECASE))
+    if not h3:
+        print("⚠️ No se encontró la sección Ediciones/revisiones")
+        return resultados
+    nodo_hijo = limpiar(h3.get_text())  # Nodo hijo: el título de la sección
+    tabla = h3.find_parent("table")
+    if not tabla:
+        print("⚠️ No se encontró la tabla de Ediciones/revisiones")
+        return resultados
+    for li in tabla.find_all("li"):
+        b_tag = li.find("b")
+        if not b_tag:
+            continue
+        # Buscar el blockquote siguiente
+        tr = li.find_parent("tr")
+        siguiente_tr = tr.find_next_sibling("tr") if tr else None
+        blockquote = siguiente_tr.find("blockquote") if siguiente_tr else None
+        if not blockquote:
+            continue
+        texto = limpiar(blockquote.get_text(" "))
+        # Título: después de la última coma antes de "Nombre comercial"
+        match = re.search(r"(?:,)([^,]+),\s*Nombre comercial", texto)
+        if match:
+            titulo = match.group(1).strip()
+        else:
+            # Si no encuentra el patrón, buscar el último fragmento antes de "Nombre comercial"
+            partes = texto.split(",")
+            titulo = ""
+            for i in range(len(partes)-1, -1, -1):
+                if "Nombre comercial" in partes[i]:
+                    if i > 0:
+                        titulo = partes[i-1].strip()
+                    break
+            if not titulo and len(partes) > 1:
+                titulo = partes[1].strip()
+        # Año: buscar después de "Colombia,"
+        anio = ""
+        match_colombia = re.search(r"Colombia[, ]+.*?(\d{4})", texto)
+        if match_colombia:
+            anio = match_colombia.group(1)
+        if titulo:
+            resultados.append({
+                "NodoHijo": nodo_hijo,
+                "Titulo_proyecto": titulo,
+                "año": anio
+            })
+    print(f"✅ Total EDICIONES/REVISIONES: {len(resultados)}")
+    return resultados
+
 #================================================
 # EXTRAER EVENTOS CIENTÍFICOS
 #================================================
@@ -567,6 +617,44 @@ def extraer_eventos(soup):
     print(f"✅ Total EVENTOS CIENTÍFICOS: {len(resultados)}")
     return resultados
 
+def extraer_redes_conocimiento(soup):
+    resultados = []
+    # Buscar la sección "Redes de conocimiento especializado"
+    h3 = soup.find("h3", string=re.compile(r"Redes de conocimiento especializado", re.IGNORECASE))
+    if not h3:
+        print("⚠️ No se encontró la sección Redes de conocimiento especializado")
+        return resultados
+    tabla = h3.find_parent("table")
+    if not tabla:
+        print("⚠️ No se encontró la tabla de Redes de conocimiento especializado")
+        return resultados
+    for blockquote in tabla.find_all("blockquote"):
+        titulo = ""
+        for i_tag in blockquote.find_all("i"):
+            if "Nombre de la red" in i_tag.get_text():
+                # Tomar todo el texto desde el next_sibling hasta "Creada el:"
+                partes = []
+                nodo = i_tag.next_sibling
+                while nodo:
+                    texto = str(nodo)
+                    if "Creada el:" in texto:
+                        break
+                    partes.append(texto)
+                    nodo = nodo.next_sibling
+                titulo = limpiar("".join(partes))
+                break
+        # Año: buscar en "Creada el:YYYY-MM-DD"
+        texto = limpiar(blockquote.get_text(" "))
+        match_anio = re.search(r"Creada el:(\d{4})", texto)
+        anio = match_anio.group(1) if match_anio else ""
+        if titulo:
+            resultados.append({
+                "NodoHijo": "Redes de conocimiento especializado",
+                "Titulo_proyecto": titulo,
+                "año": anio
+            })
+    print(f"✅ Total REDES DE CONOCIMIENTO ESPECIALIZADO: {len(resultados)}")
+    return resultados
 #================================================
 # EXTRAER FORTALECIMIENTO O SOLUCIÓN DE ASUNTOS DE INTERÉS
 #================================================
@@ -841,6 +929,47 @@ def extraer_produccion_contenido_transmedia(soup):
     print(f"✅ Total PRODUCCIÓN DE ESTRATEGIAS Y CONTENIDOS TRANSMEDIA: {len(resultados)}")
     return resultados
 
+def extraer_contenido_digital_audiovisual(soup):
+    resultados = []
+    # Buscar la tabla con h3 "Producciones de contenido digital Audiovisual"
+    h3 = soup.find("h3", string=re.compile(r"Producciones de contenido digital Audiovisual", re.IGNORECASE))
+    if not h3:
+        print("⚠️ No se encontró la sección de contenido digital audiovisual")
+        return resultados
+    tabla = h3.find_parent("table")
+    if not tabla:
+        print("⚠️ No se encontró la tabla de contenido digital audiovisual")
+        return resultados
+    for blockquote in tabla.find_all("blockquote"):
+        titulo = ""
+        anio = ""
+        for i_tag in blockquote.find_all("i"):
+            texto_i = limpiar(i_tag.get_text()).lower()
+            if "nombre del producto" in texto_i:
+                siguiente = i_tag.next_sibling
+                if siguiente:
+                    titulo = limpiar(str(siguiente))
+            if "fecha de presentación" in texto_i:
+                siguiente = i_tag.next_sibling
+                max_busca = 5
+                while siguiente and max_busca > 0:
+                    texto = limpiar(str(siguiente))
+                    anio_match = re.search(r"(19|20)\d{2}", texto)
+                    if anio_match:
+                        anio = anio_match.group(0)
+                        break
+                    siguiente = siguiente.next_sibling
+                    max_busca -= 1
+        if titulo:
+            resultados.append({
+                "NodoHijo": "Producciones de contenido digital Audiovisual",
+                "Titulo_proyecto": titulo,
+                "año": anio
+            })
+    print(f"✅ Total CONTENIDO DIGITAL AUDIOVISUAL: {len(resultados)}")
+    return resultados
+
+
 
 #================================================
 # EXTRAER DESARROLLOS WEB
@@ -1024,36 +1153,32 @@ def extraer_libros(soup):
 # EXTRAER CAPÍTULOS DE LIBRO
 #================================================
 def extraer_capitulos_libro(soup):
-    
-
     resultados = []
-
-    # 1️⃣ Buscar el ancla
+    # Buscar el ancla de capítulos de libro
     anchor = soup.find("a", {"name": "capitulos"})
     if not anchor:
         print("⚠️ No se encontró la sección de capítulos de libro")
         return resultados
-
     contenedor = anchor.find_parent("td")
-
     nodo_hijo = "Capítulos de libro"
-
-    # 2️⃣ Cada capítulo está en un <blockquote>
+    # Buscar todos los blockquote dentro del contenedor
     for block in contenedor.find_all("blockquote", recursive=True):
-
         texto = limpiar(block.get_text(" "))
-
-        # 🟢 Título (entre comillas)
-        titulo_match = re.search(
-            r"\"(.*?)\"",
-            texto
-        )
+        # Buscar el título entre comillas (simples, dobles o dobles con acento)
+        titulo_match = re.search(r"[\"'“”«»]{1,2}\s*(.*?)\s*[\"'“”«»]{1,2}", texto)
         titulo = titulo_match.group(1).strip() if titulo_match else ""
-
-        # 🟢 Año
+        # Si no encuentra título, buscar después de la última coma (después de los autores)
+        if not titulo:
+            partes = texto.split(",")
+            if len(partes) > 1:
+                posible = partes[-1]
+                # Buscar comillas en ese fragmento
+                titulo_match = re.search(r"[\"'“”«»]{1,2}\s*(.*?)\s*[\"'“”«»]{1,2}", posible)
+                if titulo_match:
+                    titulo = titulo_match.group(1).strip()
+        # Año: buscar el primer año de 4 dígitos
         anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
-        anio = anio_match.group() if anio_match else ""
-
+        anio = anio_match.group(0) if anio_match else ""
         if titulo:
             resultados.append({
                 "NodoHijo": nodo_hijo,
@@ -1121,9 +1246,8 @@ def extraer_textos_publicaciones_no_cientificas(soup):
 # EXTRAER OTRA PRODUCCIÓN BIBLIOGRÁFICA
 #================================================
 def extraer_otra_produccion_bibliografica(soup):
-
     resultados = []
-
+    vistos = set()
     # 1️⃣ Buscar sección "Otra producción blibliográfica" (con typo en el HTML)
     h3 = soup.find(
         "h3",
@@ -1132,92 +1256,51 @@ def extraer_otra_produccion_bibliografica(soup):
             "blibliográfica" in limpiar(t).lower()
         )
     )
-    
     if not h3:
         print("⚠️ No se encontró la sección Otra producción bibliográfica")
         return resultados
-
-    # 2️⃣ Buscar contenedor (tabla)
     contenedor = h3.find_parent("table")
     if not contenedor:
         print("⚠️ No se encontró contenedor de Otra producción bibliográfica")
         return resultados
-
-    # 3️⃣ Buscar solo subtipos "Producción bibliográfica - Otra producción bibliográfica - Otra"
     for b in contenedor.find_all("b"):
         texto_b = limpiar(b.get_text(" "))
         texto_b_lower = texto_b.lower()
-        
-        # Verificar que sea el subtipo correcto (flexible con encoding issues)
         if not ("producci" in texto_b_lower and 
                 "bibliogr" in texto_b_lower and 
                 "otra" in texto_b_lower and 
                 texto_b.strip().lower().endswith("otra")):
             continue
-
-        # 4️⃣ Buscar el blockquote con el contenido
         tr = b.find_parent("tr")
         siguiente_tr = tr.find_next_sibling("tr") if tr else None
         blockquote = siguiente_tr.find("blockquote") if siguiente_tr else None
-        
         if not blockquote:
             continue
-
         texto = limpiar(blockquote.get_text(" "))
-
-        # 5️⃣ Título: puede estar entre comillas o después de comas
+        # Título: puede estar entre comillas o después de comas
         titulo = ""
-        
-        # Buscar texto entre comillas
-        titulo_match = re.search(r'["«"]\s*(.*?)\s*["»"]', texto)
+        titulo_match = re.search(r'["«”]\s*(.*?)\s*["»”]', texto)
         if titulo_match:
             titulo = titulo_match.group(1).strip()
         else:
-            # Fallback: tomar texto antes de "En:" o antes del año
-            # Quitar autores capitalizados al inicio (ej: WILSON ARANA PALOMINO,)
             partes = texto.split(",")
-            for i, parte in enumerate(partes):
-                parte_limpia = parte.strip()
-                # Si no es todo mayúsculas (no es autor), tomar desde ahí
-                if parte_limpia and parte_limpia != parte_limpia.upper():
-                    # Unir desde esta parte hasta "En:"
-                    resto = ",".join(partes[i:])
-                    if "En:" in resto:
-                        titulo = resto.split("En:")[0].strip(" ,.")
-                    else:
-                        # Tomar hasta encontrar el año
-                        titulo_match = re.match(r"(.*?)\s*\.?\s*(19|20)\d{2}", resto)
-                        if titulo_match:
-                            titulo = titulo_match.group(1).strip(" ,.")
-                        else:
-                            titulo = resto.strip(" ,.")
-                    break
-            
-            # Si no se encontró título, usar todo el texto hasta "En:" o año
-            if not titulo:
-                if "En:" in texto:
-                    titulo = texto.split("En:")[0].strip(" ,.")
-                else:
-                    titulo_match = re.match(r"(.*?)\s*\.?\s*(19|20)\d{2}", texto)
-                    if titulo_match:
-                        titulo = titulo_match.group(1).strip(" ,.")
-                    else:
-                        titulo = texto[:200].strip(" ,.")  # Limitar longitud
-        
-        titulo = titulo.strip('" ,.')
-        
-        # 6️⃣ Año: tomar el primer año mencionado (normalmente el año de inicio del estudio/publicación)
+            if len(partes) > 1:
+                titulo = partes[0].strip()
+            else:
+                titulo = texto.strip()
+        # Año: tomar el primer año mencionado
         anio = ""
         anio_match = re.search(r"(19\d{2}|20\d{2})", texto)
         anio = anio_match.group(1) if anio_match else ""
-
-        if titulo:
+        # Evitar duplicados
+        clave = (titulo, anio)
+        if titulo and clave not in vistos:
             resultados.append({
                 "NodoHijo": "Otra producción bibliográfica",
                 "Titulo_proyecto": titulo,
                 "año": anio
             })
-
+            vistos.add(clave)
     print(f"✅ Total OTRA PRODUCCIÓN BIBLIOGRÁFICA: {len(resultados)}")
     return resultados
 
@@ -1339,7 +1422,61 @@ def extraer_documentos_trabajo(soup):
     
     print(f"✅ Total DOCUMENTOS DE TRABAJO: {len(resultados)}")
     return resultados
-
+def extraer_otra_produccion_bibliografica_detallada(soup):
+    resultados = []
+    h3 = soup.find("h3", string=re.compile(r"Otra producción blibliográfica|Otra producción bibliográfica", re.IGNORECASE))
+    if not h3:
+        print("⚠️ No se encontró la sección Otra producción bibliográfica detallada")
+        return resultados
+    tabla = h3.find_parent("table")
+    if not tabla:
+        print("⚠️ No se encontró la tabla de Otra producción bibliográfica detallada")
+        return resultados
+    for li in tabla.find_all("li"):
+        b_tag = li.find("b")
+        if not b_tag:
+            continue
+        texto_b = limpiar(b_tag.get_text())
+        # Nodo hijo: después del primer guion
+        nodo_hijo = ""
+        if "-" in texto_b:
+            partes = [p.strip() for p in texto_b.split("-")]
+            if len(partes) > 1:
+                nodo_hijo = partes[1]
+            else:
+                nodo_hijo = texto_b.strip()
+        else:
+            nodo_hijo = texto_b.strip()
+        # Buscar el blockquote siguiente
+        tr = li.find_parent("tr")
+        siguiente_tr = tr.find_next_sibling("tr") if tr else None
+        blockquote = siguiente_tr.find("blockquote") if siguiente_tr else None
+        if not blockquote:
+            continue
+        texto = limpiar(blockquote.get_text(" "))
+        # Título: entre comillas o antes de 'En:'
+        titulo = ""
+        titulo_match = re.search(r'"([^"]+)"', texto)
+        if titulo_match:
+            titulo = titulo_match.group(1).strip()
+        else:
+            parte = re.split(r"\.\s*En:", texto, flags=re.IGNORECASE)[0].strip(" ,.")
+            if "," in parte:
+                parte = parte.split(",", 1)[1].strip(" ,.")
+            titulo = parte
+        # Año: buscar el primer año de 4 dígitos
+        anio = ""
+        anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
+        if anio_match:
+            anio = anio_match.group(0)
+        if titulo:
+            resultados.append({
+                "NodoHijo": nodo_hijo,
+                "Titulo_proyecto": titulo,
+                "año": anio
+            })
+    print(f"✅ Total OTRA PRODUCCIÓN BIBLIOGRÁFICA DETALLADA: {len(resultados)}")
+    return resultados
 #================================================
 # EXTRAER PATENTES
 #================================================
@@ -1382,7 +1519,59 @@ def extraer_patentes(soup):
 
     print(f"✅ Total PATENTES: {len(resultados)}")
     return resultados
-
+def extraer_reglamentos(soup):
+    resultados = []
+    # Buscar la sección "Reglamentos"
+    h3 = soup.find("h3", string=re.compile(r"Reglamentos", re.IGNORECASE))
+    if not h3:
+        print("⚠️ No se encontró la sección Reglamentos")
+        return resultados
+    tabla = h3.find_parent("table")
+    if not tabla:
+        print("⚠️ No se encontró la tabla de Reglamentos")
+        return resultados
+    for li in tabla.find_all("li"):
+        b_tag = li.find("b")
+        if not b_tag:
+            continue
+        texto_b = limpiar(b_tag.get_text())
+        # Nodo hijo: después del primer guion
+        nodo_hijo = ""
+        if "-" in texto_b:
+            partes = [p.strip() for p in texto_b.split("-")]
+            if len(partes) > 1:
+                nodo_hijo = partes[1]
+            else:
+                nodo_hijo = texto_b.strip()
+        else:
+            nodo_hijo = texto_b.strip()
+        # Buscar el blockquote siguiente
+        tr = li.find_parent("tr")
+        siguiente_tr = tr.find_next_sibling("tr") if tr else None
+        blockquote = siguiente_tr.find("blockquote") if siguiente_tr else None
+        if not blockquote:
+            continue
+        texto = limpiar(blockquote.get_text(" "))
+        # Título: antes de la primera coma después del nombre
+        partes = texto.split(",")
+        titulo = ""
+        if len(partes) > 1:
+            titulo = partes[1].strip()
+        else:
+            titulo = texto.strip()
+        # Año: buscar el primer año de 4 dígitos
+        anio = ""
+        anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
+        if anio_match:
+            anio = anio_match.group(0)
+        if titulo:
+            resultados.append({
+                "NodoHijo": nodo_hijo,
+                "Titulo_reglamento": titulo,
+                "año": anio
+            })
+    print(f"✅ Total REGLAMENTOS: {len(resultados)}")
+    return resultados
 #================================================
 # EXTRAER SECRETOS EMPRESARIALES
 #================================================
@@ -1869,11 +2058,80 @@ def extraer_informes_finales_investigacion(soup):
     print(f"✅ Total INFORMES FINALES DE INVESTIGACIÓN: {len(resultados)}")
     return resultados
 
+
+
+def extraer_eventos_artistico(soup):
+    resultados = []
+    # Buscar la sección "Eventos artísticos"
+    h3 = soup.find("h3", string=re.compile(r"Eventos artísticos", re.IGNORECASE))
+    if not h3:
+        print("⚠️ No se encontró la sección Eventos artísticos")
+        return resultados
+    tabla = h3.find_parent("table")
+    if not tabla:
+        print("⚠️ No se encontró la tabla de Eventos artísticos")
+        return resultados
+    for blockquote in tabla.find_all("blockquote"):
+        texto = limpiar(blockquote.get_text(" "))
+        # Título: extraer solo el nombre del evento
+        titulo = ""
+        match_titulo = re.search(r"Nombre del evento:\s*([^\n\r<]+?)(?:\s{2,}|Fecha de inicio:|Tipo del evento:|$)", texto)
+        if match_titulo:
+            titulo = match_titulo.group(1).strip(" ,.")
+        # Año: buscar después de "Fecha de inicio:"
+        anio = ""
+        match_fecha = re.search(r"Fecha de inicio:\s*(\d{4})", texto)
+        if match_fecha:
+            anio = match_fecha.group(1)
+        if titulo:
+            resultados.append({
+                "NodoHijo": "Evento artístico",
+                "Titulo_evento": titulo,
+                "año": anio
+            })
+    print(f"✅ Total EVENTOS ARTÍSTICOS: {len(resultados)}")
+    return resultados
+def extraer_obras_productos(soup):
+    resultados = []
+    tabla = soup.find("table", id="obras_productos")
+    if not tabla:
+        print("⚠️ No se encontró la tabla de obras o productos")
+        return resultados
+
+    for blockquote in tabla.find_all("blockquote"):
+        titulo = ""
+        anio = ""
+        for i_tag in blockquote.find_all("i"):
+            texto_i = limpiar(i_tag.get_text()).lower()
+            if "nombre del producto" in texto_i:
+                siguiente = i_tag.next_sibling
+                if siguiente:
+                    titulo = limpiar(str(siguiente))
+            if "fecha de creación" in texto_i:
+                # Buscar el año en todos los hermanos siguientes hasta encontrarlo
+                siguiente = i_tag.next_sibling
+                max_busca = 5
+                while siguiente and max_busca > 0:
+                    texto = limpiar(str(siguiente))
+                    anio_match = re.search(r"(19|20)\d{2}", texto)
+                    if anio_match:
+                        anio = anio_match.group(0)
+                        break
+                    siguiente = siguiente.next_sibling
+                    max_busca -= 1
+        if titulo:
+            resultados.append({
+                "NodoHijo": "Obras o productos",
+                "Titulo_proyecto": titulo,
+                "año": anio
+            })
+    print(f"✅ Total OBRAS O PRODUCTOS: {len(resultados)}")
+    return resultados
+
 #================================================
 # EXTRAER PROYECTOS
 #================================================
 def extraer_proyectos(soup):
-
     resultados = []
 
     # 1️⃣ Buscar la sección Proyectos
@@ -1884,10 +2142,8 @@ def extraer_proyectos(soup):
 
     # 2️⃣ Recorrer hasta otro h3
     for elem in h3.find_all_next():
-
         if elem.name == "h3":
             break
-
         if elem.name != "blockquote":
             continue
 
@@ -1896,30 +2152,29 @@ def extraer_proyectos(soup):
         anio = ""
 
         children = list(elem.children)
-
         for i, child in enumerate(children):
-
-            # 🔹 Detectar <i> Tipo de proyecto
+            # Buscar <i>Tipo de proyecto
             if getattr(child, "name", None) == "i" and "Tipo de proyecto" in child.get_text():
-
-                # 👉 El valor REAL está en el siguiente nodo
+                # Buscar el primer <br> después y tomar el texto siguiente como título
+                j = i + 1
+                while j < len(children):
+                    if getattr(children[j], "name", None) == "br":
+                        # El texto después del <br>
+                        if j + 1 < len(children):
+                            posible_titulo = limpiar(children[j + 1])
+                            if posible_titulo:
+                                titulo = limpiar_titulo(posible_titulo)
+                                break
+                    j += 1
+                # Nodo hijo sigue igual
                 if i + 1 < len(children):
-                    nodo_hijo = limpiar(children[i + 1])
-                    nodo_hijo = nodo_hijo.replace(",", "")
+                    nodo_hijo = limpiar(children[i + 1]).replace(",", "")
 
-            # 🔹 Texto plano
+            # Buscar año en cualquier texto plano
             if isinstance(child, str):
                 texto = limpiar(child)
-
                 if not texto:
                     continue
-
-                # ✅ TÍTULO (primer texto largo que NO sea el tipo)
-                if not titulo and texto != nodo_hijo and len(texto) > 5:
-                    titulo = texto
-                    titulo = limpiar_titulo(titulo)
-
-                # ✅ AÑO
                 anio_match = re.search(r"\b(19|20)\d{2}\b", texto)
                 if anio_match:
                     anio = anio_match.group()
@@ -1961,6 +2216,8 @@ def guardar_csv(filas):
         writer.writerows(filas)
 
 def main():
+            
+        
     print("Iniciando scraping CVLAC...")
 
     html = obtener_html()
@@ -1982,12 +2239,15 @@ def main():
     datos_generales = extraer_datos_generales(soup)
     extra_formacion = extraer_ultima_formacion_academica(soup)
     trabajos = extraer_trabajos_dirigidos(soup)
+    ediciones_reviciones = extraer_ediciones_revisiones(soup)
     consultorias = extraer_consultorias(soup)
     eventos = extraer_eventos(soup)
+    redes_conocimiento = extraer_redes_conocimiento(soup)
     apropiacion_social = extraer_apropiacion_social(soup)
     apropiacion_normatividad = extraer_apropiacion_normatividad(soup)
     cadenas_productivas = extraer_apropiacion_cadenas_productivas(soup)
     contenido_transmedia = extraer_produccion_contenido_transmedia(soup)
+    contenido_digital_audiovisual = extraer_contenido_digital_audiovisual(soup)
     desarrollos_web = extraer_desarrollos_web(soup)
     articulos = extraer_articulos(soup)
     libros = extraer_libros(soup)
@@ -1996,16 +2256,21 @@ def main():
     otra_produccion_bibliografica = extraer_otra_produccion_bibliografica(soup)
     innovaciones_gestion_empresarial = extraer_innovaciones_gestion_empresarial(soup)
     documentos_trabajo = extraer_documentos_trabajo(soup)
+    otra_produccion_bibliografica_detallada = extraer_otra_produccion_bibliografica_detallada(soup)
     patentes = extraer_patentes(soup)
     secretos_empresariales = extraer_secretos_empresariales(soup)
     software = extraer_software(soup)
     otros_productos_tecnologicos = extraer_otros_productos_tecnologicos(soup)
     prototipos_industriales = extraer_prototipos_industriales(soup)
     innovacion_procesos = extraer_innovacion_procesos(soup)
+    reglamentos = extraer_reglamentos(soup)
     informes_tecnicos = extraer_informes_tecnicos(soup)
     conceptos_tecnicos = extraer_conceptos_tecnicos(soup)
     informes_finales_investigacion = extraer_informes_finales_investigacion(soup)
+    eventos_artistico = extraer_eventos_artistico(soup)
+    obras_productos = extraer_obras_productos(soup)
     proyectos = extraer_proyectos(soup)
+    
 
     # -----------------------------
     # Construir filas_csv
@@ -2013,11 +2278,14 @@ def main():
     secciones = [
         (trabajos, "Titulo_proyecto"),
         (consultorias, "Titulo_proyecto"),
+        (ediciones_reviciones, "Titulo_proyecto"),
         (eventos, "Titulo_proyecto"),
+        (redes_conocimiento, "Titulo_proyecto"),
         (apropiacion_social, "Titulo_producto"),
         (apropiacion_normatividad, "Titulo_producto"),
         (cadenas_productivas, "Titulo_producto"),
         (contenido_transmedia, "Titulo_producto"),
+        (contenido_digital_audiovisual, "Titulo_proyecto"),
         (desarrollos_web, "Titulo_producto"),
         (articulos, "Titulo_proyecto"),
         (libros, "Titulo_proyecto"),
@@ -2026,15 +2294,19 @@ def main():
         (otra_produccion_bibliografica, "Titulo_proyecto"),
         (innovaciones_gestion_empresarial, "Titulo_proyecto"),
         (documentos_trabajo, "Titulo_documento"),
+        (otra_produccion_bibliografica_detallada, "Titulo_proyecto"),
         (patentes, "Titulo_patente"),
         (secretos_empresariales, "Titulo_secreto"),
         (software, "Titulo_proyecto"),
         (otros_productos_tecnologicos, "Titulo_proyecto"),
         (prototipos_industriales, "Titulo_prototipo"),
         (innovacion_procesos, "Titulo_proyecto"),
+        (reglamentos, "Titulo_reglamento"),
         (informes_tecnicos, "Titulo_proyecto"),
         (conceptos_tecnicos, "Titulo_proyecto"),
         (informes_finales_investigacion, "Titulo_proyecto"),
+        (eventos_artistico, "Titulo_evento"),
+        (obras_productos, "Titulo_proyecto"),
         (proyectos, "Titulo_proyecto"),
     ]
 
@@ -2079,66 +2351,61 @@ def main():
     return filas_mysql
 
 if __name__ == "__main__":
-
-    # obtener todas las URLs pendientes de la tabla investigadores
-    URLS = obtener_urls_db()
-    print(f"📋 Se encontraron {len(URLS)} URLs pendientes de procesar")
-    
-    if len(URLS) == 0:
-        print("⚠️ No hay URLs pendientes. Todas ya fueron procesadas.")
-        print("Si necesitas procesar de nuevo, ejecuta en MySQL:")
-        print("UPDATE investigadores SET estado='pendiente' WHERE link_cvlac IS NOT NULL;")
-        exit()
-
-    # 🔥 1️⃣ Limpiar tabla SOLO UNA VEZ
-    limpiar_tabla()
-
-    todos_los_datos = []
-
-    for idx, (investigator_id, url) in enumerate(URLS, 1):
-        # emoji removed because console may not support it
-        print(f"\n[{idx}/{len(URLS)}] Procesando CVLAC: {url} (investigador {investigator_id})")
-
-        # asignar la URL al nombre global que usa la lógica de extracción
-        URL = url   # sigue usando tu variable global
-
-        datos = main()  # ahora main devuelve datos
-        # agregar los datos extraídos de esta URL al acumulador
-        if datos:
-            print(f"  -> Se extrajeron {len(datos)} registros")
-            # inject the investigador id into each row so DB can relate them
-            for row in datos:
-                row["id_investigador"] = investigator_id
-            todos_los_datos.extend(datos)
-        else:
-            print(f"  -> No se extrajeron datos de esta URL")
-        
-        # mark this investigador as processed so it won't be picked up again
-        try:
-            conn_update = mysql.connector.connect(**DB_CONFIG)
-            cur_update = conn_update.cursor()
-            cur_update.execute(
-                "UPDATE investigadores SET estado = 'procesado' WHERE id_investigador = %s",
-                (investigator_id,)
-            )
-            conn_update.commit()
-            print(f"  ✅ Marcado como procesado")
-            cur_update.close()
-            conn_update.close()
-        except Exception as e:
-            print(f"  ❌ Error al marcar como procesado: {e}")
-
-    # guardar todo junto en la base de datos después de procesar todas las URLs
-    print(f"\n📊 Total de datos recolectados: {len(todos_los_datos)}")
-    if todos_los_datos:
-        # Asegurar que la columna nodo_padre existe antes de guardar
-        asegurar_columna_nodo_padre()
-        guardar_en_mysql(todos_los_datos)
+    # Si se pasa una URL como argumento, solo procesa esa URL y NO toca la base de datos
+    if len(sys.argv) > 1:
+        test_url = sys.argv[1]
+        print(f"🔎 Modo prueba: procesando solo {test_url}")
+        URL = test_url
+        main()  # Esto solo genera el CSV, no guarda en MySQL ni marca nada
+        print("✅ Prueba finalizada. Revisa el archivo cv_datos_generales.csv")
     else:
-        print("⚠️ No hay datos para guardar en la base de datos")
 
-    print(f"\n🚀 Proceso finalizado. Total registros insertados: {len(todos_los_datos)}")
+        # obtener todas las URLs pendientes de la tabla investigadores
+        URLS = obtener_urls_db()
+        print(f"📋 Se encontraron {len(URLS)} URLs pendientes de procesar")
+        
+        if len(URLS) == 0:
+            print("⚠️ No hay URLs pendientes. Todas ya fueron procesadas.")
+            print("Si necesitas procesar de nuevo, ejecuta en MySQL:")
+            print("UPDATE investigadores SET estado='pendiente' WHERE link_cvlac IS NOT NULL;")
+            exit()
 
-    # Nota: el postproceso (clean/join/vistas) se ejecuta desde backend/service/scrapingService.js
-    # para mantener un único flujo consistente en el orden correcto.
-    print("\nℹ️ Scraping CVLAC finalizado. El pipeline de normalización se ejecuta desde el backend.")
+        # 🔥 1️⃣ Limpiar tabla SOLO UNA VEZ
+        limpiar_tabla()
+
+        todos_los_datos = []
+
+        for idx, (investigator_id, url) in enumerate(URLS, 1):
+            print(f"\n[{idx}/{len(URLS)}] Procesando CVLAC: {url} (investigador {investigator_id})")
+            URL = url
+            datos = main()
+            if datos:
+                print(f"  -> Se extrajeron {len(datos)} registros")
+                for row in datos:
+                    row["id_investigador"] = investigator_id
+                todos_los_datos.extend(datos)
+            else:
+                print(f"  -> No se extrajeron datos de esta URL")
+            try:
+                conn_update = mysql.connector.connect(**DB_CONFIG)
+                cur_update = conn_update.cursor()
+                cur_update.execute(
+                    "UPDATE investigadores SET estado = 'procesado' WHERE id_investigador = %s",
+                    (investigator_id,)
+                )
+                conn_update.commit()
+                print(f"  ✅ Marcado como procesado")
+                cur_update.close()
+                conn_update.close()
+            except Exception as e:
+                print(f"  ❌ Error al marcar como procesado: {e}")
+
+        print(f"\n📊 Total de datos recolectados: {len(todos_los_datos)}")
+        if todos_los_datos:
+            asegurar_columna_nodo_padre()
+            guardar_en_mysql(todos_los_datos)
+        else:
+            print("⚠️ No hay datos para guardar en la base de datos")
+
+        print(f"\n🚀 Proceso finalizado. Total registros insertados: {len(todos_los_datos)}")
+        print("\nℹ️ Scraping CVLAC finalizado. El pipeline de normalización se ejecuta desde el backend.")

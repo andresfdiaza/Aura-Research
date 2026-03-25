@@ -1,4 +1,3 @@
-
 import html
 import sys
 import requests  #sirve para hacer solicitudes HTTP
@@ -2216,7 +2215,6 @@ def guardar_csv(filas):
         writer.writerows(filas)
 
 def main():
-            
         
     print("Iniciando scraping CVLAC...")
 

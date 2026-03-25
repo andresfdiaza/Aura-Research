@@ -7,10 +7,8 @@ from bs4 import BeautifulSoup
 import os
 import unicodedata
 import mysql.connector
-import subprocess
-import sys
 
-URL = 'https://scienti.minciencias.gov.co/gruplac/jsp/visualiza/visualizagr.jsp?nro=00000000005830'
+URL = ''
 
 HEADERS = {
     "User-Agent": (
@@ -29,7 +27,7 @@ SECCIONES_PROCESADAS = {
     "Libros publicados": "libros",
     "Capítulos de libro publicados": "capitulos_libro",
     "Documentos de trabajo": "documentos_trabajo",
-    "Otra publicación divulgativa": "publicacion_divulgat iva",
+    "Otra publicación divulgativa": "publicacion_divulgativa",
     "Otros artículos publicados": "otros_articulos",
     "Conceptos técnicos": "conceptos_tecnicos",
     "Informes técnicos": "informes_tecnicos",
@@ -57,6 +55,52 @@ SECCIONES_PROCESADAS = {
     "Trabajos dirigidos/turorías": "trabajos_dirigidos_tutorias",
     "Proyectos": "proyectos",
     "Libros de formación": "libros_formacion",
+    # Secciones adicionales solicitadas
+    "Obras o productos": "obras_productos",
+    "Eventos Artísticos": "eventos_artistico",
+    "Curso de Corta Duración Dictados": "cursos_corta_duracion_dictados",
+    "Cursos de corta duración dictados": "cursos_corta_duracion_dictados",
+    "Cursos de corta duración": "cursos_corta_duracion_dictados",
+    "Cursos de corta duración recibidos": "cursos_corta_duracion_recibidos",
+    "Talleres": "talleres",
+    "Talleres dictados": "talleres_dictados",
+    "Talleres recibidos": "talleres_recibidos",
+    "Participación en eventos": "participacion_eventos",
+    "Participación en eventos artísticos": "participacion_eventos_artistico",
+    "Participación en redes": "participacion_redes",
+    "Participación en comités": "participacion_comites",
+    "Premios y reconocimientos": "premios_reconocimientos",
+    "Premios": "premios",
+    "Reconocimientos": "reconocimientos",
+    "Patentes": "patentes",
+    "Diseños industriales": "disenos_industriales",
+    "Modelos de utilidad": "modelos_utilidad",
+    "Signos distintivos": "signos_distintivos",
+    "Secretos empresariales": "secretos_empresariales",
+    "Empresas de base tecnológica": "empresas_base_tecnologica",
+    "Spin-off": "spin_off",
+    "Start-up": "start_up",
+    "Proyectos artísticos": "proyectos_artistico",
+    "Obras musicales": "obras_musicales",
+    "Obras plásticas": "obras_plasticas",
+    "Obras literarias": "obras_literarias",
+    "Obras audiovisuales": "obras_audiovisuales",
+    "Obras escénicas": "obras_escenicas",
+    "Obras de diseño": "obras_diseno",
+    "Obras arquitectónicas": "obras_arquitectonicas",
+    "Obras de ingeniería": "obras_ingenieria",
+    "Obras de software": "obras_software",
+    "Obras de arte": "obras_arte",
+    "Obras científicas": "obras_cientificas",
+    "Obras tecnológicas": "obras_tecnologicas",
+    "Obras de divulgación": "obras_divulgacion",
+    "Obras de apropiación social": "obras_apropiacion_social",
+    "Obras de formación": "obras_formacion",
+    "Obras de gestión": "obras_gestion",
+    "Obras de innovación": "obras_innovacion",
+    "Obras de transferencia": "obras_transferencia",
+    "Obras de extensión": "obras_extension",
+    "Obras de responsabilidad social": "obras_responsabilidad_social",
 }
 
 # Mapeo de NodoHijo (scraping) -> NodoPadre (TipologiaProductos)

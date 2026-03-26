@@ -28,6 +28,8 @@ app.get('/api/programas_full', async (_req, res) => {
   }
 });
 
+
+
 // Crear nuevo programa académico
 app.post('/api/programas', async (req, res) => {
   try {

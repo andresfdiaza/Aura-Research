@@ -23,38 +23,23 @@ export default function Datos() {
   const navigate = useNavigate();
   const user = location.state?.user;
   const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
-  // preselected tipologia can be passed through navigation state
-  const initialTipologia = location.state?.tipologia || '';
 
   const [resultados, setResultados] = React.useState([]);
   const [totalResultados, setTotalResultados] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
 
-  // list of tipología categories shown when user first enters the page
-  const categories = [
-    'General',
-    'Nuevo Conocimiento',
-    'Desarrollo Tecnológico e Innovación',
-    'Apropiación Social de Conocimiento',
-    'Divulgación Pública de la Ciencia',
-    'Formación del Recurso Humano',
-  ];
-  const [selectedCategory, setSelectedCategory] = React.useState(initialTipologia);
-
   const [filters, setFilters] = React.useState({
     facultad: '',
     grupo: '',
     programa: '',
-    anio: '',
     categoria: '',
     cedula: '',
     sexo: '',
     grado: '',
     tipo_proyecto: '',
     tipologia_productos: '',
-    titulo_proyecto: '',
-    tipologia: initialTipologia // when set via dropdown or bar click
+    titulo_proyecto: ''
   });
 
   // Catálogo de programas y facultades
@@ -174,9 +159,7 @@ export default function Datos() {
     facultad: 'Facultad',
     grupo: 'Grupo de Investigación',
     programa: 'Programa',
-    anio: 'Año',
     investigador: 'Investigador',
-    tipologia: 'Tipología de Productos',
     categoria: 'Categoría',
     cedula: 'Cédula',
     sexo: 'Sexo',
@@ -189,14 +172,13 @@ export default function Datos() {
   // Opciones de filtros dinámicas (programas y facultades desde catálogo)
   const filterOptions = React.useMemo(() => {
     const opts = {
-      facultad: [], grupo: [], programa: [], anio: [], tipologia: [],
+      facultad: [], grupo: [], programa: [],
       categoria: [], cedula: [], sexo: [], grado: [], tipo_proyecto: [], tipologia_productos: [], titulo_proyecto: []
     };
     resultados.forEach(r => {
       if (r.facultad && !opts.facultad.includes(r.facultad)) opts.facultad.push(r.facultad);
       const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
-      if (r.anio && !opts.anio.includes(r.anio)) opts.anio.push(r.anio);
       if (r.categoria && !opts.categoria.includes(r.categoria)) opts.categoria.push(r.categoria);
       if (r.cedula && !opts.cedula.includes(r.cedula)) opts.cedula.push(r.cedula);
       if (r.sexo && !opts.sexo.includes(r.sexo)) opts.sexo.push(r.sexo);
@@ -204,10 +186,8 @@ export default function Datos() {
       if (r.tipo_proyecto && !opts.tipo_proyecto.includes(r.tipo_proyecto)) opts.tipo_proyecto.push(r.tipo_proyecto);
       if (r.tipologia_productos && !opts.tipologia_productos.includes(r.tipologia_productos)) opts.tipologia_productos.push(r.tipologia_productos);
       if (r.titulo_proyecto && !opts.titulo_proyecto.includes(r.titulo_proyecto)) opts.titulo_proyecto.push(r.titulo_proyecto);
-      // Add nodo_padre to tipologia options
-      const nodoPadre = (r.nodo_padre || r.tipologia_productos || '').toString().trim();
-      if (nodoPadre && !opts.tipologia.includes(nodoPadre)) opts.tipologia.push(nodoPadre);
     });
+
     // Programas: todos los de la tabla programa, filtrados por facultad si aplica
     let programasFiltrados = programasCatalogo;
     if (filters.facultad) {
@@ -221,6 +201,7 @@ export default function Datos() {
       }
     }
     opts.programa = programasFiltrados.map(p => p.nombre_programa);
+
     // sort options for nicer UI
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
@@ -234,8 +215,10 @@ export default function Datos() {
         const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
         if (grupo !== filters.grupo) return false;
       }
-      if (filters.programa && r.programa !== filters.programa) return false;
-      if (filters.anio && r.anio !== filters.anio) return false;
+      if (filters.programa) {
+        const programasArr = (r.programa || '').split(' / ').map(p => p.trim());
+        if (!programasArr.includes(filters.programa)) return false;
+      }
       if (filters.categoria && r.categoria !== filters.categoria) return false;
       if (filters.cedula && r.cedula !== filters.cedula) return false;
       if (filters.sexo && r.sexo !== filters.sexo) return false;
@@ -243,11 +226,6 @@ export default function Datos() {
       if (filters.tipo_proyecto && r.tipo_proyecto !== filters.tipo_proyecto) return false;
       if (filters.tipologia_productos && r.tipologia_productos !== filters.tipologia_productos) return false;
       if (filters.titulo_proyecto && r.titulo_proyecto !== filters.titulo_proyecto) return false;
-      // Filter by tipologia using nodo_padre or tipologia_productos
-      if (filters.tipologia) {
-        const nodoPadre = (r.nodo_padre || r.tipologia_productos || '').toString().trim();
-        if (nodoPadre !== filters.tipologia) return false;
-      }
       return true;
     });
   }, [resultados, filters]);
@@ -296,6 +274,7 @@ export default function Datos() {
     });
     return counts;
   }, [filtered]);
+
   const years = React.useMemo(() => {
     // sort keys numerically where possible
     const ks = Object.keys(yearCounts);
@@ -323,6 +302,7 @@ export default function Datos() {
         if (!res.ok) throw new Error('Error fetching tabla_normalizada_final');
         const data = await res.json();
         setResultados(data);
+
         // Fetch total (sin filtros)
         const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final`);
         if (resTotal.ok) {
@@ -337,8 +317,6 @@ export default function Datos() {
     };
     load();
   }, [filters]);
-
-  // fetch distribution of nodo hijo according to current filters (tipologia optional)
 
   const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
@@ -454,236 +432,233 @@ export default function Datos() {
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
         <main className="flex-1 flex flex-col items-center py-5 px-6 md:px-16">
-        <div className="max-w-7xl w-full flex flex-col gap-8">
-          {/* Back button moved to bottom */}
-          <div className="flex justify-between items-center mb-0">
-            <div className="flex items-center gap-6">
-              <h1 className="text-3xl font-bold text-primary">Análisis y Estadísticas Generales</h1>
+          <div className="max-w-7xl w-full flex flex-col gap-8">
+            {/* Back button moved to bottom */}
+            <div className="flex justify-between items-center mb-0">
+              <div className="flex items-center gap-6">
+                <h1 className="text-3xl font-bold text-primary">Análisis y Estadísticas Generales</h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleDownloadCSV}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
+                >
+                  <span className="material-symbols-outlined">download</span>
+                  <span>Descargar CSV</span>
+                </button>
+                <button
+                  onClick={() => window.history.back()}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
+                >
+                  <span className="material-symbols-outlined">arrow_back</span>
+                  <span>Volver</span>
+                </button>
+              </div>
+            </div>
 
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleDownloadCSV}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
-              >
-                <span className="material-symbols-outlined">download</span>
-                <span>Descargar CSV</span>
-              </button>
-              <button
-                onClick={() => window.history.back()}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-xl font-semibold hover:bg-slate-300 transition-all"
-              >
-                <span className="material-symbols-outlined">arrow_back</span>
-                <span>Volver</span>
-              </button>
-            </div>
-          </div>
-          {/* KPI cards on left, filters on right */}
-          <div className="flex items-start justify-between mb-0 overflow-x-auto py-1">
-            <div className="flex gap-4">
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
-                <div>
-                  <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
-                  <p className="text-lg font-bold text-primary">{totalResultados.toLocaleString()}</p>
+            {/* KPI cards on left, filters on right */}
+            <div className="flex items-start justify-between mb-0 overflow-x-auto py-1">
+              <div className="flex gap-4">
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+                  <div>
+                    <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
+                    <p className="text-lg font-bold text-primary">{totalResultados.toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xxs text-slate-500">Regs</p>
+                    <div className="bg-primary/10 rounded-full p-0.5">
+                      <span className="material-symbols-outlined text-base text-primary">database</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xxs text-slate-500">Regs</p>
-                  <div className="bg-primary/10 rounded-full p-0.5">
-                    <span className="material-symbols-outlined text-base text-primary">database</span>
+
+                <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+                  <div>
+                    <p className="text-xxs text-slate-600 font-medium mb-0.5">Filtr.</p>
+                    <p className="text-lg font-bold text-accent">{filtered.length.toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xxs text-slate-500">
+                      {filtered.length === resultados.length ? 'Todos' : `${((filtered.length/resultados.length)*100).toFixed(1)}%`}
+                    </p>
+                    <div className="bg-accent/10 rounded-full p-0.5">
+                      <span className="material-symbols-outlined text-base text-accent">filter_alt</span>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
-                <div>
-                  <p className="text-xxs text-slate-600 font-medium mb-0.5">Filtr.</p>
-                  <p className="text-lg font-bold text-accent">{filtered.length.toLocaleString()}</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xxs text-slate-500">{filtered.length === resultados.length ? 'Todos' : `${((filtered.length/resultados.length)*100).toFixed(1)}%`}</p>
-                  <div className="bg-accent/10 rounded-full p-0.5">
-                    <span className="material-symbols-outlined text-base text-accent">filter_alt</span>
+
+              {/* SOLO 3 FILTROS VISIBLES */}
+              <div className="flex flex-row gap-3">
+                {['facultad', 'grupo', 'programa'].map(key => (
+                  <div key={key} className="w-[120px]">
+                    <label className="block text-[9px] font-medium mb-1 truncate text-center">
+                      {displayLabel(key)}
+                    </label>
+                    <select
+                      className="w-full border rounded px-2 py-0.5 text-[10px] h-6 text-center appearance-none"
+                      value={filters[key]}
+                      onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
+                      style={{textAlignLast: 'center'}}
+                    >
+                      <option value="">Todos</option>
+                      {filterOptions[key]?.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
-            <div className="flex flex-row gap-3">
-              {['facultad', 'grupo', 'programa', 'anio', 'tipologia'].map(key => (
-                <div key={key} className="w-[120px]">
-                  <label className="block text-[9px] font-medium mb-1 truncate text-center">
-                    {displayLabel(key)}
-                  </label>
-                  <select
-                    className="w-full border rounded px-2 py-0.5 text-[10px] h-6 text-center appearance-none"
-                    value={filters[key]}
-                    onChange={e => setFilters(prev => ({ ...prev, [key]: e.target.value }))}
-                    style={{textAlignLast: 'center'}}
-                  >
-                    <option value="">Todos</option>
-                    {filterOptions[key]?.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-          {loading && <p className="text-center text-lg">Cargando datos…</p>}
-          {error && <p className="text-center text-red-600">Error: {error}</p>}
 
-          {/* Diagrams side by side, smaller */}
-          {!loading && !error && (topTipos.length > 0 || years.length > 0) && (
-            <div className="flex flex-row gap-6 mb-0 w-full justify-between items-start flex-wrap">
-              {/* parent/child drillable bar chart */}
-              {topTipos.length > 0 && (
-                <div className="flex-1 min-w-[360px] h-96">
-                  {/* Chart with tooltips for labels */}
-                  <Bar
-                    ref={chartRef}
-                    data={{
-                      labels: drillMode
-                        ? [
-                            // Use abbreviations for parent
-                            tipologiaToSigla(parentSelected),
-                            ...childColumns.map(c => c.nodo)
-                          ]
-                        : topTipos.map(([t]) => tipologiaToSigla(t)),
-                      datasets: [
-                        {
-                          label: drillMode ? 'Cantidad por nodo' : 'Cantidad',
-                          data: drillMode
-                            ? [computeParentCount(), ...childColumns.map(c => c.cantidad)]
-                            : topTipos.map(([, c]) => c),
-                          backgroundColor: drillMode
-                            ? [pickColor(2), ...generateColors(childColumns.length)]
-                            : pickColor(0) + 'CC'
-                        }
-                      ]
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          max: drillMode 
-                            ? Math.max(computeParentCount(), ...childColumns.map(c => c.cantidad)) * 1.1111
-                            : Math.max(...topTipos.map(([, c]) => c)) * 1.1111
-                        }
-                      },
-                      plugins: {
-                        legend: { display: false },
-                        title: {
-                          display: true,
-                          text: drillMode
-                            ? `Desglose de ${parentSelected}`
-                            : 'Cantidad de Productos por Investigador según la Tipología',
-                          font: {
-                            size: 14
+            {loading && <p className="text-center text-lg">Cargando datos…</p>}
+            {error && <p className="text-center text-red-600">Error: {error}</p>}
+
+            {/* Diagrams side by side, smaller */}
+            {!loading && !error && (topTipos.length > 0 || years.length > 0) && (
+              <div className="flex flex-row gap-6 mb-0 w-full justify-between items-start flex-wrap">
+                {/* parent/child drillable bar chart */}
+                {topTipos.length > 0 && (
+                  <div className="flex-1 min-w-[360px] h-96">
+                    <Bar
+                      ref={chartRef}
+                      data={{
+                        labels: drillMode
+                          ? [
+                              tipologiaToSigla(parentSelected),
+                              ...childColumns.map(c => c.nodo)
+                            ]
+                          : topTipos.map(([t]) => tipologiaToSigla(t)),
+                        datasets: [
+                          {
+                            label: drillMode ? 'Cantidad por nodo' : 'Cantidad',
+                            data: drillMode
+                              ? [computeParentCount(), ...childColumns.map(c => c.cantidad)]
+                              : topTipos.map(([, c]) => c),
+                            backgroundColor: drillMode
+                              ? [pickColor(2), ...generateColors(childColumns.length)]
+                              : pickColor(0) + 'CC'
+                          }
+                        ]
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            max: drillMode
+                              ? Math.max(computeParentCount(), ...childColumns.map(c => c.cantidad)) * 1.1111
+                              : Math.max(...topTipos.map(([, c]) => c)) * 1.1111
                           }
                         },
-                        datalabels: {
-                          // put values outside the bar instead of inside
-                          anchor: 'end',
-                          align: 'top',
-                          offset: 12,
-                          formatter: value => value,
-                          font: { weight: 'bold' }
-                        },
-                        tooltip: {
-                          callbacks: {
-                            title: (items) => {
-                              const idx = items[0].dataIndex;
-                              // Drill mode: show full name for parent and children
-                              if (drillMode) {
-                                if (idx === 0) return parentSelected;
-                                return childColumns[idx - 1]?.nodo || items[0].label;
+                        plugins: {
+                          legend: { display: false },
+                          title: {
+                            display: true,
+                            text: drillMode
+                              ? `Desglose de ${parentSelected}`
+                              : 'Cantidad de Productos por Investigador según la Tipología',
+                            font: {
+                              size: 14
+                            }
+                          },
+                          datalabels: {
+                            anchor: 'end',
+                            align: 'top',
+                            offset: 12,
+                            formatter: value => value,
+                            font: { weight: 'bold' }
+                          },
+                          tooltip: {
+                            callbacks: {
+                              title: (items) => {
+                                const idx = items[0].dataIndex;
+                                if (drillMode) {
+                                  if (idx === 0) return parentSelected;
+                                  return childColumns[idx - 1]?.nodo || items[0].label;
+                                }
+                                return topTipos[idx] ? topTipos[idx][0] : items[0].label;
                               }
-                              // Normal mode: show full name from topTipos
-                              return topTipos[idx] ? topTipos[idx][0] : items[0].label;
                             }
                           }
                         }
-                      }
-                    }}
-                    onClick={(evt) => {
-                      const chart = chartRef.current;
-                      if (!chart) return;
-                      const active = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-                      if (active.length > 0) {
-                        const idx = active[0].index;
-                        // Always use full name for click
-                        let fullLabel;
-                        if (!drillMode) {
-                          fullLabel = topTipos[idx] ? topTipos[idx][0] : chart.data.labels[idx];
-                        } else {
-                          fullLabel = idx === 0 ? parentSelected : childColumns[idx - 1]?.nodo;
-                        }
-                        if (!drillMode) {
-                          setParentSelected(fullLabel);
-                          setDrillMode(true);
-                          // Also set the tipologia filter when clicking a category
-                          setFilters(prev => ({ ...prev, tipologia: fullLabel }));
-                        } else {
-                          if (idx === 0) {
-                            setDrillMode(false);
-                            setParentSelected('');
-                            // Clear the tipologia filter when going back
-                            setFilters(prev => ({ ...prev, tipologia: '' }));
+                      }}
+                      onClick={(evt) => {
+                        const chart = chartRef.current;
+                        if (!chart) return;
+                        const active = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                        if (active.length > 0) {
+                          const idx = active[0].index;
+                          let fullLabel;
+                          if (!drillMode) {
+                            fullLabel = topTipos[idx] ? topTipos[idx][0] : chart.data.labels[idx];
+                          } else {
+                            fullLabel = idx === 0 ? parentSelected : childColumns[idx - 1]?.nodo;
+                          }
+                          if (!drillMode) {
+                            setParentSelected(fullLabel);
+                            setDrillMode(true);
+                          } else {
+                            if (idx === 0) {
+                              setDrillMode(false);
+                              setParentSelected('');
+                            }
                           }
                         }
-                      }
-                    }}
-                    height={384}
-                  />
-                </div>
-              )}
-              {/* año chart */}
-              {years.length > 0 && (
-                <div className="flex-1 min-w-[360px] h-96">
-                  <Bar
-                    data={{
-                      labels: years,
-                      datasets: [
-                        {
-                          label: 'Cantidad por año',
-                          data: years.map(y=> yearCounts[y]),
-                          backgroundColor: pickColor(1) + 'CC' // second palette color for year bars
-                        }
-                      ]
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          max: Math.max(...years.map(y => yearCounts[y])) * 1.1111
-                        }
-                      },
-                      plugins: {
-                        legend: { display: false },
-                        title: { display: true, text: 'Cantidad de Productos por Año' },
-                        datalabels: {
-                          anchor: 'end',
-                          align: 'top',
-                          offset: 12,
-                          formatter: value => value,
-                          font: { weight: 'bold' }
-                        }
-                      }
-                    }}
-                    height={384}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+                      }}
+                      height={384}
+                    />
+                  </div>
+                )}
 
-          {!loading && !error && filtered.length === 0 && (
-            <p className="text-center text-gray-600 text-lg">No hay datos disponibles en resultados</p>
-          )}
-        </div>
-      </main>
+                {/* año chart */}
+                {years.length > 0 && (
+                  <div className="flex-1 min-w-[360px] h-96">
+                    <Bar
+                      data={{
+                        labels: years,
+                        datasets: [
+                          {
+                            label: 'Cantidad por año',
+                            data: years.map(y=> yearCounts[y]),
+                            backgroundColor: pickColor(1) + 'CC'
+                          }
+                        ]
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            max: Math.max(...years.map(y => yearCounts[y])) * 1.1111
+                          }
+                        },
+                        plugins: {
+                          legend: { display: false },
+                          title: { display: true, text: 'Cantidad de Productos por Año' },
+                          datalabels: {
+                            anchor: 'end',
+                            align: 'top',
+                            offset: 12,
+                            formatter: value => value,
+                            font: { weight: 'bold' }
+                          }
+                        }
+                      }}
+                      height={384}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!loading && !error && filtered.length === 0 && (
+              <p className="text-center text-gray-600 text-lg">No hay datos disponibles en resultados</p>
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );

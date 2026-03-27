@@ -1033,8 +1033,8 @@ export default function DirectorioInvestigadores() {
                       </div>
 
                       <Link
-                        to="/datos"
-                        state={{ user, investigador: inv.nombre }}
+                        to="/PerfilInvestigador"
+                        state={{ user, nombreInvestigador: inv.nombre }}
                         className="inline-flex items-center gap-2 text-primary font-bold text-sm hover:gap-3 transition-all"
                       >
                         Ver productos
@@ -1046,8 +1046,6 @@ export default function DirectorioInvestigadores() {
                 </div>
               </>
             )}
-
-            {/* Botón volver eliminado de aquí, ahora está arriba */}
           </div>
         </main>
       </div>

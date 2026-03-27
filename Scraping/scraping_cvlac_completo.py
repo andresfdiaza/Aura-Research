@@ -2105,7 +2105,7 @@ def extraer_obras_productos(soup):
             if "nombre del producto" in texto_i:
                 siguiente = i_tag.next_sibling
                 if siguiente:
-                    titulo = limpiar(str(siguiente))
+                    titulo = limpiar(str(siguiente)).rstrip(',')
             if "fecha de creación" in texto_i:
                 # Buscar el año en todos los hermanos siguientes hasta encontrarlo
                 siguiente = i_tag.next_sibling

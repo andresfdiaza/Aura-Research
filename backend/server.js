@@ -47,6 +47,10 @@ app.post('/api/programas', crearPrograma);
 const { crearFacultad } = require('./controller/facultadController');
 app.post('/api/facultades', crearFacultad);
 
+// Crear nuevo grupo (refactor controller/service/repository)
+const { crearGrupo } = require('./controller/grupoController');
+app.post('/api/grupos', crearGrupo);
+
 
 // Crear nuevo grupo
 app.post('/api/grupos', async (req, res) => {
@@ -74,9 +78,7 @@ app.post('/api/grupos', async (req, res) => {
   }
 });
 
-// Crear nuevo grupo (refactor controller/service/repository)
-const { crearGrupo } = require('./controller/grupoController');
-app.post('/api/grupos', crearGrupo);
+
 
 // Listar todos los grupos de investigación
 app.get('/api/grupos', async (_req, res) => {
@@ -589,68 +591,9 @@ app.get('/investigadores/:id', async (req, res) => {
   }
 });
 
-// add investigador route
-app.post('/api/investigadores', async (req, res) => {
-  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid, grupos } = req.body;
-  console.log('Received data:', { nombre_completo, cedula, link_cvlac, facultad, programa_academico, correo, google_scholar, orcid, grupos });
-  
-  if (!nombre_completo) {
-    return res.status(400).json({ message: 'nombre_completo is required' });
-  }
-
-  try {
-    const [result] = await pool.query(
-      'INSERT INTO investigadores (nombre_completo, cedula, link_cvlac, correo, google_scholar, orcid) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombre_completo, cedula || null, link_cvlac || null, correo || null, google_scholar || null, orcid || null]
-    );
-
-    const facultadNombre = (facultad && String(facultad).trim()) || 'Facultad de Ingeniería';
-    await pool.query('INSERT IGNORE INTO facultad (nombre_facultad) VALUES (?)', [facultadNombre]);
-    const [facRows] = await pool.query('SELECT id_facultad FROM facultad WHERE nombre_facultad = ?', [facultadNombre]);
-    const idFacultad = facRows[0]?.id_facultad;
-
-    const programasList = Array.isArray(programas)
-      ? programas.filter(Boolean)
-      : [programa_academico].filter(Boolean);
-
-    for (const nombreProgramaRaw of programasList) {
-      const nombrePrograma = String(nombreProgramaRaw).trim();
-      if (!nombrePrograma) continue;
-      // Buscar programa existente
-      const [progRows] = await pool.query(
-        'SELECT id_programa FROM programa WHERE nombre_programa = ? AND id_facultad = ?',
-        [nombrePrograma, idFacultad]
-      );
-      const idPrograma = progRows[0]?.id_programa;
-      if (idPrograma) {
-        await pool.query(
-          'INSERT IGNORE INTO investigador_programa_facultad (id_investigador, id_programa, id_facultad) VALUES (?, ?, ?)',
-          [result.insertId, idPrograma, idFacultad]
-        );
-      }
-      // Si no existe, ignorar
-    }
-
-    // Guardar grupos
-    if (Array.isArray(grupos) && grupos.length > 0) {
-      for (const id_grupo of grupos) {
-        await pool.query(
-          'INSERT INTO investigador_grupo (id_investigador, id_grupo) VALUES (?, ?)',
-          [result.insertId, id_grupo]
-        );
-      }
-    }
-
-    res.status(201).json({ id_investigador: result.insertId, nombre_completo, cedula, link_cvlac, facultad: facultadNombre, programa_academico, correo, google_scholar, orcid });
-  } catch (err) {
-    console.error('Error inserting investigador:', err.message, err.code);
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: 'Cédula already exists' });
-    }
-    console.error(err);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+// add investigador route (refactor controller/service/repository)
+const { crearInvestigador } = require('./controller/investigadorController');
+app.post('/api/investigadores', crearInvestigador);
 
 // update investigador by id
 app.put('/investigadores/:id', async (req, res) => {

@@ -9,8 +9,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+//==========LOGIN========//
+// login route separado en controller/service/repository
+const { login } = require('./controller/authController');
+app.post('/api/login', login);
+app.post('/login', login);
 
-// (debe ir después de const app = express() y antes de app.listen)
+// register route separado en controller/service/repository
+const { register } = require('./controller/registerController');
+app.post('/register', register);
+
+
 
 // Nuevo endpoint: lista completa de programas con facultad
 app.get('/api/programas_full', async (_req, res) => {
@@ -30,31 +39,9 @@ app.get('/api/programas_full', async (_req, res) => {
 
 
 
-// Crear nuevo programa académico
-app.post('/api/programas', async (req, res) => {
-  try {
-    const { nombre_programa, id_facultad } = req.body;
-    if (!nombre_programa || !id_facultad) {
-      return res.status(400).json({ message: 'nombre_programa e id_facultad son requeridos' });
-    }
-    try {
-      const [result] = await pool.query(
-        'INSERT INTO programa (nombre_programa, id_facultad) VALUES (?, ?)',
-        [nombre_programa.trim(), id_facultad]
-      );
-      res.status(201).json({ id_programa: result.insertId, nombre_programa: nombre_programa.trim(), id_facultad });
-    } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        return res.status(409).json({ message: 'El programa ya existe' });
-      }
-      console.error('Error creando programa:', err.message, err.stack);
-      res.status(500).json({ message: 'internal server error', error: err.message });
-    }
-  } catch (err) {
-    console.error('Error creando programa:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+// Crear nuevo programa académico (refactor controller/service/repository)
+const { crearPrograma } = require('./controller/programaController');
+app.post('/api/programas', crearPrograma);
 
 // Crear nueva facultad
 app.post('/api/facultades', async (req, res) => {
@@ -574,14 +561,7 @@ console.log('database view vista_productos_final ensured');
   }
 })();
 
-// register route separado en controller/service/repository
-const { register } = require('./controller/registerController');
-app.post('/register', register);
 
-// login route separado en controller/service/repository
-const { login } = require('./controller/authController');
-app.post('/api/login', login);
-app.post('/login', login);
 
 
 // list programas catalogo

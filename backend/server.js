@@ -51,6 +51,10 @@ app.post('/api/facultades', crearFacultad);
 const { crearGrupo } = require('./controller/grupoController');
 app.post('/api/grupos', crearGrupo);
 
+// add investigador route (refactor controller/service/repository)
+const { crearInvestigador } = require('./controller/investigadorController');
+app.post('/api/investigadores', crearInvestigador);
+
 
 // Crear nuevo grupo
 app.post('/api/grupos', async (req, res) => {
@@ -591,103 +595,11 @@ app.get('/investigadores/:id', async (req, res) => {
   }
 });
 
-// add investigador route (refactor controller/service/repository)
-const { crearInvestigador } = require('./controller/investigadorController');
-app.post('/api/investigadores', crearInvestigador);
 
-// update investigador by id
-app.put('/investigadores/:id', async (req, res) => {
-  const { id } = req.params;
-  const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid, grupos } = req.body;
-  try {
-    const fields = [];
-    const values = [];
-    if (nombre_completo !== undefined) { fields.push('nombre_completo = ?'); values.push(nombre_completo); }
-    if (cedula !== undefined) { fields.push('cedula = ?'); values.push(cedula); }
-    if (link_cvlac !== undefined) { fields.push('link_cvlac = ?'); values.push(link_cvlac); }
-    if (correo !== undefined) { fields.push('correo = ?'); values.push(correo); }
-    if (google_scholar !== undefined) { fields.push('google_scholar = ?'); values.push(google_scholar); }
-    if (orcid !== undefined) { fields.push('orcid = ?'); values.push(orcid); }
 
-    if (fields.length === 0) {
-      return res.status(400).json({ message: 'No fields to update' });
-    }
-
-    values.push(id);
-    const sql = `UPDATE investigadores SET ${fields.join(', ')} WHERE id_investigador = ?`;
-    const [result] = await pool.query(sql, values);
-    if (result.affectedRows === 0) return res.status(404).json({ message: 'Not found' });
-
-    if (facultad !== undefined || programa_academico !== undefined || programas !== undefined) {
-      const facultadNombre = (facultad && String(facultad).trim()) || 'Facultad de Ingeniería';
-      await pool.query('INSERT IGNORE INTO facultad (nombre_facultad) VALUES (?)', [facultadNombre]);
-      const [facRows] = await pool.query('SELECT id_facultad FROM facultad WHERE nombre_facultad = ?', [facultadNombre]);
-      const idFacultad = facRows[0]?.id_facultad;
-
-        // Solo relacionar programas existentes, no agregar nuevos
-        await pool.query('DELETE FROM investigador_programa_facultad WHERE id_investigador = ?', [id]);
-
-      const programasList = Array.isArray(programas)
-        ? programas.filter(Boolean)
-        : [programa_academico].filter(Boolean);
-
-        for (const nombreProgramaRaw of programasList) {
-          const nombrePrograma = String(nombreProgramaRaw).trim();
-          if (!nombrePrograma) continue;
-          // Buscar programa existente
-          const [progRows] = await pool.query(
-            'SELECT id_programa FROM programa WHERE nombre_programa = ? AND id_facultad = ?',
-            [nombrePrograma, idFacultad]
-          );
-          const idPrograma = progRows[0]?.id_programa;
-          if (idPrograma) {
-            await pool.query(
-              'INSERT IGNORE INTO investigador_programa_facultad (id_investigador, id_programa, id_facultad) VALUES (?, ?, ?)',
-              [id, idPrograma, idFacultad]
-            );
-          }
-          // Si no existe, ignorar
-        }
-    }
-
-    // Actualizar grupos de investigación
-    if (Array.isArray(grupos)) {
-      // Eliminar relaciones previas
-      await pool.query('DELETE FROM investigador_grupo WHERE id_investigador = ?', [id]);
-      // Insertar nuevas relaciones
-      for (const id_grupo of grupos) {
-        await pool.query(
-          'INSERT INTO investigador_grupo (id_investigador, id_grupo) VALUES (?, ?)',
-          [id, id_grupo]
-        );
-      }
-    }
-
-    const [rows] = await pool.query(
-      `SELECT
-        i.id_investigador,
-        i.nombre_completo,
-        i.cedula,
-        i.link_cvlac,
-        i.correo,
-        i.google_scholar,
-        i.orcid,
-        GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ' / ') AS facultad,
-        GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ' / ') AS programa_academico
-      FROM investigadores i
-      LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador
-      LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
-      LEFT JOIN programa p ON p.id_programa = ipf.id_programa
-      WHERE i.id_investigador = ?
-      GROUP BY i.id_investigador, i.nombre_completo, i.cedula, i.link_cvlac, i.correo, i.google_scholar, i.orcid`,
-      [id]
-    );
-    res.json(rows[0]);
-  } catch (err) {
-    console.error('Error updating investigador:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+// update investigador by id (refactor controller/service/repository)
+const { editarInvestigador } = require('./controller/investigadorController');
+app.put('/investigadores/:id', editarInvestigador);
 
 // delete investigador by id
 app.delete('/investigadores/:id', async (req, res) => {

@@ -74,31 +74,9 @@ app.post('/api/grupos', async (req, res) => {
   }
 });
 
-// Crear nueva facultad
-app.post('/api/grupos', async (req, res) => {
-  try {
-    console.log('[DEBUG] POST /api/grupos headers:', req.headers);
-    console.log('[DEBUG] POST /api/grupos body:', req.body);
-    const { nombre_grupo, sigla_grupo, url, id_facultad } = req.body;
-    if (!nombre_grupo || !url || !id_facultad) {
-      return res.status(400).json({ message: 'nombre_grupo, url e id_facultad requeridos' });
-    }
-    try {
-      const [result] = await pool.query(
-        'INSERT INTO link_grouplab (nombre_grupo, sigla_grupo, url, id_facultad) VALUES (?, ?, ?, ?)',
-        [nombre_grupo, sigla_grupo || null, url, id_facultad]
-      );
-      console.log('[DEBUG] SQL insert grupo result:', result);
-      res.json({ id: result.insertId, nombre_grupo, sigla_grupo, url, id_facultad });
-    } catch (sqlErr) {
-      console.error('[DEBUG] SQL insert grupo error:', sqlErr);
-      res.status(500).json({ message: 'error al guardar grupo', error: sqlErr.message });
-    }
-  } catch (err) {
-    console.error('Error creando grupo:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+// Crear nuevo grupo (refactor controller/service/repository)
+const { crearGrupo } = require('./controller/grupoController');
+app.post('/api/grupos', crearGrupo);
 
 // Listar todos los grupos de investigación
 app.get('/api/grupos', async (_req, res) => {
@@ -283,21 +261,6 @@ app.use((req, res, next) => {
     // Reset AUTO_INCREMENT to start from 1
     await pool.query(`ALTER TABLE programa AUTO_INCREMENT = 1`);
     
-    // Define the 3 programs (catalog)
-    const programNames = [
-      'Ingeniería de Sistemas',
-      'Ingeniería Industrial',
-      'Especialización en Inteligencia de Negocios y Big Data'
-    ];
-
-    // Insert 3 programs as catalog
-    // for (const programName of programNames) {
-    //   await pool.query(
-    //     `INSERT IGNORE INTO programa (nombre_programa, id_facultad) VALUES (?, ?)`,
-    //     [programName, id_facultad]
-    //   );
-    // }
-    // console.log(`Created ${programNames.length} programs in catalog`);
 
     // Get program IDs
     const [programas] = await pool.query(`SELECT id_programa, nombre_programa FROM programa ORDER BY id_programa`);

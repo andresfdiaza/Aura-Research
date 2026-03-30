@@ -574,34 +574,15 @@ console.log('database view vista_productos_final ensured');
   }
 })();
 
-// register route
-app.post('/register', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: 'email and password required' });
-  }
-
-  try {
-    const hashed = await bcrypt.hash(password, 10);
-    const [result] = await pool.query('INSERT INTO users (email, password) VALUES (?, ?)', [
-      email,
-      hashed,
-    ]);
-    res.status(201).json({ id: result.insertId, email });
-  } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ message: 'Email already exists' });
-    }
-    // log full details to help debugging
-    console.error('Registration error:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+// register route separado en controller/service/repository
+const { register } = require('./controller/registerController');
+app.post('/register', register);
 
 // login route separado en controller/service/repository
 const { login } = require('./controller/authController');
 app.post('/api/login', login);
 app.post('/login', login);
+
 
 // list programas catalogo
 app.get('/api/programas', async (_req, res) => {

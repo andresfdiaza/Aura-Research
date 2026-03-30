@@ -37,34 +37,39 @@ app.get('/api/programas_full', async (_req, res) => {
   }
 });
 
-
+//==========DIRECTORIO INVESTIGADORES==========//
 
 // Crear nuevo programa académico (refactor controller/service/repository)
 const { crearPrograma } = require('./controller/programaController');
 app.post('/api/programas', crearPrograma);
 
-// Crear nueva facultad
-app.post('/api/facultades', async (req, res) => {
+// Crear nueva facultad (refactor controller/service/repository)
+const { crearFacultad } = require('./controller/facultadController');
+app.post('/api/facultades', crearFacultad);
+
+
+// Crear nuevo grupo
+app.post('/api/grupos', async (req, res) => {
   try {
-    const { nombre_facultad } = req.body;
-    if (!nombre_facultad) {
-      return res.status(400).json({ message: 'nombre_facultad es requerido' });
+    console.log('[DEBUG] POST /api/grupos headers:', req.headers);
+    console.log('[DEBUG] POST /api/grupos body:', req.body);
+    const { nombre_grupo, sigla_grupo, url } = req.body;
+    if (!nombre_grupo || !url) {
+      return res.status(400).json({ message: 'nombre_grupo y url requeridos' });
     }
     try {
       const [result] = await pool.query(
-        'INSERT INTO facultad (nombre_facultad) VALUES (?)',
-        [nombre_facultad.trim()]
+        'INSERT INTO link_grouplab (nombre_grupo, sigla_grupo, url) VALUES (?, ?, ?)',
+        [nombre_grupo, sigla_grupo || null, url]
       );
-      res.status(201).json({ id_facultad: result.insertId, nombre_facultad: nombre_facultad.trim() });
-    } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        return res.status(409).json({ message: 'La facultad ya existe' });
-      }
-      console.error('Error creando facultad:', err.message, err.stack);
-      res.status(500).json({ message: 'internal server error', error: err.message });
+      console.log('[DEBUG] SQL insert grupo result:', result);
+      res.json({ id: result.insertId, nombre_grupo, sigla_grupo, url });
+    } catch (sqlErr) {
+      console.error('[DEBUG] SQL insert grupo error:', sqlErr);
+      res.status(500).json({ message: 'error al guardar grupo', error: sqlErr.message });
     }
   } catch (err) {
-    console.error('Error creando facultad:', err.message, err.stack);
+    console.error('Error creando grupo:', err.message, err.stack);
     res.status(500).json({ message: 'internal server error', error: err.message });
   }
 });
@@ -131,31 +136,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Crear nuevo grupo
-app.post('/api/grupos', async (req, res) => {
-  try {
-    console.log('[DEBUG] POST /api/grupos headers:', req.headers);
-    console.log('[DEBUG] POST /api/grupos body:', req.body);
-    const { nombre_grupo, sigla_grupo, url } = req.body;
-    if (!nombre_grupo || !url) {
-      return res.status(400).json({ message: 'nombre_grupo y url requeridos' });
-    }
-    try {
-      const [result] = await pool.query(
-        'INSERT INTO link_grouplab (nombre_grupo, sigla_grupo, url) VALUES (?, ?, ?)',
-        [nombre_grupo, sigla_grupo || null, url]
-      );
-      console.log('[DEBUG] SQL insert grupo result:', result);
-      res.json({ id: result.insertId, nombre_grupo, sigla_grupo, url });
-    } catch (sqlErr) {
-      console.error('[DEBUG] SQL insert grupo error:', sqlErr);
-      res.status(500).json({ message: 'error al guardar grupo', error: sqlErr.message });
-    }
-  } catch (err) {
-    console.error('Error creando grupo:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+
 
 // create users and investigadores tables if not exists
 (async () => {

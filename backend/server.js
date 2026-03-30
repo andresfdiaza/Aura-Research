@@ -598,32 +598,10 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// login route
-const loginHandler = async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: 'email and password required' });
-  }
-
-  try {
-    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (rows.length === 0) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    const user = rows[0];
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    res.json({ id: user.id, email: user.email, role: user.role || 'user' });
-  } catch (err) {
-    console.error('Login error:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-};
-
-app.post('/api/login', loginHandler);
-app.post('/login', loginHandler);
+// login route separado en controller/service/repository
+const { login } = require('./controller/authController');
+app.post('/api/login', login);
+app.post('/login', login);
 
 // list programas catalogo
 app.get('/api/programas', async (_req, res) => {

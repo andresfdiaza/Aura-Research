@@ -1,3 +1,8 @@
+const grupoRepository = require('../repository/grupoRepository');
+
+async function listarGrupos() {
+  return await grupoRepository.listarGrupos();
+}
 const { createGrupo } = require('../repository/grupoRepository');
 
 async function addGrupo(nombre_grupo, sigla_grupo, url, id_facultad) {
@@ -13,4 +18,4 @@ async function addGrupo(nombre_grupo, sigla_grupo, url, id_facultad) {
   }
 }
 
-module.exports = { addGrupo };
+module.exports = { addGrupo, listarGrupos };

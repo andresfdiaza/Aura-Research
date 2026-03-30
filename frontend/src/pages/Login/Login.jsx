@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import unacLogo from './assets/Logo UNAC + FI Azul@2x.png';
-import bgImage from './assets/fondo.jpg';
-import './login.css';
-import { LOGIN_URL } from './config';
+import unacLogo from '../../assets/Logo UNAC + FI Azul@2x.png';
+import bgImage from '../../assets/fondo.jpg';
+import '../../styles/pages/login.css';
+import { LOGIN_URL } from '../../config';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,18 +13,14 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     try {
-      // Compatibility: try configured endpoint first, then legacy /login if needed.
       const fallbackUrl = LOGIN_URL.replace('/api/login', '/login');
       const loginUrls = [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx);
-
       let data = null;
       let lastError = null;
-
       for (const url of loginUrls) {
         try {
           const res = await fetch(url, {
@@ -31,28 +28,22 @@ export default function Login() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
-
           if (res.status === 404) {
             continue;
           }
-
           if (!res.ok) {
             const errBody = await res.json().catch(() => ({}));
             throw new Error(errBody.message || 'Login failed');
           }
-
           data = await res.json();
           break;
         } catch (err) {
           lastError = err;
         }
       }
-
       if (!data) {
         throw lastError || new Error('Login failed');
       }
-
-      // Redirigir según el role del usuario
       const destination = data.role === 'admin' ? '/homeadmin' : '/home';
       navigate(destination, { state: { user: data } });
     } catch (err) {

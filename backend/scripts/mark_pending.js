@@ -1,4 +1,4 @@
-const pool = require('./db');
+const pool = require('../db');
 (async ()=>{
   try{
     await pool.query("UPDATE investigadores SET estado='pendiente' WHERE link_cvlac IS NOT NULL");

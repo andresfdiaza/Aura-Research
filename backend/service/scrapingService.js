@@ -45,10 +45,8 @@ const getPythonEnv = () =>
 // run python scraping logic. the real processing lives in scraping_cvlac_completo.py
 exports.executeScraping = async () => {
   // ensure the scraping table exists and has necessary columns
-  await repo.ensureScrapingTable();
 
   // mark all investigators with a link as pending so they will be processed
-  await repo.markAllPending();
 
   return new Promise((resolve, reject) => {
     // execute the comprehensive script which already handles URL fetching,
@@ -101,8 +99,6 @@ exports.executeScrapingGroupLab = async () => {
 
 // run complete flow in one endpoint: CVLAC + GroupLab + normalization pipeline (single pass)
 exports.executeScrapingComplete = async () => {
-  await repo.ensureScrapingTable();
-  await repo.markAllPending();
 
   const env = getPythonEnv();
   const base = path.resolve(__dirname, '..', '..', 'Scraping');
@@ -114,7 +110,6 @@ exports.executeScrapingComplete = async () => {
   const { pipelineStdout, pipelineStderr } = await runNormalizationPipeline(env);
 
   // Paso extra: poblar la tabla de relaciones investigador_titulo
-  await repo.poblarInvestigadorTitulo();
 
   return {
     stdout:

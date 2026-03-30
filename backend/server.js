@@ -19,8 +19,6 @@ app.post('/login', login);
 const { register } = require('./controller/registerController');
 app.post('/register', register);
 
-
-
 // Nuevo endpoint: lista completa de programas con facultad
 app.get('/api/programas_full', async (_req, res) => {
   try {
@@ -55,6 +53,22 @@ app.post('/api/grupos', crearGrupo);
 const { crearInvestigador } = require('./controller/investigadorController');
 app.post('/api/investigadores', crearInvestigador);
 
+// update investigador by id (refactor controller/service/repository)
+const { editarInvestigador } = require('./controller/investigadorController');
+app.put('/investigadores/:id', editarInvestigador);
+
+// Listar todas las facultades (todos los datos)
+app.get('/api/facultades', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM facultad ORDER BY nombre_facultad`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching facultades:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
 
 // Crear nuevo grupo
 app.post('/api/grupos', async (req, res) => {
@@ -82,32 +96,8 @@ app.post('/api/grupos', async (req, res) => {
   }
 });
 
-
-
-// Listar todos los grupos de investigación
-app.get('/api/grupos', async (_req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT id, nombre_grupo, sigla_grupo, url, id_facultad FROM link_grouplab ORDER BY sigla_grupo`);
-    res.json(rows);
-  } catch (err) {
-    console.error('Error fetching grupos:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
-
-// Listar todas las facultades (todos los datos)
-app.get('/api/facultades', async (_req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT * FROM facultad ORDER BY nombre_facultad`
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error('Error fetching facultades:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+const grupoController = require('./controller/grupoController');
+app.get('/api/grupos', grupoController.listarGrupos);
 
 // Lightweight API request logging for production diagnostics.
 app.use((req, res, next) => {
@@ -119,8 +109,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
-
 
 // create users and investigadores tables if not exists
 (async () => {
@@ -511,9 +499,6 @@ console.log('database view vista_productos_final ensured');
   }
 })();
 
-
-
-
 // list programas catalogo
 app.get('/api/programas', async (_req, res) => {
   try {
@@ -530,76 +515,11 @@ app.get('/api/programas', async (_req, res) => {
 });
 
 // list investigadores (nombre, cedula, facultad, programa) - grouped by investigador
-app.get('/api/investigadores', async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT
-        i.id_investigador,
-        i.nombre_completo,
-        i.cedula,
-        i.link_cvlac,
-        i.correo,
-        i.google_scholar,
-        i.orcid,
-        GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ', ') AS programa_academico,
-        GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ', ') AS facultad,
-        GROUP_CONCAT(DISTINCT ig.id_grupo) AS grupos_ids
-      FROM investigadores i
-      LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador
-      LEFT JOIN programa p ON p.id_programa = ipf.id_programa
-      LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
-      LEFT JOIN investigador_grupo ig ON ig.id_investigador = i.id_investigador
-      GROUP BY i.id_investigador, i.nombre_completo, i.cedula, i.link_cvlac, i.correo, i.google_scholar, i.orcid
-      ORDER BY i.nombre_completo`
-    );
-    // Convertir grupos_ids a array de enteros
-    const result = rows.map(row => ({
-      ...row,
-      grupos_ids: row.grupos_ids ? row.grupos_ids.split(',').map(id => parseInt(id, 10)) : []
-    }));
-    res.json(result);
-  } catch (err) {
-    console.error('Error fetching investigadores:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+const investigadorController = require('./controller/investigadorController');
+app.get('/api/investigadores', investigadorController.listarInvestigadores);
 
 // get single investigador by id
-app.get('/investigadores/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [rows] = await pool.query(
-      `SELECT
-        i.id_investigador,
-        i.nombre_completo AS investigador,
-        p.nombre_programa AS programa,
-        f.nombre_facultad AS facultad,
-        i.cedula,
-        i.link_cvlac,
-        i.correo,
-        i.google_scholar,
-        i.orcid
-      FROM investigadores i
-      LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador
-      LEFT JOIN programa p ON p.id_programa = ipf.id_programa
-      LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
-      WHERE i.id_investigador = ?
-      ORDER BY p.nombre_programa`,
-      [id]
-    );
-    if (rows.length === 0) return res.status(404).json({ message: 'Not found' });
-    res.json(rows);
-  } catch (err) {
-    console.error('Error fetching investigador:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
-
-
-
-// update investigador by id (refactor controller/service/repository)
-const { editarInvestigador } = require('./controller/investigadorController');
-app.put('/investigadores/:id', editarInvestigador);
+app.get('/investigadores/:id', investigadorController.obtenerInvestigadorPorId);
 
 // delete investigador by id
 app.delete('/investigadores/:id', async (req, res) => {
@@ -619,304 +539,19 @@ app.delete('/investigadores/:id', async (req, res) => {
   }
 });
 
-// get resultados with optional filters – selects from the view
-app.get('/api/resultados', async (req, res) => {
-  const { facultad, programa, anio, investigador, tipo, categoria, tipologia, titulo_proyecto } = req.query;
-  const conditions = [];
-  const params = [];
-  if (facultad) {
-    conditions.push('r.facultad = ?');
-    params.push(facultad);
-  }
-  if (programa) {
-    conditions.push('r.programa = ?');
-    params.push(programa);
-  }
-  if (anio) {
-    conditions.push('r.anio = ?');
-    params.push(anio);
-  }
-  if (investigador) {
-    conditions.push('(r.nombre LIKE ? OR r.nombre_completo LIKE ?)');
-    params.push(`%${investigador}%`, `%${investigador}%`);
-  }
-  if (tipo) {
-    conditions.push('r.tipo_proyecto = ?');
-    params.push(tipo);
-  }
-  if (categoria) {
-    conditions.push('r.categoria = ?');
-    params.push(categoria);
-  }
-  if (tipologia) {
-    conditions.push('LOWER(TRIM(r.nodo_padre)) = LOWER(TRIM(?))');
-    params.push(tipologia);
-  }
-  if (titulo_proyecto) {
-    conditions.push('r.titulo_proyecto LIKE ?');
-    params.push(`%${titulo_proyecto}%`);
-  }
 
-  const whereClause = conditions.length ? (' WHERE ' + conditions.join(' AND ')) : '';
-  const sql = `SELECT r.* FROM vista_productos_final r${whereClause}`;
-  try {
-    console.log('[API] /api/resultados SQL built', { sql, params });
-    const [rows] = await pool.query(sql, params);
-    console.log('[API] /api/resultados success', { rowCount: rows.length });
-    res.json(rows);
-  } catch (err) {
-    console.error('[API] /api/resultados error', {
-      message: err.message,
-      code: err.code,
-    });
-    res.status(500).json({ error: err.message });
-  }
-});
+//================GET==============//
+const resultadosController = require('./controller/resultadosController');
+app.get('/api/resultados', resultadosController.getResultados);
 
-// get tabla_normalizada_final with optional filters for CSV download
-app.get('/api/tabla-normalizada-final', async (req, res) => {
-  const { facultad, programa } = req.query;
-  let sql = `SELECT
-      facultad,
-      programa_academico AS programa,
-      categoria,
-      nombre,
-      tipo_proyecto,
-      nodo_padre_grouplab AS nodo_padre,
-      titulo_proyecto,
-      anio,
-      tipo_grouplab,
-      nodo_padre_grouplab,
-      autor_1_grouplab,
-      autor_2_grouplab,
-      autor_3_grouplab,
-      autor_4_grouplab,
-      autor_5_grouplab,
-      issn,
-      isbn,
-      revista,
-      nombre_grupo_grouplab,
-      sigla_grupo_grouplab
-    FROM scraping.tabla_normalizada_final`;
-  const conditions = [];
-  const params = [];
-  if (facultad) {
-    conditions.push('facultad = ?');
-    params.push(facultad);
-  }
-  if (programa) {
-     conditions.push('programa_academico LIKE ?');
-     params.push(`%${programa}%`);
-  }
-  if (conditions.length) {
-    sql += ' WHERE ' + conditions.join(' AND ');
-  }
-  try {
-    const [rows] = await pool.query(sql, params);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+const tablaNormalizadaFinalController = require('./controller/tablaNormalizadaFinalController');
+app.get('/api/tabla-normalizada-final', tablaNormalizadaFinalController.getTablaNormalizadaFinal);
 
-// provide aggregated counts by tipologia using nodos, with optional filters
-app.get('/api/tipologia-cantidades', async (req, res) => {
-  const { facultad, programa, anio, investigador, tipo, categoria, cedula, sexo, grado, tipologia, titulo_proyecto } = req.query;
-  // Use vista_productos_final to stay compatible with the normalized M:N schema.
-  let sql = `
-    SELECT r.nodo_padre AS tipologia, COUNT(*) AS cantidad
-    FROM (
-      SELECT *
-      FROM (
-        SELECT
-          v.nodo_padre,
-          v.tipo_proyecto,
-          v.categoria,
-          v.nombre,
-          v.investigador,
-          v.cedula,
-          v.sexo,
-          v.grado,
-          v.titulo_proyecto,
-          v.anio,
-          v.facultad,
-          v.programa,
-          ROW_NUMBER() OVER (
-            PARTITION BY
-              LOWER(TRIM(REGEXP_REPLACE(COALESCE(v.titulo_proyecto, ''), '[[:space:]]+', ' '))),
-              LOWER(TRIM(COALESCE(v.tipo_proyecto, ''))),
-              COALESCE(CAST(v.anio AS CHAR), ''),
-              LOWER(TRIM(COALESCE(v.nodo_padre, '')))
-            ORDER BY v.id
-          ) AS rn
-        FROM vista_productos_final v
-      ) ranked
-      WHERE ranked.rn = 1
-    ) r
-  `;
-  const conditions = [];
-  const params = [];
-  if (facultad) {
-    conditions.push('r.facultad = ?');
-    params.push(facultad);
-  }
-  if (programa) {
-    conditions.push('r.programa = ?');
-    params.push(programa);
-  }
-  if (anio) {
-    conditions.push('r.anio = ?');
-    params.push(anio);
-  }
-  if (investigador) {
-    conditions.push('(r.nombre LIKE ? OR r.investigador LIKE ?)');
-    params.push(`%${investigador}%`, `%${investigador}%`);
-  }
-  if (cedula) {
-    conditions.push('r.cedula = ?');
-    params.push(cedula);
-  }
-  if (sexo) {
-    conditions.push('r.sexo = ?');
-    params.push(sexo);
-  }
-  if (grado) {
-    conditions.push('r.grado = ?');
-    params.push(grado);
-  }
-  if (tipo) {
-    conditions.push('r.tipo_proyecto = ?');
-    params.push(tipo);
-  }
-  if (categoria) {
-    conditions.push('r.categoria = ?');
-    params.push(categoria);
-  }
-  if (tipologia) {
-    conditions.push('LOWER(TRIM(r.nodo_padre)) = LOWER(TRIM(?))');
-    params.push(tipologia);
-  }
-  if (titulo_proyecto) {
-    conditions.push('r.titulo_proyecto LIKE ?');
-    params.push(`%${titulo_proyecto}%`);
-  }
-  conditions.push('r.nodo_padre IS NOT NULL AND TRIM(r.nodo_padre) <> ""');
-  if (conditions.length) {
-    sql += ' WHERE ' + conditions.join(' AND ');
-  }
-  sql += `
-    GROUP BY r.nodo_padre
-    ORDER BY cantidad DESC
-    LIMIT 5
-  `;
+const tipologiaCantidadesController = require('./controller/tipologiaCantidadesController');
+app.get('/api/tipologia-cantidades', tipologiaCantidadesController.getTipologiaCantidades);
 
-  try {
-    const [rows] = await pool.query(sql, params);
-    res.json(rows);
-  } catch (err) {
-    console.error('Error fetching tipologia counts:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
-
-// provide aggregated counts by nodo hijo (tipo de producto) optionally filtered by tipologia or other query params
-app.get('/api/nodo-hijo-cantidades', async (req, res) => {
-  const { facultad, programa, anio, investigador, tipologia, tipo, categoria, cedula, sexo, grado, titulo_proyecto } = req.query;
-  // Use vista_productos_final to stay compatible with the normalized M:N schema.
-  let sql = `
-    SELECT r.tipo_proyecto AS nodo, COUNT(*) AS cantidad
-    FROM (
-      SELECT *
-      FROM (
-        SELECT
-          v.nodo_padre,
-          v.tipo_proyecto,
-          v.categoria,
-          v.nombre,
-          v.investigador,
-          v.cedula,
-          v.sexo,
-          v.grado,
-          v.titulo_proyecto,
-          v.anio,
-          v.facultad,
-          v.programa,
-          ROW_NUMBER() OVER (
-            PARTITION BY
-              LOWER(TRIM(REGEXP_REPLACE(COALESCE(v.titulo_proyecto, ''), '[[:space:]]+', ' '))),
-              LOWER(TRIM(COALESCE(v.tipo_proyecto, ''))),
-              COALESCE(CAST(v.anio AS CHAR), ''),
-              LOWER(TRIM(COALESCE(v.nodo_padre, '')))
-            ORDER BY v.id
-          ) AS rn
-        FROM vista_productos_final v
-      ) ranked
-      WHERE ranked.rn = 1
-    ) r
-  `;
-  const conditions = [];
-  const params = [];
-  if (facultad) {
-    conditions.push('r.facultad = ?');
-    params.push(facultad);
-  }
-  if (programa) {
-    conditions.push('r.programa = ?');
-    params.push(programa);
-  }
-  if (anio) {
-    conditions.push('r.anio = ?');
-    params.push(anio);
-  }
-  if (investigador) {
-    conditions.push('(r.nombre LIKE ? OR r.investigador LIKE ?)');
-    params.push(`%${investigador}%`, `%${investigador}%`);
-  }
-  if (cedula) {
-    conditions.push('r.cedula = ?');
-    params.push(cedula);
-  }
-  if (sexo) {
-    conditions.push('r.sexo = ?');
-    params.push(sexo);
-  }
-  if (grado) {
-    conditions.push('r.grado = ?');
-    params.push(grado);
-  }
-  if (tipologia) {
-    conditions.push('LOWER(TRIM(r.nodo_padre)) = LOWER(TRIM(?))');
-    params.push(tipologia);
-  }
-  if (tipo) {
-    conditions.push('r.tipo_proyecto = ?');
-    params.push(tipo);
-  }
-  if (categoria) {
-    conditions.push('r.categoria = ?');
-    params.push(categoria);
-  }
-  if (titulo_proyecto) {
-    conditions.push('r.titulo_proyecto LIKE ?');
-    params.push(`%${titulo_proyecto}%`);
-  }
-  conditions.push('r.tipo_proyecto IS NOT NULL AND TRIM(r.tipo_proyecto) <> ""');
-  if (conditions.length) {
-    sql += ' WHERE ' + conditions.join(' AND ');
-  }
-  sql += `
-    GROUP BY r.tipo_proyecto
-    ORDER BY cantidad DESC
-  `;
-
-  try {
-    const [rows] = await pool.query(sql, params);
-    res.json(rows);
-  } catch (err) {
-    console.error('Error fetching nodo hijo counts:', err.message, err.stack);
-    res.status(500).json({ message: 'internal server error', error: err.message });
-  }
-});
+const nodoHijoCantidadesController = require('./controller/nodoHijoCantidadesController');
+app.get('/api/nodo-hijo-cantidades', nodoHijoCantidadesController.getNodoHijoCantidades);
 
 const PORT = process.env.PORT || 4000;
 // scraping endpoints (clean architecture)

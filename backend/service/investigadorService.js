@@ -6,6 +6,9 @@ const {
   insertFacultadIfNotExists,
   insertInvestigadorProgramaFacultad,
   insertInvestigadorGrupo,
+  createInvestigador,
+  listarInvestigadores,
+  obtenerInvestigadorPorId
 } = require('../repository/investigadorRepository');
 
 async function updateInvestigadorService(id, data) {
@@ -50,14 +53,8 @@ async function updateInvestigadorService(id, data) {
   return { id_investigador: id, ...fields };
 }
 
+
 module.exports.updateInvestigadorService = updateInvestigadorService;
-const {
-  createInvestigador,
-  insertFacultadIfNotExists,
-  getProgramaId,
-  insertInvestigadorProgramaFacultad,
-  insertInvestigadorGrupo,
-} = require('../repository/investigadorRepository');
 
 async function addInvestigador(data) {
   const { nombre_completo, cedula, link_cvlac, facultad, programa_academico, programas, correo, google_scholar, orcid, grupos } = data;
@@ -105,4 +102,9 @@ async function addInvestigador(data) {
   }
 }
 
-module.exports = { addInvestigador };
+module.exports = {
+  addInvestigador,
+  updateInvestigadorService,
+  listarInvestigadores: async () => await listarInvestigadores(),
+  obtenerInvestigadorPorId: async (id) => await obtenerInvestigadorPorId(id)
+};

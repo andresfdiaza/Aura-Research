@@ -1,3 +1,59 @@
+// Modularized: listar todos los investigadores
+async function listarInvestigadores() {
+  const pool = require('../db');
+  const [rows] = await pool.query(
+    `SELECT
+      i.id_investigador,
+      i.nombre_completo,
+      i.cedula,
+      i.link_cvlac,
+      i.correo,
+      i.google_scholar,
+      i.orcid,
+      GROUP_CONCAT(DISTINCT p.nombre_programa ORDER BY p.nombre_programa SEPARATOR ', ') AS programa_academico,
+      GROUP_CONCAT(DISTINCT f.nombre_facultad ORDER BY f.nombre_facultad SEPARATOR ', ') AS facultad,
+      GROUP_CONCAT(DISTINCT ig.id_grupo) AS grupos_ids
+    FROM investigadores i
+    LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador
+    LEFT JOIN programa p ON p.id_programa = ipf.id_programa
+    LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
+    LEFT JOIN investigador_grupo ig ON ig.id_investigador = i.id_investigador
+    GROUP BY i.id_investigador, i.nombre_completo, i.cedula, i.link_cvlac, i.correo, i.google_scholar, i.orcid
+    ORDER BY i.nombre_completo`
+  );
+  return rows.map(row => ({
+    ...row,
+    grupos_ids: row.grupos_ids ? row.grupos_ids.split(',').map(id => parseInt(id, 10)) : []
+  }));
+}
+
+// Modularized: obtener investigador por id
+async function obtenerInvestigadorPorId(id) {
+  const pool = require('../db');
+  const [rows] = await pool.query(
+    `SELECT
+      i.id_investigador,
+      i.nombre_completo AS investigador,
+      p.nombre_programa AS programa,
+      f.nombre_facultad AS facultad,
+      i.cedula,
+      i.link_cvlac,
+      i.correo,
+      i.google_scholar,
+      i.orcid
+    FROM investigadores i
+    LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador
+    LEFT JOIN programa p ON p.id_programa = ipf.id_programa
+    LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
+    WHERE i.id_investigador = ?
+    ORDER BY p.nombre_programa`,
+    [id]
+  );
+  return rows.length === 0 ? null : rows;
+}
+
+const pool = require('../db');
+
 async function updateInvestigador(id, fields) {
   // fields: { nombre_completo, cedula, link_cvlac, correo, google_scholar, orcid }
   const setFields = [];
@@ -21,10 +77,32 @@ async function deleteInvestigadorGrupo(id_investigador) {
   await pool.query('DELETE FROM investigador_grupo WHERE id_investigador = ?', [id_investigador]);
 }
 
-module.exports.updateInvestigador = updateInvestigador;
-module.exports.deleteInvestigadorProgramaFacultad = deleteInvestigadorProgramaFacultad;
-module.exports.deleteInvestigadorGrupo = deleteInvestigadorGrupo;
-const pool = require('../db');
+
+// Mock para compatibilidad con scrapingService.js
+async function markAllPending() {
+  // No-op: la lógica real está en los scripts Python
+  return;
+}
+
+async function poblarInvestigadorTitulo() {
+  // No-op: la lógica real está en los scripts Python
+  return;
+}
+
+module.exports = {
+  updateInvestigador,
+  deleteInvestigadorProgramaFacultad,
+  deleteInvestigadorGrupo,
+  createInvestigador,
+  insertFacultadIfNotExists,
+  getProgramaId,
+  insertInvestigadorProgramaFacultad,
+  insertInvestigadorGrupo,
+  listarInvestigadores,
+  obtenerInvestigadorPorId,
+  markAllPending,
+  poblarInvestigadorTitulo
+};
 
 async function createInvestigador({ nombre_completo, cedula, link_cvlac, correo, google_scholar, orcid }) {
   const [result] = await pool.query(
@@ -62,10 +140,4 @@ async function insertInvestigadorGrupo(id_investigador, id_grupo) {
   );
 }
 
-module.exports = {
-  createInvestigador,
-  insertFacultadIfNotExists,
-  getProgramaId,
-  insertInvestigadorProgramaFacultad,
-  insertInvestigadorGrupo,
-};
+

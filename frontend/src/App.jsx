@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Login from './login';
+import Login from './pages/Login/Login';
 import NuevoConocimiento from './NuevoConocimiento';
 import DesarrolloTecnologico from './DesarrolloTecnologico';
 import ApropriacionSocial from './ApropriacionSocial';

@@ -1,3 +1,14 @@
+const grupoService = require('../service/grupoService');
+
+async function listarGrupos(_req, res) {
+  try {
+    const grupos = await grupoService.listarGrupos();
+    res.json(grupos);
+  } catch (err) {
+    console.error('Error fetching grupos:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+}
 const { addGrupo } = require('../service/grupoService');
 
 async function crearGrupo(req, res) {
@@ -15,4 +26,4 @@ async function crearGrupo(req, res) {
   }
 }
 
-module.exports = { crearGrupo };
+module.exports = { listarGrupos, crearGrupo };

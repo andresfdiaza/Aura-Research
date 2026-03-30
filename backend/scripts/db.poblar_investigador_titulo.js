@@ -1,7 +1,9 @@
--- Script para poblar la tabla investigador_titulo a partir de los autores de titulo_grouplab_clean
--- Ejecuta este script en tu base de datos MySQL
 
-INSERT INTO investigador_titulo (id_investigador, id_titulo, orden_autor, created_at)
+const pool = require('../db');
+
+async function poblarInvestigadorTitulo() {
+  try {
+    const sql = `INSERT INTO investigador_titulo (id_investigador, id_titulo, orden_autor, created_at)
 SELECT i.id_investigador, autor.id, autor.orden_autor, NOW()
 FROM (
     SELECT id, autor_1 AS autor, 1 AS orden_autor FROM titulo_grouplab_clean WHERE autor_1 IS NOT NULL AND autor_1 <> ''
@@ -14,4 +16,14 @@ FROM (
     UNION ALL
     SELECT id, autor_5, 5 FROM titulo_grouplab_clean WHERE autor_5 IS NOT NULL AND autor_5 <> ''
 ) AS autor
-JOIN investigadores i ON i.nombre_completo = autor.autor;
+JOIN investigadores i ON i.nombre_completo = autor.autor;`;
+    const [result] = await pool.query(sql);
+    console.log('Relaciones insertadas correctamente:', result.affectedRows);
+  } catch (err) {
+    console.error('Error al poblar investigador_titulo:', err);
+  } finally {
+    await pool.end();
+  }
+}
+
+poblarInvestigadorTitulo();

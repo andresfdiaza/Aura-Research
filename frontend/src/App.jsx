@@ -5,12 +5,12 @@ import DesarrolloTecnologico from './DesarrolloTecnologico';
 import ApropriacionSocial from './ApropriacionSocial';
 import DivulgacionPublica from './DivulgacionPublica';
 import FormacionRecursoHumano from './FormacionRecursoHumano';
-import Home from './Home';
-import HomeAdmin from './HomeAdmin';
+import Home from './pages/Home/Home';
+import HomeAdmin from './pages/HomeAdmin/HomeAdmin';
 import Investigadores from './Investigadores';
 import Datos from './Datos';
 import Analisis from './Analisis';
-import DirectorioInvestigadores from './DirectorioInvestigadores';
+import DirectorioInvestigadores from './pages/DirectorioInvestigadores/DirectorioInvestigadores';
 import PerfilInvestigador from './PerfilInvestigador';
 import './App.css';
 

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import TwoFactorModal from '../../components/TwoFactorModal';
 import { useNavigate } from 'react-router-dom';
 import unacLogo from '../../assets/Logo UNAC + FI Azul@2x.png';
 import bgImage from '../../assets/fondo.jpg';
@@ -12,10 +13,15 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
+  const [show2FA, setShow2FA] = useState(false);
+  const [qr, setQr] = useState(null);
+  const [pendingLogin, setPendingLogin] = useState({ email: '', password: '' });
+  const [twoFAError, setTwoFAError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setTwoFAError(null);
     try {
       const fallbackUrl = LOGIN_URL.replace('/api/login', '/login');
       const loginUrls = [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx);
@@ -28,26 +34,60 @@ export default function Login() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
-          if (res.status === 404) {
-            continue;
-          }
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({}));
-            throw new Error(errBody.message || 'Login failed');
-          }
-          data = await res.json();
+          if (res.status === 404) continue;
+          const resData = await res.json();
+          if (!res.ok) throw new Error(resData.message || 'Login failed');
+          data = resData;
           break;
         } catch (err) {
           lastError = err;
         }
       }
-      if (!data) {
-        throw lastError || new Error('Login failed');
+      if (!data) throw lastError || new Error('Login failed');
+      if (data.require2FA) {
+        setShow2FA(true);
+        setQr(data.qr || null);
+        setPendingLogin({ email, password });
+        return;
       }
       const destination = data.role === 'admin' ? '/homeadmin' : '/home';
       navigate(destination, { state: { user: data } });
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handle2FASubmit = async (token) => {
+    setTwoFAError(null);
+    try {
+      const fallbackUrl = LOGIN_URL.replace('/api/login', '/login');
+      const loginUrls = [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx);
+      let data = null;
+      let lastError = null;
+      for (const url of loginUrls) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...pendingLogin, token }),
+          });
+          if (res.status === 404) continue;
+          const resData = await res.json();
+          if (!res.ok) throw new Error(resData.message || 'Login failed');
+          data = resData;
+          break;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      if (!data) throw lastError || new Error('Login failed');
+      setShow2FA(false);
+      setQr(null);
+      setPendingLogin({ email: '', password: '' });
+      const destination = data.role === 'admin' ? '/homeadmin' : '/home';
+      navigate(destination, { state: { user: data } });
+    } catch (err) {
+      setTwoFAError(err.message);
     }
   };
 
@@ -97,6 +137,14 @@ export default function Login() {
              • Excelencia Académica
         </p>
       </div>
+      {show2FA && (
+        <TwoFactorModal
+          qr={qr}
+          error={twoFAError}
+          onSubmit={handle2FASubmit}
+          onClose={() => { setShow2FA(false); setQr(null); setTwoFAError(null); }}
+        />
+      )}
     </div>
   );
 }

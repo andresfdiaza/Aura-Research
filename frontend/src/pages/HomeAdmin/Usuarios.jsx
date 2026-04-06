@@ -6,6 +6,19 @@ import TwoFASettings from '../../components/TwoFASettings';
 import { API_BASE, SERVER_BASE } from '../../config';
 
 export default function Usuarios() {
+    // Mapeo de roles a colores y nombres legibles
+    const roleStyles = {
+      admin: 'bg-green-100 text-green-700',
+      director: 'bg-purple-100 text-purple-700',
+      coordinador: 'bg-blue-100 text-blue-700',
+      investigador: 'bg-yellow-100 text-yellow-700',
+    };
+    const roleLabels = {
+      admin: 'Administrador',
+      director: 'Director estratégico',
+      coordinador: 'Coordinador',
+      investigador: 'Investigador',
+    };
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
@@ -241,8 +254,10 @@ export default function Usuarios() {
                           onChange={handleAddInput}
                           className="w-full border rounded px-3 py-2 focus:outline-primary"
                         >
-                          <option value="user">Usuario</option>
                           <option value="admin">Administrador</option>
+                          <option value="director">Director estratégico</option>
+                          <option value="coordinador">Coordinador</option>
+                          <option value="investigador">Investigador</option>
                         </select>
                       </div>
                       {addError && <div className="text-red-500 text-sm font-semibold">{addError}</div>}
@@ -286,7 +301,7 @@ export default function Usuarios() {
                     <td className="px-4 py-3 text-center font-mono text-slate-500 align-middle">{u.id}</td>
                     <td className="px-4 py-3 text-center align-middle">{u.email}</td>
                     <td className="px-4 py-3 text-center align-middle">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${u.role === 'admin' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{u.role}</span>
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${roleStyles[u.role] || 'bg-slate-100 text-slate-700'}`}>{roleLabels[u.role] || u.role}</span>
                     </td>
                     <td className="px-4 py-3 text-center align-middle flex flex-col gap-2 items-center justify-center md:flex-row md:gap-1">
                       <button
@@ -342,8 +357,10 @@ export default function Usuarios() {
                                     onChange={handleEditInput}
                                     className="w-full border rounded px-3 py-2 focus:outline-primary"
                                   >
-                                    <option value="user">Usuario</option>
                                     <option value="admin">Administrador</option>
+                                    <option value="director">Director estratégico</option>
+                                    <option value="coordinador">Coordinador</option>
+                                    <option value="investigador">Investigador</option>
                                   </select>
                                 </div>
                                 {editError && <div className="text-red-500 text-sm font-semibold">{editError}</div>}

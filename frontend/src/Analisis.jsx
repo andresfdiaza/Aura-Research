@@ -62,6 +62,13 @@ export default function Analisis() {
             state={{ user }}
           >
             Investigadores
+          </Link>  
+          <Link
+            className="text-primary text-sm font-bold border-b-2 border-accent pb-1"
+            to="/analisis"
+            state={{ user }}
+          >
+            Análisis
           </Link>
           <Link
             className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
@@ -69,13 +76,6 @@ export default function Analisis() {
             state={{ user }}
           >
             Usuarios
-          </Link>
-          <Link
-            className="text-primary text-sm font-bold border-b-2 border-accent pb-1"
-            to="/analisis"
-            state={{ user }}
-          >
-            Análisis
           </Link>
         </nav>
         <div className="flex items-center gap-4">

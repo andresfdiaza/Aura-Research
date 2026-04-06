@@ -258,6 +258,40 @@ cur.execute("SELECT COUNT(*) FROM titulo_grouplab_clean")
 total_clean = cur.fetchone()[0]
 
 print(f"\n🆕 Datos nuevos insertados: {inserted_count}")
+
+# =============================
+# Exportar tabla clean a CSV
+# =============================
+import csv
+
+def exportar_clean_a_csv():
+    conn2 = mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='Amaamama12345.',
+        database='scraping',
+        charset='utf8mb4',
+        use_unicode=True
+    )
+    cur2 = conn2.cursor()
+    cur2.execute("SELECT id_link_grouplab, tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado, autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano FROM titulo_grouplab_clean")
+    rows = cur2.fetchall()
+    fieldnames = [
+        'id_link_grouplab', 'tipo', 'nodo_padre', 'nombre_grupo_investigacion', 'sigla_grupo_investigacion',
+        'titulo', 'titulo_original', 'titulo_normalizado',
+        'autor_1', 'autor_2', 'autor_3', 'autor_4', 'autor_5',
+        'issn', 'isbn', 'revista', 'ano'
+    ]
+    with open('titulos_grouplab_clean.csv', 'w', newline='', encoding='utf-8-sig') as f:
+        writer = csv.writer(f)
+        writer.writerow(fieldnames)
+        for row in rows:
+            writer.writerow(row)
+    cur2.close()
+    conn2.close()
+    print(f"\n📤 Exportado a titulos_grouplab_clean.csv ({len(rows)} registros)")
+
+exportar_clean_a_csv()
 print("\n" + "=" * 80)
 print("RESUMEN")
 print("=" * 80)

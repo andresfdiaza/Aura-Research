@@ -101,6 +101,7 @@ SECCIONES_PROCESADAS = {
     "Obras de transferencia": "obras_transferencia",
     "Obras de extensión": "obras_extension",
     "Obras de responsabilidad social": "obras_responsabilidad_social",
+    "Cursos de corta duración dictados": "cursos_corta_duracion_dictados",
 }
 
 # Mapeo de NodoHijo (scraping) -> NodoPadre (TipologiaProductos)
@@ -108,8 +109,11 @@ SECCIONES_PROCESADAS = {
 NODO_PADRE_MAP = {
     "Artículo": "Nuevo Conocimiento",
     "Libro": "Nuevo Conocimiento",
+    "Obras o productos": "Nuevo Conocimiento",
+    "Monografía de conclusión de curso de perfeccionamiento/especialización": "Formación del Recurso Humano",
     "Capítulos de libro": "Nuevo Conocimiento",
     "Otra producción bibliográfica": "Divulgación Pública de la Ciencia",
+    "Eventos Artísticos": "Divulgación Pública de la Ciencia",
     "Patente": "Nuevo Conocimiento",
     "Software": "Desarrollo Tecnológico e Innovación",
     "Otros productos tecnológicos": "Desarrollo Tecnológico e Innovación",
@@ -149,6 +153,7 @@ NODO_PADRE_MAP = {
     "estrategias comunicacion conocimiento": "Divulgación Pública de la Ciencia",
     "estrategias pedagogicas cti": "Divulgación Pública de la Ciencia",
     "participacion ciudadana cti": "Divulgación Pública de la Ciencia",
+    "Curso de corta duración dictado": "Divulgación Pública de la Ciencia",
 }
 
 NODO_HIJO_ALIAS_MAP = {
@@ -156,6 +161,12 @@ NODO_HIJO_ALIAS_MAP = {
     "articulos": "Artículo",
     "artículos": "Artículo",
     "arituculo": "Artículo",
+    "cursos corta duracion dictados": "Curso de corta duración dictado",
+    "obras productos": "Obras o productos",
+    "eventos artistico": "Eventos Artísticos",
+    "eventos artisticos": "Eventos Artísticos",
+    "eventos artísticos": "Eventos Artísticos",
+    "obras productos": "Obras o productos",
     "libros": "Libro",
     "capitulos libro": "Capítulos de libro",
     "capítulos de libro": "Capítulos de libro",
@@ -262,6 +273,7 @@ def extraer_titulos(html):
         "consultorias_cientifico_tecnologicas": [],
         "ediciones": [],
         "eventos_cientificos": [],
+        "eventos_artistico": [],
         "informes_investigacion": [],
         "redes_conocimiento_especializado": [],
         "contenido_impreso": [],
@@ -276,34 +288,68 @@ def extraer_titulos(html):
     }
     
     for tabla in tablas:
-        # Buscar el encabezado de la sección
-        encabezado_td = tabla.find("td", class_="celdaEncabezado", attrs={"colspan": "2"})
-        
-        if not encabezado_td:
+        encabezados = tabla.find_all("td", class_="celdaEncabezado", attrs={"colspan": "2"})
+        if not encabezados:
             continue
-        
-        nombre_seccion = encabezado_td.get_text(strip=True)
-        
-        # Identificar qué tipo de sección es
-        tipo_seccion = None
-        for nombre_conocido, tipo in SECCIONES_PROCESADAS.items():
-            if nombre_conocido.lower() == nombre_seccion.lower():
-                tipo_seccion = tipo
-                break
-        
-        # Si no es una sección que reconocemos, saltamos
-        if not tipo_seccion:
-            print(f"⊘ Sección no procesada: {nombre_seccion}")
-            continue
-        
-        print(f"✓ Procesando: {nombre_seccion}")
-        
-        # Extraer títulos de esta sección
-        titulos_seccion = extraer_titulos_de_seccion(tabla, tipo_seccion)
-        resultados[tipo_seccion] = titulos_seccion
-        print(f"  → {len(titulos_seccion)} elementos encontrados")
-    
+        for encabezado_td in encabezados:
+            nombre_seccion = encabezado_td.get_text(strip=True)
+            tipo_seccion = None
+            for nombre_conocido, tipo in SECCIONES_PROCESADAS.items():
+                if nombre_conocido.lower() == nombre_seccion.lower():
+                    tipo_seccion = tipo
+                    break
+            # "Obras o productos" usa una estructura HTML especial en GroupLAC.
+            # Debe procesarse antes del flujo genérico para no perder registros.
+            if tipo_seccion == "obras_productos" or nombre_seccion.lower() == "obras o productos":
+                print(f"✓ Procesando subsección especial: {nombre_seccion}")
+                tr_encabezado = encabezado_td.find_parent("tr")
+                filas = obtener_filas_subseccion(tr_encabezado)
+                registros = []
+                for fila in filas:
+                    celda_datos = None
+                    clases_validas = {"celdas0", "celdas1", "celdas_0", "celdas_1"}
+                    candidatas = []
+                    for td in fila.find_all("td"):
+                        clases_td = td.get("class", [])
+                        if any(c in clases_validas for c in clases_td):
+                            candidatas.append(td)
+                    for td in candidatas:
+                        if td.find("strong") is not None:
+                            celda_datos = td
+                            break
+                    if celda_datos is None and candidatas:
+                        celda_datos = candidatas[-1]
+                    if not celda_datos:
+                        continue
+                    datos = extraer_datos_de_celda(celda_datos, "obras_productos")
+                    if datos:
+                        registros.append(datos)
+                resultados["obras_productos"] = resultados.get("obras_productos", []) + registros
+                print(f"  → {len(registros)} elementos encontrados en subsección especial")
+            elif tipo_seccion:
+                print(f"✓ Procesando: {nombre_seccion}")
+                tr_encabezado = encabezado_td.find_parent("tr")
+                filas_subseccion = obtener_filas_subseccion(tr_encabezado)
+                titulos_seccion = extraer_titulos_de_seccion(tabla, tipo_seccion, filas=filas_subseccion)
+                resultados[tipo_seccion] = titulos_seccion
+                print(f"  → {len(titulos_seccion)} elementos encontrados")
+            else:
+                print(f"⊘ Sección no procesada: {nombre_seccion}")
     return resultados
+
+
+def obtener_filas_subseccion(tr_encabezado):
+    """Retorna filas de datos desde un encabezado hasta antes del siguiente encabezado."""
+    filas = []
+    if not tr_encabezado:
+        return filas
+
+    for fila in tr_encabezado.find_next_siblings("tr"):
+        if fila.find("td", class_="celdaEncabezado"):
+            break
+        filas.append(fila)
+
+    return filas
 
 
 def extraer_info_grupo(html_content):
@@ -328,15 +374,15 @@ def extraer_info_grupo(html_content):
     }
 
 
-def extraer_titulos_de_seccion(tabla, tipo_seccion=None):
+def extraer_titulos_de_seccion(tabla, tipo_seccion=None, filas=None):
     """Extrae todos los títulos y autores de una tabla de sección específica."""
     registros = []
-    
-    # Buscar todas las filas con datos (después del encabezado)
-    filas = tabla.find_all("tr")
-    
-    # Saltamos la primera fila (es el encabezado)
-    for fila in filas[1:]:
+
+    # Si no llegan filas delimitadas, usar fallback histórico.
+    if filas is None:
+        filas = tabla.find_all("tr")[1:]
+
+    for fila in filas:
         celda_datos = None
         clases_validas = {"celdas0", "celdas1", "celdas_0", "celdas_1"}
         candidatas = []
@@ -512,6 +558,53 @@ def extraer_datos_de_celda(celda, tipo_seccion=None):
         titulo = titulo.strip('"""')
         titulo = re.sub(r'\s+', ' ', titulo).strip()
 
+        # En Eventos Artísticos/Obras, GroupLAC suele concatenar metadatos en la misma celda.
+        # Nos quedamos solo con el nombre/título (evento o producto).
+        if tipo_seccion in ["eventos_artistico", "eventos_cientificos", "obras_productos"]:
+            if tipo_seccion == "obras_productos":
+                # Prioridad alta: extraer el valor justo después de "Nombre del Producto:".
+                # Debe cortar antes de metadatos como fecha, disciplina, instancias de valoración, etc.
+                patron_producto = (
+                    r'Nombre\s+del\s+Producto:\s*(.+?)'
+                    r'(?=,\s*Fecha\s+de\s+creaci[oó]n:|\s+Fecha\s+de\s+creaci[oó]n:|\n|\r|'
+                    r'Instancias\s+de\s+valoraci[oó]n|Nombre\s+del\s+espacio\s+o\s+evento:|$)'
+                )
+                m_producto = re.search(patron_producto, texto_completo, re.IGNORECASE)
+                if m_producto:
+                    titulo = m_producto.group(1).strip(' ,;:')
+
+            if tipo_seccion == "obras_productos":
+                patrones_titulo = [
+                    r'Nombre\s+producto:\s*(.+?)(?=,\s*(?:Fecha\s+de\s+creaci[oó]n:|Fecha\s+de\s+presentaci[oó]n:|Entidad convocante|$)|$)',
+                    r'Nombre\s+del\s+producto:\s*(.+?)(?=,\s*(?:Fecha\s+de\s+creaci[oó]n:|Fecha\s+de\s+presentaci[oó]n:|Entidad convocante|$)|$)',
+                ]
+            else:
+                # Eventos: no buscar "Nombre del producto" para evitar mezclar secciones.
+                patrones_titulo = [
+                    r'Nombre\s+del\s+espacio\s+o\s+evento:\s*(.+?)(?=,\s*Fecha\s+de\s+presentaci[oó]n:|$)',
+                    r'Nombre\s+del\s+evento:\s*(.+?)(?=,\s*Fecha\s+de\s+(?:inicio|presentaci[oó]n):|$)',
+                ]
+
+            for patron in patrones_titulo:
+                m = re.search(patron, titulo, re.IGNORECASE)
+                if m:
+                    titulo = m.group(1).strip()
+                    break
+
+            # Fallback: si no coincide el patrón anterior, limpiamos prefijos comunes.
+            if tipo_seccion == "obras_productos":
+                titulo = re.sub(r'^Nombre\s+producto:\s*', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r'^Nombre\s+del\s+producto:\s*', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r',?\s*Fecha\s+de\s+creaci[oó]n:.*$', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r',?\s*Disciplina\s+o\s+[aá]mbito\s+de\s+origen:.*$', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r'\s*Instancias\s+de\s+valoraci[oó]n.*$', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r',\s*Entidad convocante.*$', '', titulo, flags=re.IGNORECASE).strip()
+            else:
+                titulo = re.sub(r'^Nombre\s+del\s+espacio\s+o\s+evento:\s*', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r'^Nombre\s+del\s+evento:\s*', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r',\s*Fecha\s+de\s+(?:inicio|finalizaci[oó]n|presentaci[oó]n):.*$', '', titulo, flags=re.IGNORECASE).strip()
+                titulo = re.sub(r',\s*Entidad convocante.*$', '', titulo, flags=re.IGNORECASE).strip()
+
         # Si es muy corto, rechazar (mínimo 5 caracteres para atrapar todos)
         if len(titulo) > 5 and len(titulo) < 500:
             resultado_return = {
@@ -527,7 +620,41 @@ def extraer_datos_de_celda(celda, tipo_seccion=None):
                 resultado_return['tipo_especifico'] = tipo_especifico
             
             return resultado_return
-    
+
+    # Fallback: algunas secciones (p. ej. Eventos Artísticos) no traen <strong>/<b>
+    # y el título viene embebido en el texto de la celda.
+    if tipo_seccion in ["eventos_artistico", "eventos_cientificos", "obras_productos"]:
+        titulo = texto_completo
+
+        if tipo_seccion == "obras_productos":
+            m_producto = re.search(
+                r'Nombre\s+del\s+Producto:\s*(.+?)(?=,\s*Fecha\s+de\s+creaci[oó]n:|\s+Fecha\s+de\s+creaci[oó]n:|\n|\r|Instancias\s+de\s+valoraci[oó]n|Nombre\s+del\s+espacio\s+o\s+evento:|$)',
+                texto_completo,
+                re.IGNORECASE,
+            )
+            if m_producto:
+                titulo = m_producto.group(1)
+        else:
+            m_evento = re.search(
+                r'Nombre\s+del\s+(?:espacio\s+o\s+evento|evento):\s*(.+?)(?=\s*Fecha\s+de\s+(?:inicio|presentaci[oó]n):|$)',
+                texto_completo,
+                re.IGNORECASE,
+            )
+            if m_evento:
+                titulo = m_evento.group(1)
+
+        titulo = re.sub(r'\s+', ' ', titulo).strip(' ,;:"')
+
+        if len(titulo) > 3 and len(titulo) < 500:
+            return {
+                'titulo': titulo,
+                'autores': autores,
+                'issn': issn,
+                'isbn': isbn,
+                'revista': revista,
+                'ano': ano,
+            }
+
     return None
 
 
@@ -661,11 +788,13 @@ def guardar_en_bd(titulos_por_tipo, info_grupo):
             valores_autores = [None] * 5
             for i, autor in enumerate(autores[:5]):
                 valores_autores[i] = autor
-            # Verificar si ya existe el registro por id_link_grouplab, titulo y año
+            # Verificar duplicado por id_link + tipo + titulo + año.
+            # Si no se incluye tipo, "Obras o productos" puede quedar descartado
+            # cuando exista el mismo título/año en otra tipología (p. ej. eventos).
             cursor.execute("""
                 SELECT COUNT(*) FROM titulo_grouplab
-                WHERE id_link_grouplab = %s AND titulo = %s AND ano = %s
-            """, (id_link_grouplab, titulo, ano))
+                WHERE id_link_grouplab = %s AND tipo = %s AND titulo = %s AND ano = %s
+            """, (id_link_grouplab, nodo_hijo, titulo, ano))
             existe = cursor.fetchone()[0]
             if existe == 0:
                 cursor.execute(query, (id_link_grouplab, nodo_hijo, nodo_padre, nombre_grupo, sigla_grupo, titulo, *valores_autores, issn, isbn, revista, ano))

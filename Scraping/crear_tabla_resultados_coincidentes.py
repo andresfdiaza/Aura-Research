@@ -118,8 +118,26 @@ JOIN (
 ) t
 ON (
     /* OBLIGATORIO: tipo igual */
-    LOWER(TRIM(r.tipo_proyecto)) COLLATE utf8mb4_unicode_ci =
-    LOWER(TRIM(t.tipo)) COLLATE utf8mb4_unicode_ci
+    CASE
+        WHEN LOWER(TRIM(r.tipo_proyecto)) COLLATE utf8mb4_unicode_ci IN (
+            'evento artistico',
+            'evento artístico',
+            'eventos artistico',
+            'eventos artisticos',
+            'eventos artísticos'
+        ) THEN 'eventos artisticos'
+        ELSE LOWER(TRIM(r.tipo_proyecto)) COLLATE utf8mb4_unicode_ci
+    END =
+    CASE
+        WHEN LOWER(TRIM(t.tipo)) COLLATE utf8mb4_unicode_ci IN (
+            'evento artistico',
+            'evento artístico',
+            'eventos artistico',
+            'eventos artisticos',
+            'eventos artísticos'
+        ) THEN 'eventos artisticos'
+        ELSE LOWER(TRIM(t.tipo)) COLLATE utf8mb4_unicode_ci
+    END
 
     /* OBLIGATORIO: año igual */
     AND COALESCE(CAST(r.anio AS CHAR), '') =

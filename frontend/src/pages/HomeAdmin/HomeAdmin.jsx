@@ -278,6 +278,34 @@ export default function HomeAdmin() {
               </div>
               <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
             </div>
+            {/* Card for Usuarios */}
+            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+              <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
+                <span className="material-symbols-outlined text-[60px] text-primary">supervisor_account</span>
+              </div>
+              <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
+                <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
+                  <span className="material-symbols-outlined text-3xl">supervisor_account</span>
+                </div>
+                <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
+                  Usuarios
+                </h3>
+                <p className="text-slate-600 mb-8 text-sm">
+                  Gestiona los usuarios del sistema, sus roles y credenciales de acceso.
+                </p>
+                <div className="mt-auto">
+                  <Link
+                    to="/usuarios"
+                    state={{ user }}
+                    className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                  >
+                    Administrar
+                    <span className="material-symbols-outlined">arrow_forward</span>
+                  </Link>
+                </div>
+              </div>
+              <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
+            </div>
           </div>
          
         </div>

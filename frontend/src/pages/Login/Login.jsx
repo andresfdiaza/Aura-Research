@@ -18,6 +18,18 @@ export default function Login() {
   const [pendingLogin, setPendingLogin] = useState({ email: '', password: '' });
   const [twoFAError, setTwoFAError] = useState(null);
 
+  const isAdminRole = (role) => String(role || '').trim().toLowerCase() === 'admin';
+
+  const completeLogin = (data) => {
+    try {
+      localStorage.setItem('aura_user', JSON.stringify(data));
+    } catch (_) {
+      // Ignore storage errors and continue with in-memory navigation state.
+    }
+    const destination = isAdminRole(data?.role) ? '/homeadmin' : '/home';
+    navigate(destination, { state: { user: data } });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -50,8 +62,7 @@ export default function Login() {
         setPendingLogin({ email, password });
         return;
       }
-      const destination = data.role === 'admin' ? '/homeadmin' : '/home';
-      navigate(destination, { state: { user: data } });
+      completeLogin(data);
     } catch (err) {
       setError(err.message);
     }
@@ -84,8 +95,7 @@ export default function Login() {
       setShow2FA(false);
       setQr(null);
       setPendingLogin({ email: '', password: '' });
-      const destination = data.role === 'admin' ? '/homeadmin' : '/home';
-      navigate(destination, { state: { user: data } });
+      completeLogin(data);
     } catch (err) {
       setTwoFAError(err.message);
     }

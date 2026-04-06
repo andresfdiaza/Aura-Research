@@ -16,7 +16,7 @@ import Usuarios from './pages/HomeAdmin/Usuarios';
 import './App.css';
 
 function App() {
-  const basePath = import.meta.env.DEV ? '/' : '/auraresearch/';
+  const basePath = import.meta.env.BASE_URL || '/';
   return (
     <BrowserRouter basename={basePath}>
       <Routes>

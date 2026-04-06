@@ -10,8 +10,16 @@ export default function HomeAdmin() {
   const [show2FASettings, setShow2FASettings] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const user = location.state?.user;
-  const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
+  const userFromState = location.state?.user;
+  let userFromStorage = null;
+  try {
+    userFromStorage = JSON.parse(localStorage.getItem('aura_user') || 'null');
+  } catch (_) {
+    userFromStorage = null;
+  }
+  const user = userFromState || userFromStorage;
+  const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
+  const homePath = isAdmin ? '/homeadmin' : '/home';
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [formData, setFormData] = React.useState({
     nombre_completo: '',
@@ -40,7 +48,7 @@ export default function HomeAdmin() {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   }
-  const userName = capitalizeFirst(user.email.split('@')[0]);
+  const userName = capitalizeFirst((user?.email || 'Usuario').split('@')[0]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -163,7 +171,14 @@ export default function HomeAdmin() {
               <span className="material-symbols-outlined text-primary text-2xl">person</span>
             </div>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                try {
+                  localStorage.removeItem('aura_user');
+                } catch (_) {
+                  // ignore storage errors
+                }
+                navigate('/');
+              }}
               className="flex items-center gap-1 px-3 py-2 ml-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-all text-sm font-semibold"
               title="Cerrar sesión"
             >

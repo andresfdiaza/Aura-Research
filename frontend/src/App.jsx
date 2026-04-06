@@ -12,6 +12,7 @@ import Datos from './Datos';
 import Analisis from './Analisis';
 import DirectorioInvestigadores from './pages/DirectorioInvestigadores/DirectorioInvestigadores';
 import PerfilInvestigador from './PerfilInvestigador';
+import Usuarios from './pages/HomeAdmin/Usuarios';
 import './App.css';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
         <Route path="/FormacionRecursoHumano" element={<FormacionRecursoHumano />} />
         <Route path="/DirectorioInvestigadores" element={<DirectorioInvestigadores />} />
         <Route path="/PerfilInvestigador" element={<PerfilInvestigador />} />
+        <Route path="/usuarios" element={<Usuarios />} />
       </Routes>
     </BrowserRouter>
   );

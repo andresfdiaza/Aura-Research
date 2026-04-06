@@ -5,9 +5,12 @@ const bcrypt = require('bcryptjs');
 const scrapingController = require('./controller/scrapingController');
 require('dotenv').config();
 
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+
 
 //==========LOGIN========//
 // login route separado en controller/service/repository
@@ -18,6 +21,24 @@ app.post('/login', login);
 // register route separado en controller/service/repository
 const { register } = require('./controller/registerController');
 app.post('/register', register);
+
+
+// Endpoint para activar 2FA
+const { activate2FAController } = require('./controller/twofaController');
+app.post('/api/2fa/activate', activate2FAController);
+
+// Endpoint para verificar código 2FA
+const { verify2FAController } = require('./controller/verify2faController');
+app.post('/api/2fa/verify', verify2FAController);
+
+
+
+
+// Endpoints para usuarios
+const { listUsersController, updateUserController, deleteUserController } = require('./controller/userController');
+app.get('/api/users', listUsersController);
+app.put('/api/users/:id', updateUserController);
+app.delete('/api/users/:id', deleteUserController);
 
 // Nuevo endpoint: lista completa de programas con facultad
 app.get('/api/programas_full', async (_req, res) => {

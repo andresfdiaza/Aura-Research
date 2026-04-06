@@ -1,9 +1,11 @@
 const { registerUser } = require('../service/registerService');
 
 async function register(req, res) {
-  const { email, password } = req.body;
+  console.log('--- [REGISTER] HEADERS:', req.headers);
+  console.log('--- [REGISTER] BODY:', req.body);
+  const { email, password, role } = req.body;
   try {
-    const user = await registerUser(email, password);
+    const user = await registerUser(email, password, role);
     res.status(201).json(user);
   } catch (err) {
     const status = err.status || 500;
@@ -12,7 +14,7 @@ async function register(req, res) {
       // log full details to help debugging
       console.error('Registration error:', err.message, err.stack);
     }
-    res.status(status).json({ message });
+    res.status(status).json({ message, error: err.message });
   }
 }
 

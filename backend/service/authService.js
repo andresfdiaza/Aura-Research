@@ -6,7 +6,7 @@ async function validateUser(email, password) {
   if (!user) return null;
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) return null;
-  return { id: user.id, email: user.email, role: user.role || 'user' };
+  return { id: user.id, email: user.email, role: user.role || 'user', twofa_secret: user.twofa_secret };
 }
 
 module.exports = { validateUser };

@@ -46,7 +46,7 @@ export default function Login() {
       if (!data) throw lastError || new Error('Login failed');
       if (data.require2FA) {
         setShow2FA(true);
-        setQr(data.qr || null);
+        setQr(data.activation ? data.qr : null);
         setPendingLogin({ email, password });
         return;
       }

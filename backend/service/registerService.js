@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { createUser } = require('../repository/registerRepository');
 
-async function registerUser(email, password) {
+async function registerUser(email, password, role = 'user') {
   if (!email || !password) {
     const error = new Error('email and password required');
     error.status = 400;
@@ -9,7 +9,7 @@ async function registerUser(email, password) {
   }
   try {
     const hashed = await bcrypt.hash(password, 10);
-    const user = await createUser(email, hashed);
+    const user = await createUser(email, hashed, role);
     return user;
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {

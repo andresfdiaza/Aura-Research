@@ -3,8 +3,11 @@ import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import '../../styles/pages/home.css';
 import { SERVER_BASE, API_BASE } from '../../config';
 import AuraLogo from '../../components/AuraLogo';
+import TwoFASettings from '../../components/TwoFASettings';
+
 
 export default function HomeAdmin() {
+  const [show2FASettings, setShow2FASettings] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
@@ -126,18 +129,30 @@ export default function HomeAdmin() {
             state={{ user }}
            >
               Análisis
-            
           </Link>
-          
+          <Link
+            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+            to="/usuarios"
+            state={{ user }}
+          >
+            Usuarios
+          </Link>
         </nav>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
             <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
               <span className="material-symbols-outlined">notifications</span>
             </button>
-            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+            <button
+              className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
+              onClick={() => setShow2FASettings(true)}
+              title="Configurar 2FA"
+            >
               <span className="material-symbols-outlined">settings</span>
             </button>
+                {show2FASettings && (
+                  <TwoFASettings user={user} onClose={() => setShow2FASettings(false)} />
+                )}
           </div>
           <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
           <div className="flex items-center gap-3">

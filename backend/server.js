@@ -21,6 +21,7 @@ app.post('/login', login);
 // register route separado en controller/service/repository
 const { register } = require('./controller/registerController');
 app.post('/register', register);
+app.post('/api/register', register);
 
 
 // Endpoint para activar 2FA
@@ -77,6 +78,7 @@ app.post('/api/investigadores', crearInvestigador);
 // update investigador by id (refactor controller/service/repository)
 const { editarInvestigador } = require('./controller/investigadorController');
 app.put('/investigadores/:id', editarInvestigador);
+app.put('/api/investigadores/:id', editarInvestigador);
 
 // Listar todas las facultades (todos los datos)
 app.get('/api/facultades', async (_req, res) => {
@@ -541,9 +543,10 @@ app.get('/api/investigadores', investigadorController.listarInvestigadores);
 
 // get single investigador by id
 app.get('/investigadores/:id', investigadorController.obtenerInvestigadorPorId);
+app.get('/api/investigadores/:id', investigadorController.obtenerInvestigadorPorId);
 
 // delete investigador by id
-app.delete('/investigadores/:id', async (req, res) => {
+const deleteInvestigadorHandler = async (req, res) => {
   const { id } = req.params;
   try {
     // Primero borrar relaciones en investigador_grupo
@@ -558,7 +561,10 @@ app.delete('/investigadores/:id', async (req, res) => {
     console.error('Error deleting investigador:', err.message, err.stack);
     res.status(500).json({ message: 'internal server error', error: err.message });
   }
-});
+};
+
+app.delete('/investigadores/:id', deleteInvestigadorHandler);
+app.delete('/api/investigadores/:id', deleteInvestigadorHandler);
 
 
 //================GET==============//

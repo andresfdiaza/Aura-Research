@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { SERVER_BASE, API_BASE } from './config';
+import { API_BASE } from './config';
 import AuraLogo from './components/AuraLogo';
 
 export default function Investigadores() {
@@ -178,7 +178,7 @@ export default function Investigadores() {
         ...editingData,
         grupos: editingGrupos
       };
-      const res = await fetch(`${SERVER_BASE}/investigadores/${editingId}`, {
+      const res = await fetch(`${API_BASE}/investigadores/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -190,7 +190,7 @@ export default function Investigadores() {
       }
 
       // Recargar todos los investigadores para obtener la vista actualizada
-      const resAll = await fetch(`${SERVER_BASE}/api/investigadores`);
+      const resAll = await fetch(`${API_BASE}/investigadores`);
       if (resAll.ok) {
         const allData = await resAll.json();
         setInvestigadores(allData);
@@ -331,7 +331,7 @@ export default function Investigadores() {
                           onClick={async () => {
                             if (!confirm('¿Eliminar este investigador?')) return;
                             try {
-                              const res = await fetch(`${SERVER_BASE}/investigadores/${inv.id_investigador}`, { method: 'DELETE' });
+                              const res = await fetch(`${API_BASE}/investigadores/${inv.id_investigador}`, { method: 'DELETE' });
                               if (!res.ok) throw new Error('Delete failed');
                               setInvestigadores((prev) => prev.filter(p => p.id_investigador !== inv.id_investigador));
                             } catch (err) {

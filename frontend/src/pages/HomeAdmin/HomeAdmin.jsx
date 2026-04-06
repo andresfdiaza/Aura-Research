@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import '../../styles/pages/home.css';
-import { SERVER_BASE, API_BASE } from '../../config';
+import { API_BASE } from '../../config';
 import AuraLogo from '../../components/AuraLogo';
 import TwoFASettings from '../../components/TwoFASettings';
 
@@ -72,7 +72,7 @@ export default function HomeAdmin() {
     setSuccess(false);
 
     try {
-        const res = await fetch(`${SERVER_BASE}/investigadores`, {
+        const res = await fetch(`${API_BASE}/investigadores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

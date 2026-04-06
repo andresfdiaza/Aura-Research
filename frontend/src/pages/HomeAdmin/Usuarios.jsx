@@ -3,7 +3,7 @@ import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import AuraLogo from '../../components/AuraLogo';
 import TwoFASettings from '../../components/TwoFASettings';
-import { API_BASE, SERVER_BASE } from '../../config';
+import { API_BASE } from '../../config';
 
 export default function Usuarios() {
     // Mapeo de roles a colores y nombres legibles
@@ -125,7 +125,7 @@ export default function Usuarios() {
     setAddError(null);
     setAddSuccess(false);
     try {
-      const res = await fetch(`${SERVER_BASE}/register`, {
+      const res = await fetch(`${API_BASE}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(addForm),

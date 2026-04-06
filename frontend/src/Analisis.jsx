@@ -64,6 +64,13 @@ export default function Analisis() {
             Investigadores
           </Link>
           <Link
+            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+            to="/usuarios"
+            state={{ user }}
+          >
+            Usuarios
+          </Link>
+          <Link
             className="text-primary text-sm font-bold border-b-2 border-accent pb-1"
             to="/analisis"
             state={{ user }}

@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import mysql.connector
+from db_connection import get_connection
 from collections import defaultdict
 import re
 import hashlib
 import unicodedata
 
 
-conn = mysql.connector.connect(
-    host='localhost',
-    user='root',
-    password='Amaamama12345.',
-    database='scraping',
-    charset='utf8mb4',
-    use_unicode=True
-)
+conn = get_connection()
 
 # Reiniciar el autoincrement de la tabla clean
 cur_reset = conn.cursor()
@@ -265,14 +258,7 @@ print(f"\n🆕 Datos nuevos insertados: {inserted_count}")
 import csv
 
 def exportar_clean_a_csv():
-    conn2 = mysql.connector.connect(
-        host='localhost',
-        user='root',
-        password='Amaamama12345.',
-        database='scraping',
-        charset='utf8mb4',
-        use_unicode=True
-    )
+    conn2 = get_connection()
     cur2 = conn2.cursor()
     cur2.execute("SELECT id_link_grouplab, tipo, nodo_padre, nombre_grupo_investigacion, sigla_grupo_investigacion, titulo, titulo_original, titulo_normalizado, autor_1, autor_2, autor_3, autor_4, autor_5, issn, isbn, revista, ano FROM titulo_grouplab_clean")
     rows = cur2.fetchall()

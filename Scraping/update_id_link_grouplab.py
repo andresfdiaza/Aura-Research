@@ -1,14 +1,7 @@
-import mysql.connector
+from db_connection import get_connection
 
 def actualizar_id_link_grouplab():
-    conexion = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Amaamama12345.",
-        database="scraping",
-        charset='utf8mb4',
-        use_unicode=True
-    )
+    conexion = get_connection()
     cursor = conexion.cursor()
     try:
         update_sql = '''

@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import os
 import unicodedata
 from conexion_sql import guardar_en_mysql, limpiar_tabla, asegurar_columna_nodo_padre
+from db_connection import get_connection
 
 from conexion_sql import guardar_en_mysql
 
@@ -18,34 +19,9 @@ URL = ""
 # `investigadores` de MySQL; sacamos el campo `link_cvlac`
 # y sólo procesamos aquellos con estado 'pendiente'.
 
-import mysql.connector
-from dotenv import load_dotenv
-import os
-
-
-# cargar variables de entorno (prioriza backend/.env, fallback a ../.env)
-_script_dir = os.path.dirname(__file__)
-_dotenv_candidates = [
-    os.path.join(_script_dir, '..', 'backend', '.env'),
-    os.path.join(_script_dir, '..', '.env'),
-]
-for _dotenv_path in _dotenv_candidates:
-    if os.path.exists(_dotenv_path):
-        load_dotenv(_dotenv_path)
-        break
-
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASS', 'Amaamama12345.'),
-    'database': os.getenv('DB_NAME', 'scraping'),
-    'charset': 'utf8mb4',
-    'use_unicode': True
-}
-
 def obtener_urls_db():
     # return list of (id, url) so we can record which investigador each result
-    conn = mysql.connector.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         "SELECT id_investigador, link_cvlac FROM investigadores WHERE estado='pendiente' AND link_cvlac IS NOT NULL"
@@ -61,7 +37,7 @@ def marcar_todos_pendientes():
     """Marca como 'pendiente' todos los investigadores que tengan un link.
     Esto asegura que cada ejecución procese todas las entradas con URL.
     """
-    conn = mysql.connector.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         "UPDATE investigadores SET estado = 'pendiente' WHERE link_cvlac IS NOT NULL"
@@ -2385,7 +2361,7 @@ if __name__ == "__main__":
             else:
                 print(f"  -> No se extrajeron datos de esta URL")
             try:
-                conn_update = mysql.connector.connect(**DB_CONFIG)
+                conn_update = get_connection()
                 cur_update = conn_update.cursor()
                 cur_update.execute(
                     "UPDATE investigadores SET estado = 'procesado' WHERE id_investigador = %s",

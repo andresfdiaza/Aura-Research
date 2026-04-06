@@ -1,16 +1,7 @@
-import mysql.connector
+from db_connection import get_connection
 
 def limpiar_tabla():
-    conexion = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        #host="ingenieria.unac.edu.co",
-        #user="investiga",
-        password="Amaamama12345.",
-        database="scraping",
-        charset='utf8mb4',
-        use_unicode=True
-    )
+    conexion = get_connection()
     cursor = conexion.cursor()
     # cursor.execute("TRUNCATE TABLE resultados")  # Eliminado para no borrar los datos
     conexion.commit()
@@ -20,14 +11,7 @@ def limpiar_tabla():
 
 def asegurar_columna_nodo_padre():
     """Agrega la columna nodo_padre si no existe en la tabla resultados"""
-    conexion = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Amaamama12345.",
-        database="scraping",
-        charset='utf8mb4',
-        use_unicode=True
-    )
+    conexion = get_connection()
     cursor = conexion.cursor()
     try:
             # Primero, crear la tabla si no existe
@@ -64,16 +48,7 @@ def asegurar_columna_nodo_padre():
         
 def guardar_en_mysql(datos):
 
-    conexion = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        #host="ingenieria.unac.edu.co",
-        #user="investiga",
-        password="Amaamama12345.",
-        database="scraping",
-        charset='utf8mb4',
-        use_unicode=True
-    )
+    conexion = get_connection()
 
     cursor = conexion.cursor()
     nuevos = 0

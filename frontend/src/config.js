@@ -3,10 +3,10 @@
 // while auth/login happens at the server root. Environment variables
 // allow changing both bases in production (VITE_SERVER_BASE overrides).
 
-const DEFAULT_SERVER_BASE = import.meta.env.DEV
-  ? 'http://localhost:4000'
-  : window.location.origin;
+const IS_DEV = import.meta.env.DEV;
+const DEFAULT_SERVER_BASE = IS_DEV ? 'http://localhost:4000' : '';
+const configuredServerBase = import.meta.env.VITE_SERVER_BASE || DEFAULT_SERVER_BASE;
 
-export const SERVER_BASE = import.meta.env.VITE_SERVER_BASE || DEFAULT_SERVER_BASE;
-export const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? `${SERVER_BASE}/api` : `/auraresearch/api`);
-export const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || (import.meta.env.DEV ? `${SERVER_BASE}/api/login` : `/auraresearch/api/login`);
+export const SERVER_BASE = configuredServerBase.replace(/\/$/, '');
+export const API_BASE = import.meta.env.VITE_API_BASE || (SERVER_BASE ? `${SERVER_BASE}/api` : '/api');
+export const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || `${API_BASE}/login`;

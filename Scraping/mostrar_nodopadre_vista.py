@@ -1,12 +1,6 @@
-import mysql.connector
+from db_connection import get_connection
 
-conn = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Amaamama12345.",
-    database="scraping",
-    charset="utf8mb4"
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # Revisa valores nulos en nodo_padre_grouplab

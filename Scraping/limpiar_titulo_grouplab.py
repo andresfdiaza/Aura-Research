@@ -1,13 +1,6 @@
 def limpiar_titulo_grouplab():
-    import mysql.connector
-    conexion = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Amaamama12345.",
-        database="scraping",
-        charset='utf8mb4',
-        use_unicode=True
-    )
+    from db_connection import get_connection
+    conexion = get_connection()
     cursor = conexion.cursor()
     try:
         cursor.execute("DELETE FROM titulo_grouplab;")

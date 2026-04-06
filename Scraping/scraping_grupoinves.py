@@ -6,7 +6,7 @@ import time
 from bs4 import BeautifulSoup
 import os
 import unicodedata
-import mysql.connector
+from db_connection import get_connection
 
 URL = ''
 
@@ -660,14 +660,7 @@ def extraer_datos_de_celda(celda, tipo_seccion=None):
 
 def conectar_bd():
     """Conecta a la base de datos MySQL"""
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Amaamama12345.",
-        database="scraping",
-        charset='utf8mb4',
-        use_unicode=True
-    )
+    return get_connection()
 
 
 

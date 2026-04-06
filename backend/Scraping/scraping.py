@@ -1,23 +1,17 @@
-import mysql.connector
-import os
 import sys
 import time
+from pathlib import Path
 
-# carga variables de entorno si existen
-from dotenv import load_dotenv
-# cargar variables de entorno del directorio backend (el script se ejecuta desde allí)
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+# Reutiliza la conexión central del proyecto para evitar duplicación de credenciales.
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASS', ''),
-    'database': os.getenv('DB_NAME', 'scraping'),
-}
+from Scraping.db_connection import get_connection
 
 
 def conectar():
-    return mysql.connector.connect(**DB_CONFIG)
+    return get_connection()
 
 
 def ensure_table():
@@ -99,9 +93,9 @@ def main():
             print(f"Error scraping {inv['id_investigador']}: {e}")
             continue
         try:
-            marcar_completado(inv['id'])
+            marcar_completado(inv['id_investigador'])
         except Exception as e:
-            print(f"Error actualizando estado {inv['id']}: {e}")
+            print(f"Error actualizando estado {inv['id_investigador']}: {e}")
 
     print("Proceso de scraping finalizado")
 

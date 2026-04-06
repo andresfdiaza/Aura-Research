@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import mysql.connector
 import unicodedata
 import sys
 from difflib import SequenceMatcher
+from db_connection import get_connection
 
 
 # =========================================================
 # CONFIGURACIÓN DE CONEXIÓN
 # =========================================================
-conn = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Amaamama12345.",
-    database="scraping",
-    charset="utf8mb4"
-)
+conn = get_connection()
 
 cur = conn.cursor()
 

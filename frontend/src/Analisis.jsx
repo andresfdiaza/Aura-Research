@@ -70,13 +70,15 @@ export default function Analisis() {
           >
             Análisis
           </Link>
-          <Link
-            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
-            to="/usuarios"
-            state={{ user }}
-          >
-            Usuarios
-          </Link>
+          {user?.role === 'admin' && (
+            <Link
+              className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+              to="/usuarios"
+              state={{ user }}
+            >
+              Usuarios
+            </Link>
+          )}
         </nav>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">

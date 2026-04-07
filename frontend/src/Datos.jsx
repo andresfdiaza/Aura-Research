@@ -188,9 +188,19 @@ export default function Datos() {
       if (r.titulo_proyecto && !opts.titulo_proyecto.includes(r.titulo_proyecto)) opts.titulo_proyecto.push(r.titulo_proyecto);
     });
 
-    // Programas: todos los de la tabla programa, filtrados por facultad si aplica
+    // Programas: filtrar por grupo si está seleccionado, si no por facultad, si no todos
     let programasFiltrados = programasCatalogo;
-    if (filters.facultad) {
+    if (filters.grupo) {
+      // Buscar los programas asociados al grupo seleccionado en los resultados filtrados
+      const programasSet = new Set();
+      resultados.forEach(r => {
+        const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
+        if (grupo === filters.grupo && r.programa) {
+          r.programa.split(' / ').forEach(p => programasSet.add(p.trim()));
+        }
+      });
+      programasFiltrados = programasCatalogo.filter(p => programasSet.has(p.nombre_programa));
+    } else if (filters.facultad) {
       // Buscar id_facultad de la facultad seleccionada
       const fac = facultadesCatalogo.find(f => f.nombre_facultad === filters.facultad);
       const idFac = fac?.id_facultad;

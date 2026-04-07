@@ -504,13 +504,15 @@ export default function DirectorioInvestigadores() {
           >
             Análisis
           </Link>
-          <Link
-            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
-            to="/usuarios"
-            state={{ user }}
+          {user?.role === 'admin' && (
+            <Link
+              className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+              to="/usuarios"
+              state={{ user }}
             >
-            Usuarios
+              Usuarios
             </Link>
+          )}
         </nav>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
@@ -868,7 +870,13 @@ export default function DirectorioInvestigadores() {
                   <select
                     className="w-full border rounded px-2 py-1 text-sm"
                     value={filters.facultad}
-                    onChange={e => setFilters(prev => ({ ...prev, facultad: e.target.value, programa: '' }))}
+                    onChange={e => {
+                      setFilters(prev => ({
+                        ...prev,
+                        facultad: e.target.value,
+                        programa: prev.programa // no limpiar programa
+                      }));
+                    }}
                   >
                     <option value="">Todos</option>
                     {filterOptions.facultad?.map(opt => (

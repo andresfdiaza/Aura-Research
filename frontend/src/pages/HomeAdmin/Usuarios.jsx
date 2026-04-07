@@ -22,6 +22,10 @@ export default function Usuarios() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
+  // Solo admin puede ver esta sección
+  if (!user || user.role !== 'admin') {
+    return <div className="flex flex-col items-center justify-center min-h-screen"><h2 className="text-2xl font-bold text-red-600">Acceso restringido: solo administradores</h2></div>;
+  }
   const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
 
   const [show2FASettings, setShow2FASettings] = React.useState(false);

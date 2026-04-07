@@ -35,8 +35,7 @@ export default function Login() {
     setError(null);
     setTwoFAError(null);
     try {
-      const fallbackUrl = LOGIN_URL.replace('/api/login', '/login');
-      const loginUrls = [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx);
+      const loginUrls = [LOGIN_URL].filter(Boolean);
       let data = null;
       let lastError = null;
       for (const url of loginUrls) {
@@ -71,8 +70,7 @@ export default function Login() {
   const handle2FASubmit = async (token) => {
     setTwoFAError(null);
     try {
-      const fallbackUrl = LOGIN_URL.replace('/api/login', '/login');
-      const loginUrls = [LOGIN_URL, fallbackUrl].filter((url, idx, arr) => url && arr.indexOf(url) === idx);
+      const loginUrls = [LOGIN_URL].filter(Boolean);
       let data = null;
       let lastError = null;
       for (const url of loginUrls) {

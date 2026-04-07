@@ -168,6 +168,7 @@ NODO_HIJO_ALIAS_MAP = {
     "eventos artísticos": "Eventos Artísticos",
     "obras productos": "Obras o productos",
     "libros": "Libro",
+    "conceptos tecnicos": "Concepto técnico",
     "capitulos libro": "Capítulos de libro",
     "capítulos de libro": "Capítulos de libro",
     "documentos trabajo": "Documento de trabajo",

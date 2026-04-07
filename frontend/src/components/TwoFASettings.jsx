@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import TwoFactorModal from './TwoFactorModal';
-import { SERVER_BASE } from '../config';
+import { API_BASE } from '../config';
 
 export default function TwoFASettings({ user, onClose }) {
   const [qr, setQr] = useState(null);
@@ -14,7 +14,7 @@ export default function TwoFASettings({ user, onClose }) {
     setError(null);
     setSuccess(false);
     try {
-      const res = await fetch(`${SERVER_BASE}/api/2fa/activate`, {
+      const res = await fetch(`${API_BASE}/2fa/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email })
@@ -48,7 +48,7 @@ export default function TwoFASettings({ user, onClose }) {
             onSubmit={async (token) => {
               setError(null);
               try {
-                const res = await fetch(`${SERVER_BASE}/api/2fa/verify`, {
+                const res = await fetch(`${API_BASE}/2fa/verify`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ email: user.email, token })

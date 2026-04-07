@@ -29,6 +29,11 @@ export default function Usuarios() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [showReset2FAModal, setShowReset2FAModal] = React.useState(false);
+  const [reset2FAEmail, setReset2FAEmail] = React.useState('');
+  const [reset2FALoading, setReset2FALoading] = React.useState(false);
+  const [reset2FAError, setReset2FAError] = React.useState(null);
+  const [reset2FASuccess, setReset2FASuccess] = React.useState(false);
   const [addForm, setAddForm] = React.useState({ email: '', password: '', role: 'investigador' });
   const [addLoading, setAddLoading] = React.useState(false);
   const [addError, setAddError] = React.useState(null);
@@ -204,14 +209,92 @@ export default function Usuarios() {
       <main className="flex-1 p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <h1 className="text-2xl font-bold text-primary">Gestión de Usuarios</h1>
-          <button
-            className="px-5 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
-            onClick={() => setShowAddModal(true)}
-          >
-            <span className="material-symbols-outlined text-base">person_add</span>
-            Nuevo Usuario
-          </button>
-              {showAddModal && (
+          <div className="flex gap-2">
+            <button
+              className="px-5 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
+              onClick={() => setShowAddModal(true)}
+            >
+              <span className="material-symbols-outlined text-base">person_add</span>
+              Nuevo Usuario
+            </button>
+            <button
+              className="px-5 py-2 bg-accent text-white rounded-lg font-semibold shadow-md hover:bg-accent/90 transition-all flex items-center gap-2"
+              onClick={() => setShowReset2FAModal(true)}
+            >
+              <span className="material-symbols-outlined text-base">restart_alt</span>
+              Reiniciar 2FA
+            </button>
+          </div>
+          {showAddModal && (
+                        {showReset2FAModal && (
+                          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 relative">
+                              <button
+                                className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
+                                onClick={() => {
+                                  setShowReset2FAModal(false);
+                                  setReset2FAEmail('');
+                                  setReset2FAError(null);
+                                  setReset2FASuccess(false);
+                                }}
+                                title="Cerrar"
+                              >
+                                <span className="material-symbols-outlined">close</span>
+                              </button>
+                              <h2 className="text-xl font-bold mb-4 text-primary">Reiniciar 2FA de usuario</h2>
+                              <form
+                                onSubmit={async (e) => {
+                                  e.preventDefault();
+                                  setReset2FALoading(true);
+                                  setReset2FAError(null);
+                                  setReset2FASuccess(false);
+                                  try {
+                                    const res = await fetch(`${API_BASE}/2fa/reset`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ email: reset2FAEmail })
+                                    });
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.message || 'Error al reiniciar 2FA');
+                                    setReset2FASuccess(true);
+                                    setTimeout(() => {
+                                      setShowReset2FAModal(false);
+                                      setReset2FAEmail('');
+                                      setReset2FASuccess(false);
+                                      fetchUsuarios();
+                                    }, 1200);
+                                  } catch (err) {
+                                    setReset2FAError(err.message);
+                                  } finally {
+                                    setReset2FALoading(false);
+                                  }
+                                }}
+                                className="flex flex-col gap-4"
+                              >
+                                <div>
+                                  <label className="block text-sm font-semibold mb-1">Correo del usuario</label>
+                                  <input
+                                    type="email"
+                                    name="reset2fa_email"
+                                    value={reset2FAEmail}
+                                    onChange={e => setReset2FAEmail(e.target.value)}
+                                    className="w-full border rounded px-3 py-2 focus:outline-primary"
+                                    required
+                                  />
+                                </div>
+                                {reset2FAError && <div className="text-red-500 text-sm font-semibold">{reset2FAError}</div>}
+                                {reset2FASuccess && <div className="text-green-600 text-sm font-semibold">2FA reiniciado correctamente</div>}
+                                <button
+                                  type="submit"
+                                  className="w-full py-2 bg-accent text-white rounded font-bold hover:bg-accent/90 transition-all disabled:opacity-60"
+                                  disabled={reset2FALoading}
+                                >
+                                  {reset2FALoading ? 'Reiniciando...' : 'Reiniciar 2FA'}
+                                </button>
+                              </form>
+                            </div>
+                          </div>
+                        )}
                 <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                   <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 relative">
                     <button

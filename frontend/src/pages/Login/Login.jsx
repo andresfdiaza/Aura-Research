@@ -21,11 +21,6 @@ export default function Login() {
   const isAdminRole = (role) => String(role || '').trim().toLowerCase() === 'admin';
 
   const completeLogin = (data) => {
-    try {
-      localStorage.setItem('aura_user', JSON.stringify(data));
-    } catch (_) {
-      // Ignore storage errors and continue with in-memory navigation state.
-    }
     const destination = isAdminRole(data?.role) ? '/homeadmin' : '/home';
     navigate(destination, { state: { user: data } });
   };

@@ -8,14 +8,7 @@ import TwoFASettings from '../../components/TwoFASettings';
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
-  const userFromState = location.state?.user;
-  let userFromStorage = null;
-  try {
-    userFromStorage = JSON.parse(localStorage.getItem('aura_user') || 'null');
-  } catch (_) {
-    userFromStorage = null;
-  }
-  const user = userFromState || userFromStorage;
+  const user = location.state?.user;
   const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
   const homePath = isAdmin ? '/homeadmin' : '/home';
 

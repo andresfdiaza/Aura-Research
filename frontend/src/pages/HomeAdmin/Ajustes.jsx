@@ -1,17 +1,16 @@
 import React from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
 import AuraLogo from '../../components/AuraLogo';
 import TwoFASettings from '../../components/TwoFASettings';
 
 export default function Ajustes() {
   const location = useLocation();
   const navigate = useNavigate();
-  const user = location.state?.user || JSON.parse(localStorage.getItem('aura_user') || 'null');
+  const user = location.state?.user;
   const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
 
   if (!user) {
-    navigate('/');
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   const [show2FASettings, setShow2FASettings] = React.useState(false);

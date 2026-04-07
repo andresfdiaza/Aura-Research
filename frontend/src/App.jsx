@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login/Login';
 import NuevoConocimiento from './NuevoConocimiento';
 import DesarrolloTecnologico from './DesarrolloTecnologico';
@@ -16,16 +16,9 @@ import Usuarios from './pages/HomeAdmin/Usuarios';
 import Ajustes from './pages/HomeAdmin/Ajustes';
 import './App.css';
 
-function getStoredUser() {
-  try {
-    return JSON.parse(localStorage.getItem('aura_user') || 'null');
-  } catch (_) {
-    return null;
-  }
-}
-
 function ProtectedRoute({ element }) {
-  const user = getStoredUser();
+  const location = useLocation();
+  const user = location.state?.user;
   if (!user) {
     return <Navigate to="/" replace />;
   }

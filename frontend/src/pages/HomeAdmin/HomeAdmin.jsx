@@ -10,14 +10,7 @@ export default function HomeAdmin() {
   const [show2FASettings, setShow2FASettings] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const userFromState = location.state?.user;
-  let userFromStorage = null;
-  try {
-    userFromStorage = JSON.parse(localStorage.getItem('aura_user') || 'null');
-  } catch (_) {
-    userFromStorage = null;
-  }
-  const user = userFromState || userFromStorage;
+  const user = location.state?.user;
   const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
   const homePath = isAdmin ? '/homeadmin' : '/home';
   const [showAddModal, setShowAddModal] = React.useState(false);

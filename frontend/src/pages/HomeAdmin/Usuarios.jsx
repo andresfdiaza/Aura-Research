@@ -14,68 +14,138 @@ export default function Usuarios() {
       investigador: 'bg-yellow-100 text-yellow-700',
     };
     const roleLabels = {
-      admin: 'Administrador',
-      director: 'Director estratégico',
-      coordinador: 'Coordinador',
-      investigador: 'Investigador',
-    };
-  const location = useLocation();
-  const navigate = useNavigate();
-  const user = location.state?.user;
-  const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
-  const [show2FASettings, setShow2FASettings] = React.useState(false);
+          {showAddModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 relative">
+                <button
+                  className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
+                  onClick={() => setShowAddModal(false)}
+                  title="Cerrar"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+                <h2 className="text-xl font-bold mb-4 text-primary">Crear nuevo usuario</h2>
+                <form onSubmit={handleAddUser} className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={addForm.email}
+                      onChange={handleAddInput}
+                      className="w-full border rounded px-3 py-2 focus:outline-primary"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Contraseña</label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={addForm.password}
+                      onChange={handleAddInput}
+                      className="w-full border rounded px-3 py-2 focus:outline-primary"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Rol</label>
+                    <select
+                      name="role"
+                      value={addForm.role}
+                      onChange={handleAddInput}
+                      className="w-full border rounded px-3 py-2 focus:outline-primary"
+                    >
+                      <option value="admin">Administrador</option>
+                      <option value="director">Director estratégico</option>
+                      <option value="coordinador">Coordinador</option>
+                      <option value="investigador">Investigador</option>
+                    </select>
+                  </div>
+                  {addError && <div className="text-red-500 text-sm font-semibold">{addError}</div>}
+                  {addSuccess && <div className="text-green-600 text-sm font-semibold">Usuario creado correctamente</div>}
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-primary text-white rounded font-bold hover:bg-primary/90 transition-all disabled:opacity-60"
+                    disabled={addLoading}
+                  >
+                    {addLoading ? 'Creando...' : 'Crear usuario'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
 
-  const [usuarios, setUsuarios] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
-  const [showAddModal, setShowAddModal] = React.useState(false);
-  const [showReset2FAModal, setShowReset2FAModal] = React.useState(false);
-  const [reset2FAEmail, setReset2FAEmail] = React.useState('');
-  const [reset2FALoading, setReset2FALoading] = React.useState(false);
-  const [reset2FAError, setReset2FAError] = React.useState(null);
-  const [reset2FASuccess, setReset2FASuccess] = React.useState(false);
-  const [addForm, setAddForm] = React.useState({ email: '', password: '', role: 'investigador' });
-  const [addLoading, setAddLoading] = React.useState(false);
-  const [addError, setAddError] = React.useState(null);
-  const [addSuccess, setAddSuccess] = React.useState(false);
-  const [showEditModal, setShowEditModal] = React.useState(false);
-  const [editForm, setEditForm] = React.useState({ id: '', email: '', role: 'user' });
-  const [editLoading, setEditLoading] = React.useState(false);
-  const [editError, setEditError] = React.useState(null);
-  const [editSuccess, setEditSuccess] = React.useState(false);
-  const [deleteLoadingId, setDeleteLoadingId] = React.useState(null);
-  const handleEditClick = (user) => {
-    setEditForm({ id: user.id, email: user.email, role: user.role });
-    setEditError(null);
-    setEditSuccess(false);
-    setShowEditModal(true);
-  };
-
-  const handleDeleteUser = async (id, email) => {
-    if (!window.confirm(`¿Seguro que deseas eliminar el usuario "${email}"? Esta acción no se puede deshacer.`)) return;
-    setDeleteLoadingId(id);
-    try {
-      const res = await fetch(`${API_BASE}/users/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al eliminar usuario');
-      fetchUsuarios();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setDeleteLoadingId(null);
-    }
-  };
-
-  const handleEditInput = (e) => {
-    const { name, value } = e.target;
-    setEditForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleEditUser = async (e) => {
-    e.preventDefault();
-    setEditLoading(true);
-    setEditError(null);
-    setEditSuccess(false);
+        {showReset2FAModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 relative">
+              <button
+                className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
+                onClick={() => {
+                  setShowReset2FAModal(false);
+                  setReset2FAEmail('');
+                  setReset2FAError(null);
+                  setReset2FASuccess(false);
+                }}
+                title="Cerrar"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+              <h2 className="text-xl font-bold mb-4 text-primary">Reiniciar 2FA de usuario</h2>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setReset2FALoading(true);
+                  setReset2FAError(null);
+                  setReset2FASuccess(false);
+                  try {
+                    const res = await fetch(`${API_BASE}/2fa/reset`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: reset2FAEmail })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Error al reiniciar 2FA');
+                    setReset2FASuccess(true);
+                    setTimeout(() => {
+                      setShowReset2FAModal(false);
+                      setReset2FAEmail('');
+                      setReset2FASuccess(false);
+                      fetchUsuarios();
+                    }, 1200);
+                  } catch (err) {
+                    setReset2FAError(err.message);
+                  } finally {
+                    setReset2FALoading(false);
+                  }
+                }}
+                className="flex flex-col gap-4"
+              >
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Correo del usuario</label>
+                  <input
+                    type="email"
+                    name="reset2fa_email"
+                    value={reset2FAEmail}
+                    onChange={e => setReset2FAEmail(e.target.value)}
+                    className="w-full border rounded px-3 py-2 focus:outline-primary"
+                    required
+                  />
+                </div>
+                {reset2FAError && <div className="text-red-500 text-sm font-semibold">{reset2FAError}</div>}
+                {reset2FASuccess && <div className="text-green-600 text-sm font-semibold">2FA reiniciado correctamente</div>}
+                <button
+                  type="submit"
+                  className="w-full py-2 bg-accent text-white rounded font-bold hover:bg-accent/90 transition-all disabled:opacity-60"
+                  disabled={reset2FALoading}
+                >
+                  {reset2FALoading ? 'Reiniciando...' : 'Reiniciar 2FA'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
     try {
       const res = await fetch(`${API_BASE}/users/${editForm.id}`, {
         method: 'PUT',

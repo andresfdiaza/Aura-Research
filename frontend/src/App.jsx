@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login/Login';
 import NuevoConocimiento from './NuevoConocimiento';
 import DesarrolloTecnologico from './DesarrolloTecnologico';
@@ -33,9 +33,8 @@ function ProtectedRoute({ element }) {
 }
 
 function App() {
-  const basePath = import.meta.env.BASE_URL || '/';
   return (
-    <BrowserRouter basename={basePath}>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/home" element={<ProtectedRoute element={<Home />} />} />
@@ -54,7 +53,7 @@ function App() {
         <Route path="/ajustes" element={<ProtectedRoute element={<Ajustes />} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

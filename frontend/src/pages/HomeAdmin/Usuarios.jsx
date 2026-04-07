@@ -284,6 +284,7 @@ export default function Usuarios() {
               <colgroup>
                 <col style={{ width: '80px' }} />
                 <col style={{ width: '260px' }} />
+                <col style={{ width: '80px' }} />
                 <col style={{ width: '120px' }} />
                 <col style={{ width: '140px' }} />
               </colgroup>
@@ -291,6 +292,7 @@ export default function Usuarios() {
                 <tr>
                   <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider align-middle">ID</th>
                   <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider align-middle">Email</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider align-middle">2FA</th>
                   <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider align-middle">Rol</th>
                   <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider align-middle">Acciones</th>
                 </tr>
@@ -300,6 +302,17 @@ export default function Usuarios() {
                   <tr key={u.id} className="hover:bg-slate-50 transition">
                     <td className="px-4 py-3 text-center font-mono text-slate-500 align-middle">{u.id}</td>
                     <td className="px-4 py-3 text-center align-middle">{u.email}</td>
+                    <td className="px-4 py-3 text-center align-middle">
+                      {u.twofa_enabled ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-bold">
+                          <span className="material-symbols-outlined text-base align-middle">verified_user</span> Activo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 text-slate-500 text-xs font-bold">
+                          <span className="material-symbols-outlined text-base align-middle">block</span> Inactivo
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-center align-middle">
                       <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${roleStyles[u.role] || 'bg-slate-100 text-slate-700'}`}>{roleLabels[u.role] || u.role}</span>
                     </td>

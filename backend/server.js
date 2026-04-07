@@ -1,3 +1,18 @@
+// Endpoint para reiniciar 2FA por email
+app.post('/api/2fa/reset', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'email required' });
+  try {
+    const [result] = await pool.query('UPDATE users SET twofa_secret = NULL WHERE email = ?', [email]);
+    if (result.affectedRows > 0) {
+      res.json({ message: `2FA reiniciado para ${email}` });
+    } else {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');

@@ -1,4 +1,5 @@
 // Script para reiniciar el 2FA de un usuario (pone twofa_secret en NULL)
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const pool = require('../db');
 
 async function reset2FA(email) {

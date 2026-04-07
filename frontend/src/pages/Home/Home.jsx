@@ -3,6 +3,7 @@ import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import '../../styles/pages/home.css';
 import AuraLogo from '../../components/AuraLogo';
 import { API_BASE } from '../../config';
+import TwoFASettings from '../../components/TwoFASettings';
 
 export default function Home() {
   const location = useLocation();
@@ -17,6 +18,8 @@ export default function Home() {
   const user = userFromState || userFromStorage;
   const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
   const homePath = isAdmin ? '/homeadmin' : '/home';
+
+  const [show2FA, setShow2FA] = React.useState(false);
 
   if (!user) {
     // if accessed directly without login redirect to login
@@ -102,116 +105,91 @@ export default function Home() {
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
         <main className="flex-1 flex flex-col items-center pt-2 px-6 md:px-16">
-        <div className="max-w-6xl w-full flex flex-col gap-12">
-          <div className="flex justify-end mb-4">
-            <button
-              className="px-6 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
-              onClick={async () => {
-                try {
-                  const res = await fetch(`${API_BASE}/resultados`);
-                  if (!res.ok) throw new Error('Error al obtener datos');
-                  const data = await res.json();
-                  if (!Array.isArray(data) || data.length === 0) {
-                    alert('No hay datos para descargar');
-                    return;
-                  }
-                  // Convertir a CSV
-                  const keys = Object.keys(data[0]);
-                  const csvRows = [keys.join(','), ...data.map(row => keys.map(k => '"' + String(row[k]).replace(/"/g, '""') + '"').join(','))];
-                  const csvContent = csvRows.join('\n');
-                  const blob = new Blob([csvContent], { type: 'text/csv' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'resultados.csv';
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                } catch (err) {
-                  alert('Error al descargar CSV: ' + err.message);
-                }
-              }}
-            >
-              <span className="material-symbols-outlined text-base">download</span>
-              Descargar CSV de resultados
-            </button>
-          </div>
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="flex flex-col gap-3">
-              <h1 className="text-primary text-4xl md:text-5xl font-black leading-tight tracking-tight">
-                <br className="hidden md:block" />¡{userName} Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span> !
-              </h1>
-              <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
-                Gestión y análisis de productos de investigación de la Corporación Universitaria Adventista. Visualiza el
-                impacto de la producción científica en tiempo real.
-              </p>
-            </div>
-
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
-              <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
-                <span className="material-symbols-outlined text-[60px] text-primary">group_add</span>
-              </div>
-              <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
-                <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
-                  <span className="material-symbols-outlined text-3xl">person_add</span>
-                </div>
-                <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
-                  Directorio de Investigadores
-                </h3>
-                <p className="text-slate-600 mb-8 text-sm">
-                  Accede al directorio completo de investigadores afiliados a la UNAC, con detalles de su producción científica.
+          <div className="max-w-6xl w-full flex flex-col gap-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div className="flex flex-col gap-3">
+                <h1 className="text-primary text-4xl md:text-5xl font-black leading-tight tracking-tight">
+                  <br className="hidden md:block" />¡{userName} Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span> !
+                </h1>
+                <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
+                  <span className="align-left-fix">Gestión y análisis de productos de investigación de la Corporación Universitaria Adventista. Visualiza el impacto de la producción científica en tiempo real.</span>
                 </p>
-                <div className="mt-auto">
-                  <Link
-                    to="/DirectorioInvestigadores"
-                    state={{ user }}
-                    className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
-                  >
-                    Ingresar
-                    <span className="material-symbols-outlined">arrow_forward</span>
-                  </Link>
-                </div>
               </div>
-              <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
             </div>
-            {/* Card for Analisis categories */}
-            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
-              <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
-                <span className="material-symbols-outlined text-[60px] text-primary">analytics</span>
-              </div>
-              <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
-                <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
-                  <span className="material-symbols-outlined text-3xl" style={{ color: '#FFF' }}>insights</span>
+            <div className="flex justify-end mb-4">
+              <button
+                className="px-6 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
+                onClick={() => setShow2FA(true)}
+              >
+                <span className="material-symbols-outlined text-base">verified_user</span>
+                Configuración de Doble Factor (2FA)
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+              <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+                <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
+                  <span className="material-symbols-outlined text-[60px] text-primary">group_add</span>
                 </div>
-                <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
-                  Análisis
-                </h3>
-                <p className="text-slate-600 mb-8 text-sm">
-                  Navega por las tipologías de análisis.
-                </p>
-                <div className="mt-auto">
-                  <Link
-                    to="/analisis"
-                    state={{ user }}
-                    className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
-                  >
-                    Analizar
-                    <span className="material-symbols-outlined">arrow_forward</span>
-                  </Link>
+                <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
+                  <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
+                    <span className="material-symbols-outlined text-3xl">person_add</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
+                    Directorio de Investigadores
+                  </h3>
+                  <p className="text-slate-600 mb-8 text-sm">
+                    Accede al directorio completo de investigadores afiliados a la UNAC, con detalles de su producción científica.
+                  </p>
+                  <div className="mt-auto">
+                    <Link
+                      to="/DirectorioInvestigadores"
+                      state={{ user }}
+                      className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                      style={{ margin: '5px' }}>
+                      Ingresar
+                      <span className="material-symbols-outlined">arrow_forward</span>
+                    </Link>
+                  </div>
                 </div>
+                <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
               </div>
-              <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
+              {/* Card for Analisis categories */}
+              <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+                <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
+                  <span className="material-symbols-outlined text-[60px] text-primary">analytics</span>
+                </div>
+                <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
+                  <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
+                    <span className="material-symbols-outlined text-3xl" style={{ color: '#FFF' }}>insights</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
+                    Análisis
+                  </h3>
+                  <p className="text-slate-600 mb-8 text-sm">
+                    Navega por las tipologías de análisis.
+                  </p>
+                  <div className="mt-auto">
+                    <Link
+                      to="/analisis"
+                      state={{ user }}
+                      className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                      style={{ margin: '5px' }}>
+                      Analizar
+                      <span className="material-symbols-outlined">arrow_forward</span>
+                    </Link>
+                  </div>
+                </div>
+                <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
+              </div>
             </div>
           </div>
-         
-        </div>
-      </main>
+        </main>
       </div>
-      <footer className="mt-auto py-8 border-t border-slate-200 bg-white text-center">
-        <p className="text-sm text-neutral-muted font-medium">
+      {show2FA && (
+        <TwoFASettings user={user} onClose={() => setShow2FA(false)} />
+      )}
+      <footer className="mt-auto py-2 border-t border-slate-200 bg-white text-center">
+        <p className="text-xs text-neutral-muted font-medium leading-tight">
           © 2026 Corporacion Universitaria Adventista - Facultad de Ingeniería 
         </p>
       </footer>

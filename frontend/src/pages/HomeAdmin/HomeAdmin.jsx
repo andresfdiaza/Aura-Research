@@ -231,8 +231,7 @@ export default function HomeAdmin() {
                 <br className="hidden md:block" />¡{userName} Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span> !
               </h1>
               <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
-                Gestión y análisis de productos de investigación de la Corporación Universitaria Adventista. Visualiza el
-                impacto de la producción científica en tiempo real.
+                <span className="align-left-fix">Gestión y análisis de productos de investigación de la Corporación Universitaria Adventista. Visualiza el impacto de la producción científica en tiempo real.</span>
               </p>
             </div>
 
@@ -355,8 +354,8 @@ export default function HomeAdmin() {
           <span className="text-sm font-semibold text-neutral-muted">{scrapingStatus}</span>
         </div>
       )}
-      <footer className="mt-auto py-8 border-t border-slate-200 bg-white text-center">
-        <p className="text-sm text-neutral-muted font-medium">
+      <footer className="mt-auto py-2 border-t border-slate-200 bg-white text-center">
+        <p className="text-xs text-neutral-muted font-medium leading-tight">
           © 2026 Corporacion Universitaria Adventista - Facultad de Ingeniería 
         </p>
       </footer>

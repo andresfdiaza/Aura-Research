@@ -29,7 +29,7 @@ export default function Usuarios() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
-  const [addForm, setAddForm] = React.useState({ email: '', password: '', role: 'user' });
+  const [addForm, setAddForm] = React.useState({ email: '', password: '', role: 'investigador' });
   const [addLoading, setAddLoading] = React.useState(false);
   const [addError, setAddError] = React.useState(null);
   const [addSuccess, setAddSuccess] = React.useState(false);
@@ -139,7 +139,7 @@ export default function Usuarios() {
       }
       if (!res.ok) throw new Error(data.message || 'Error al crear usuario');
       setAddSuccess(true);
-      setAddForm({ email: '', password: '', role: 'user' });
+      setAddForm({ email: '', password: '', role: 'investigador' });
       fetchUsuarios();
       setTimeout(() => setShowAddModal(false), 1200);
     } catch (err) {

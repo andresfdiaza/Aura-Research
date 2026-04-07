@@ -1,0 +1,4 @@
+# Ignorar archivos conflictivos del backend
+backend/cv_datos_generales.csv
+backend/debug.html
+backend/titulos_grouplab_clean.csv

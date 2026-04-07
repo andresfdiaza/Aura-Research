@@ -100,7 +100,7 @@ export default function HomeAdmin() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
+      <header className="flex flex-wrap items-center justify-between gap-y-3 border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 sm:px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
             <AuraLogo />
@@ -180,7 +180,7 @@ export default function HomeAdmin() {
         </div>
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
-        <main className="flex-1 flex flex-col items-center pt-2 px-6 md:px-16">
+        <main className="flex-1 flex flex-col items-center pt-2 px-4 sm:px-6 md:px-16">
         <div className="max-w-6xl w-full flex flex-col gap-12">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="flex justify-end mb-4">
@@ -218,7 +218,7 @@ export default function HomeAdmin() {
               </button>*/}
             </div>
             <div className="flex flex-col gap-3">
-              <h1 className="text-primary text-4xl md:text-5xl font-black leading-tight tracking-tight">
+              <h1 className="text-primary text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight">
                 <br className="hidden md:block" />¡{userName} Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span> !
               </h1>
               <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
@@ -368,7 +368,7 @@ export default function HomeAdmin() {
               
             </button>
             {/* Card Header / Hero Area */}
-            <div className="relative h-32 bg-primary overflow-hidden flex items-center px-8">
+            <div className="relative h-32 bg-primary overflow-hidden flex items-center px-4 sm:px-8">
               <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
               <div className="relative z-10 flex items-center gap-4">
                 <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
@@ -381,7 +381,7 @@ export default function HomeAdmin() {
               </div>
             </div>
             {/* Form Content */}
-            <form className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
+            <form className="p-5 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
               {success && (
                 <div className="col-span-1 md:col-span-2 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
                   ✓ Investigador guardado exitosamente

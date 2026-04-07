@@ -214,7 +214,7 @@ export default function Usuarios() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
+      <header className="flex flex-wrap items-center justify-between gap-y-3 border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 sm:px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div
             className="flex items-center justify-center size-10 rounded-lg bg-primary text-white cursor-pointer"
@@ -277,10 +277,10 @@ export default function Usuarios() {
         </div>
       </header>
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <h1 className="text-2xl font-bold text-primary">Gestion de Usuarios</h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               className="px-5 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
               onClick={() => setShowAddModal(true)}
@@ -304,7 +304,7 @@ export default function Usuarios() {
 
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 relative">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative">
               <button
                 className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
                 onClick={() => setShowAddModal(false)}
@@ -367,7 +367,7 @@ export default function Usuarios() {
 
         {showReset2FAModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 relative">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative">
               <button
                 className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
                 onClick={() => {
@@ -409,7 +409,7 @@ export default function Usuarios() {
 
         {showEditModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-8 relative">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative">
               <button
                 className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
                 onClick={() => setShowEditModal(false)}

@@ -473,7 +473,7 @@ export default function DirectorioInvestigadores() {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
       {/* Botón volver eliminado de la parte superior, ahora estará junto a Agregar y Editar */}
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
+      <header className="flex flex-wrap items-center justify-between gap-y-3 border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 sm:px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div
             className="flex items-center justify-center size-10 rounded-lg bg-primary text-white cursor-pointer"
@@ -542,12 +542,12 @@ export default function DirectorioInvestigadores() {
       </header>
 
       <div className="container mx-auto flex-1 flex flex-col">
-        <main className="flex-1 flex flex-col items-center py-6 px-6 md:px-16">
+        <main className="flex-1 flex flex-col items-center py-6 px-4 sm:px-6 md:px-16">
           <div className="max-w-7xl w-full flex flex-col gap-6">
             {/* Título y Botones */}
-            <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold text-primary">Directorio de Investigadores</h1>
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h1 className="text-2xl sm:text-3xl font-bold text-primary">Directorio de Investigadores</h1>
+              <div className="flex flex-wrap gap-2">
                 {user?.role === 'admin' && (
                   <>
                     <button
@@ -592,7 +592,7 @@ export default function DirectorioInvestigadores() {
                           >
                             <span className="material-symbols-outlined text-2xl">close</span>
                           </button>
-                          <div className="relative h-20 bg-accent flex items-center px-8">
+                          <div className="relative h-20 bg-accent flex items-center px-4 sm:px-8">
                             <div className="relative z-10 flex items-center gap-4">
                               <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
                                 <span className="material-symbols-outlined text-3xl">group_add</span>
@@ -603,7 +603,7 @@ export default function DirectorioInvestigadores() {
                               </div>
                             </div>
                           </div>
-                          <form className="p-8 flex flex-col gap-6" onSubmit={handleGrupoSubmit}>
+                          <form className="p-5 sm:p-8 flex flex-col gap-6" onSubmit={handleGrupoSubmit}>
                             {grupoSuccess && (
                               <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded">✓ Grupo guardado exitosamente</div>
                             )}
@@ -707,7 +707,7 @@ export default function DirectorioInvestigadores() {
                                     >
                                       <span className="material-symbols-outlined text-2xl">close</span>
                                     </button>
-                                    <div className="relative h-20 bg-[#2A5783] flex items-center px-8">
+                                    <div className="relative h-20 bg-[#2A5783] flex items-center px-4 sm:px-8">
                                       <div className="relative z-10 flex items-center gap-4">
                                         <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
                                           <span className="material-symbols-outlined text-3xl">school</span>
@@ -718,7 +718,7 @@ export default function DirectorioInvestigadores() {
                                         </div>
                                       </div>
                                     </div>
-                                    <form className="p-8 flex flex-col gap-6" onSubmit={handleProgramaSubmit}>
+                                    <form className="p-5 sm:p-8 flex flex-col gap-6" onSubmit={handleProgramaSubmit}>
                                       {programaSuccess && (
                                         <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded">✓ Programa guardado exitosamente</div>
                                       )}
@@ -783,7 +783,7 @@ export default function DirectorioInvestigadores() {
                               >
                                 <span className="material-symbols-outlined text-2xl">close</span>
                               </button>
-                              <div className="relative h-20 bg-green-600 flex items-center px-8">
+                              <div className="relative h-20 bg-green-600 flex items-center px-4 sm:px-8">
                                 <div className="relative z-10 flex items-center gap-4">
                                   <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
                                     <span className="material-symbols-outlined text-3xl">school</span>
@@ -794,7 +794,7 @@ export default function DirectorioInvestigadores() {
                                   </div>
                                 </div>
                               </div>
-                              <form className="p-8 flex flex-col gap-6" onSubmit={async (e) => {
+                              <form className="p-5 sm:p-8 flex flex-col gap-6" onSubmit={async (e) => {
                                 e.preventDefault();
                                 setFacultadLoading(true);
                                 setFacultadError(null);
@@ -870,7 +870,7 @@ export default function DirectorioInvestigadores() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-1 text-xs">Facultad</label>
                   <select
@@ -1086,7 +1086,7 @@ export default function DirectorioInvestigadores() {
               
             </button>
             {/* Card Header / Hero Area */}
-            <div className="relative h-32 bg-primary overflow-hidden flex items-center px-8">
+            <div className="relative h-32 bg-primary overflow-hidden flex items-center px-4 sm:px-8">
               <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
               <div className="relative z-10 flex items-center gap-4">
                 <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm text-white border border-white/20">
@@ -1098,7 +1098,7 @@ export default function DirectorioInvestigadores() {
               </div>
             </div>
             {/* Form Content */}
-            <form className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
+            <form className="p-5 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
               {formSuccess && (
                 <div className="col-span-1 md:col-span-2 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
                   ✓ Investigador guardado exitosamente

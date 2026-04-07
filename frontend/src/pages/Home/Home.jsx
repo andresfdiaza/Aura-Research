@@ -27,7 +27,7 @@ export default function Home() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 md:px-16 py-4 sticky top-0 z-50">
+      <header className="flex flex-wrap items-center justify-between gap-y-3 border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 sm:px-6 md:px-16 py-4 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-10 rounded-lg bg-primary text-white">
             <AuraLogo />
@@ -102,11 +102,11 @@ export default function Home() {
         </div>
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
-        <main className="flex-1 flex flex-col items-center pt-2 px-6 md:px-16">
+        <main className="flex-1 flex flex-col items-center pt-2 px-4 sm:px-6 md:px-16">
           <div className="max-w-6xl w-full flex flex-col gap-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
               <div className="flex flex-col gap-3">
-                <h1 className="text-primary text-4xl md:text-5xl font-black leading-tight tracking-tight">
+                <h1 className="text-primary text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight">
                   <br className="hidden md:block" />¡{userName} Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span> !
                 </h1>
                 <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">

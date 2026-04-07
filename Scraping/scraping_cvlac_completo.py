@@ -1014,9 +1014,11 @@ def extraer_desarrollos_web(soup):
                             anio = anio_match.group()
 
             if titulo:
+                # Eliminar coma final si existe
+                titulo_limpio = titulo.rstrip(',').strip()
                 resultados.append({
                     "NodoHijo": nodo_hijo,
-                    "Titulo_producto": titulo,
+                    "Titulo_producto": titulo_limpio,
                     "año": anio
                 })
     print(f"✅ Total DESARROLLOS WEB: {len(resultados)}")

@@ -13,6 +13,7 @@ import Analisis from './Analisis';
 import DirectorioInvestigadores from './pages/DirectorioInvestigadores/DirectorioInvestigadores';
 import PerfilInvestigador from './PerfilInvestigador';
 import Usuarios from './pages/HomeAdmin/Usuarios';
+import Ajustes from './pages/HomeAdmin/Ajustes';
 import './App.css';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
         <Route path="/DirectorioInvestigadores" element={<DirectorioInvestigadores />} />
         <Route path="/PerfilInvestigador" element={<PerfilInvestigador />} />
         <Route path="/usuarios" element={<Usuarios />} />
+        <Route path="/ajustes" element={<Ajustes />} />
       </Routes>
     </BrowserRouter>
   );

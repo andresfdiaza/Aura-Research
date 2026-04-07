@@ -151,16 +151,14 @@ export default function HomeAdmin() {
             <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
               <span className="material-symbols-outlined">notifications</span>
             </button>
-            <button
+            <Link
+              to="/ajustes"
+              state={{ user }}
               className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
-              onClick={() => setShow2FASettings(true)}
-              title="Configurar 2FA"
+              title="Ajustes"
             >
               <span className="material-symbols-outlined">settings</span>
-            </button>
-                {show2FASettings && (
-                  <TwoFASettings user={user} onClose={() => setShow2FASettings(false)} />
-                )}
+            </Link>
           </div>
           <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
           <div className="flex items-center gap-3">

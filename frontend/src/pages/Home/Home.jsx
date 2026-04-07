@@ -73,13 +73,14 @@ export default function Home() {
             <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
               <span className="material-symbols-outlined">notifications</span>
             </button>
-            <button
+            <Link
+              to="/ajustes"
+              state={{ user }}
               className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
-              onClick={() => setShow2FA(true)}
-              title="Configurar 2FA"
+              title="Ajustes"
             >
               <span className="material-symbols-outlined">settings</span>
-            </button>
+            </Link>
           </div>
           <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
           <div className="flex items-center gap-3">

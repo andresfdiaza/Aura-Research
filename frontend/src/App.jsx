@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login/Login';
 import NuevoConocimiento from './NuevoConocimiento';
 import DesarrolloTecnologico from './DesarrolloTecnologico';
@@ -16,26 +16,43 @@ import Usuarios from './pages/HomeAdmin/Usuarios';
 import Ajustes from './pages/HomeAdmin/Ajustes';
 import './App.css';
 
+function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem('aura_user') || 'null');
+  } catch (_) {
+    return null;
+  }
+}
+
+function ProtectedRoute({ element }) {
+  const user = getStoredUser();
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+  return element;
+}
+
 function App() {
   const basePath = import.meta.env.BASE_URL || '/';
   return (
     <BrowserRouter basename={basePath}>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/homeadmin" element={<HomeAdmin />} />
-        <Route path="/investigadores" element={<Investigadores />} />
-        <Route path="/datos" element={<Datos />} />
-        <Route path="/analisis" element={<Analisis />} />
-        <Route path="/NuevoConocimiento" element={<NuevoConocimiento />} />
-        <Route path="/DesarrolloTecnologico" element={<DesarrolloTecnologico />} />
-        <Route path="/ApropriacionSocial" element={<ApropriacionSocial />} />
-        <Route path="/DivulgacionPublica" element={<DivulgacionPublica />} />
-        <Route path="/FormacionRecursoHumano" element={<FormacionRecursoHumano />} />
-        <Route path="/DirectorioInvestigadores" element={<DirectorioInvestigadores />} />
-        <Route path="/PerfilInvestigador" element={<PerfilInvestigador />} />
-        <Route path="/usuarios" element={<Usuarios />} />
-        <Route path="/ajustes" element={<Ajustes />} />
+        <Route path="/home" element={<ProtectedRoute element={<Home />} />} />
+        <Route path="/homeadmin" element={<ProtectedRoute element={<HomeAdmin />} />} />
+        <Route path="/investigadores" element={<ProtectedRoute element={<Investigadores />} />} />
+        <Route path="/datos" element={<ProtectedRoute element={<Datos />} />} />
+        <Route path="/analisis" element={<ProtectedRoute element={<Analisis />} />} />
+        <Route path="/NuevoConocimiento" element={<ProtectedRoute element={<NuevoConocimiento />} />} />
+        <Route path="/DesarrolloTecnologico" element={<ProtectedRoute element={<DesarrolloTecnologico />} />} />
+        <Route path="/ApropriacionSocial" element={<ProtectedRoute element={<ApropriacionSocial />} />} />
+        <Route path="/DivulgacionPublica" element={<ProtectedRoute element={<DivulgacionPublica />} />} />
+        <Route path="/FormacionRecursoHumano" element={<ProtectedRoute element={<FormacionRecursoHumano />} />} />
+        <Route path="/DirectorioInvestigadores" element={<ProtectedRoute element={<DirectorioInvestigadores />} />} />
+        <Route path="/PerfilInvestigador" element={<ProtectedRoute element={<PerfilInvestigador />} />} />
+        <Route path="/usuarios" element={<ProtectedRoute element={<Usuarios />} />} />
+        <Route path="/ajustes" element={<ProtectedRoute element={<Ajustes />} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

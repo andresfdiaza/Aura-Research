@@ -1,0 +1,9 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /auraresearch/
+
+  # Si no es un archivo o carpeta real, servir el index de React.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /auraresearch/index.html [L]
+</IfModule>

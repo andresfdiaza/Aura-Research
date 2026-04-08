@@ -246,17 +246,19 @@ export default function Investigadores() {
             Análisis
           </Link>
         </nav>
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2">
-            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
-              <span className="material-symbols-outlined">notifications</span>
+        <div className="flex w-full sm:w-auto items-center justify-end gap-3 sm:gap-4 flex-wrap">
+          <div className="flex gap-2 flex-wrap justify-end">
+            <button className="flex items-center justify-center rounded-full w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+              <span className="material-symbols-outlined text-[18px] sm:text-[22px]">notifications</span>
             </button>
-            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
-              <span className="material-symbols-outlined">settings</span>
+            <button className="flex items-center justify-center rounded-full w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+              <span className="material-symbols-outlined text-[18px] sm:text-[22px]">settings</span>
             </button>
           </div>
-          <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
-          <div className="flex items-center gap-3">
+
+          <div className="hidden sm:block h-10 w-[1px] bg-slate-200 mx-2" />
+
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold text-primary">{userName}</p>
             </div>
@@ -267,13 +269,13 @@ export default function Investigadores() {
         </div>
       </header>
       <div className="container mx-auto flex-1 flex flex-col">
-        <main className="flex-1 flex flex-col items-center py-12 px-4 sm:px-6 md:px-16">
-        <div className="max-w-6xl w-full flex flex-col gap-12">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-primary">Directorio de Investigadores</h1>
+        <main className="flex-1 flex flex-col items-center py-6 sm:py-12 px-4 sm:px-6 md:px-16">
+        <div className="max-w-6xl w-full flex flex-col gap-8 sm:gap-12">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-2 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-primary">Directorio de Investigadores</h1>
         <button
           onClick={handleVolver}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-200 text-primary rounded-lg font-semibold hover:bg-slate-300 transition-all"
         >
           <span className="material-symbols-outlined align-middle">arrow_back</span>
           <span>Volver</span>
@@ -287,13 +289,57 @@ export default function Investigadores() {
             <label className="text-sm font-semibold text-primary">Buscar por nombre:</label>
             <input
               type="text"
-              className="border rounded px-3 py-1 text-sm w-full md:w-64"
+              className="border rounded px-3 py-2 text-sm w-full md:w-64"
               placeholder="Nombre del investigador..."
               value={searchEdit}
               onChange={e => setSearchEdit(e.target.value)}
             />
           </div>
-          <div className="overflow-x-auto">
+
+          <div className="md:hidden space-y-3">
+            {investigadores
+              .filter(inv =>
+                searchEdit.trim() === '' ||
+                (inv.nombre_completo || '').toLowerCase().includes(searchEdit.trim().toLowerCase())
+              )
+              .map((inv) => (
+                <div key={inv.id_investigador} className="rounded-lg border border-slate-200 p-3 bg-white shadow-sm">
+                  <p className="text-base font-bold text-slate-800 mt-1 break-words">{inv.nombre_completo}</p>
+                  <p className="text-sm text-slate-600 mt-1">Cedula: {inv.cedula || '-'}</p>
+                  <p className="text-xs text-slate-600 mt-1 break-words">Programas: {inv.programa_academico || 'Sin asignar'}</p>
+                  <p className="text-sm text-slate-700 mt-1 break-all">{inv.correo || '-'}</p>
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    <button
+                      className="w-8 h-8 flex items-center justify-center bg-primary text-white rounded-lg shadow hover:bg-primary/90 transition-all"
+                      onClick={() => handleEditClick(inv)}
+                      title="Editar investigador"
+                      aria-label="Editar investigador"
+                    >
+                      <span className="material-symbols-outlined text-base">edit</span>
+                    </button>
+                    <button
+                      className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-all"
+                      onClick={async () => {
+                        if (!confirm('¿Eliminar este investigador?')) return;
+                        try {
+                          const res = await fetch(`${API_BASE}/investigadores/${inv.id_investigador}`, { method: 'DELETE' });
+                          if (!res.ok) throw new Error('Delete failed');
+                          setInvestigadores((prev) => prev.filter(p => p.id_investigador !== inv.id_investigador));
+                        } catch (err) {
+                          alert('Error eliminando: ' + err.message);
+                        }
+                      }}
+                      title="Eliminar investigador"
+                      aria-label="Eliminar investigador"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full table-auto bg-white rounded shadow">
               <thead>
                 <tr className="bg-slate-100">
@@ -324,7 +370,7 @@ export default function Investigadores() {
                           className="px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary/90 transition-all"
                           onClick={() => handleEditClick(inv)}
                         >
-                          ✏️ Editar
+                          Editar
                         </button>
                         <button
                           className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-all"
@@ -339,7 +385,7 @@ export default function Investigadores() {
                             }
                           }}
                         >
-                          🗑️ Eliminar
+                          Eliminar
                         </button>
                       </div>
                     </td>

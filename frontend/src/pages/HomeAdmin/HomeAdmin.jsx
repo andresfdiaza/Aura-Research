@@ -228,7 +228,7 @@ export default function HomeAdmin() {
 
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft w-full max-w-[22rem] mx-auto">
               <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
                 <span className="material-symbols-outlined text-[60px] text-primary">group_add</span>
               </div>
@@ -256,7 +256,7 @@ export default function HomeAdmin() {
               <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
             </div>
             {/* Card for Analisis categories */}
-            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft w-full max-w-[22rem] mx-auto">
               <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
                 <span className="material-symbols-outlined text-[60px] text-primary">analytics</span>
               </div>
@@ -284,7 +284,7 @@ export default function HomeAdmin() {
               <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
             </div>
             {/* Card for Usuarios */}
-            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft max-w-sm mx-auto">
+            <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft w-full max-w-[22rem] mx-auto">
               <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
                 <span className="material-symbols-outlined text-[60px] text-primary">supervisor_account</span>
               </div>

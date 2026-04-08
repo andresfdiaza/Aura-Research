@@ -234,31 +234,31 @@ export default function Usuarios() {
           <span className="text-primary text-sm font-bold">Usuarios</span>
         </nav>
 
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2">
-            <button className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
-              <span className="material-symbols-outlined">notifications</span>
+        <div className="flex w-full sm:w-auto items-center justify-end gap-3 sm:gap-4 flex-wrap">
+          <div className="flex gap-2 flex-wrap justify-end">
+            <button className="flex items-center justify-center rounded-full w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all">
+              <span className="material-symbols-outlined text-[18px] sm:text-[22px]">notifications</span>
             </button>
             <button
-              className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
+              className="flex items-center justify-center rounded-full w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
               onClick={() => navigate('/ajustes', { state: { user } })}
               title="Ajustes"
             >
-              <span className="material-symbols-outlined">settings</span>
+              <span className="material-symbols-outlined text-[18px] sm:text-[22px]">settings</span>
             </button>
             <button
-              className="flex items-center justify-center rounded-full size-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
+              className="flex items-center justify-center rounded-full w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
               onClick={() => setShow2FASettings(true)}
               title="Configurar 2FA"
             >
-              <span className="material-symbols-outlined">key</span>
+              <span className="material-symbols-outlined text-[18px] sm:text-[22px]">key</span>
             </button>
             {show2FASettings && <TwoFASettings user={user} onClose={() => setShow2FASettings(false)} />}
           </div>
 
-          <div className="h-10 w-[1px] bg-slate-200 mx-2" />
+          <div className="hidden sm:block h-10 w-[1px] bg-slate-200 mx-2" />
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold text-primary">{user?.email?.split('@')[0]}</p>
             </div>
@@ -277,19 +277,19 @@ export default function Usuarios() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 sm:p-6 md:p-8">
+      <main className="flex-1 p-3 sm:p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-          <h1 className="text-2xl font-bold text-primary">Gestion de Usuarios</h1>
-          <div className="flex flex-wrap gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-primary">Gestion de Usuarios</h1>
+          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:flex sm:flex-wrap">
             <button
-              className="px-5 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
+              className="px-5 py-2 bg-primary text-white rounded-lg font-semibold shadow-md hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
               onClick={() => setShowAddModal(true)}
             >
               <span className="material-symbols-outlined text-base">person_add</span>
               Nuevo Usuario
             </button>
             <button
-              className="px-5 py-2 bg-accent text-white rounded-lg font-semibold shadow-md hover:bg-accent/90 transition-all flex items-center gap-2"
+              className="px-5 py-2 bg-accent text-white rounded-lg font-semibold shadow-md hover:bg-accent/90 transition-all flex items-center justify-center gap-2"
               onClick={() => {
                 setReset2FAError(null);
                 setReset2FASuccess(false);
@@ -304,7 +304,7 @@ export default function Usuarios() {
 
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative mx-4 max-h-[90vh] overflow-y-auto">
               <button
                 className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
                 onClick={() => setShowAddModal(false)}
@@ -367,7 +367,7 @@ export default function Usuarios() {
 
         {showReset2FAModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative mx-4 max-h-[90vh] overflow-y-auto">
               <button
                 className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
                 onClick={() => {
@@ -409,7 +409,7 @@ export default function Usuarios() {
 
         {showEditModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-8 relative mx-4 max-h-[90vh] overflow-y-auto">
               <button
                 className="absolute top-2 right-2 text-primary hover:bg-primary/10 rounded-full p-2 text-xl flex items-center"
                 onClick={() => setShowEditModal(false)}
@@ -458,13 +458,66 @@ export default function Usuarios() {
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow p-6 overflow-x-auto">
+        <div className="bg-white rounded-xl shadow p-4 sm:p-6">
           {loading ? (
             <div className="text-center py-8 text-slate-400 font-semibold">Cargando usuarios...</div>
           ) : error ? (
             <div className="text-center py-8 text-red-500 font-semibold">{error}</div>
           ) : (
-            <table className="min-w-full divide-y divide-slate-200 table-fixed">
+            <>
+              <div className="md:hidden space-y-3">
+                {usuarios.map((u) => (
+                  <div key={u.id} className="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1 pr-2 flex items-center">
+                        <p className="w-full text-base sm:text-lg font-bold text-slate-800 break-all text-center">{u.email}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${roleStyles[u.role] || 'bg-slate-100 text-slate-700'}`}>
+                          {roleLabels[u.role] || u.role}
+                        </span>
+                        {u.twofa_enabled ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-bold whitespace-nowrap">
+                            <span className="material-symbols-outlined text-sm align-middle">verified_user</span>
+                            2FA Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold whitespace-nowrap">
+                            <span className="material-symbols-outlined text-sm align-middle">block</span>
+                            2FA Inactivo
+                          </span>
+                        )}
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-accent text-white rounded-lg shadow hover:bg-accent/90 transition-all"
+                            onClick={() => handleEditClick(u)}
+                            title="Editar usuario"
+                            aria-label="Editar usuario"
+                          >
+                            <span className="material-symbols-outlined text-base align-middle">edit</span>
+                          </button>
+                          <button
+                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition-all disabled:opacity-60"
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            disabled={deleteLoadingId === u.id}
+                            title="Eliminar usuario"
+                            aria-label="Eliminar usuario"
+                          >
+                            {deleteLoadingId === u.id ? (
+                              <span className="material-symbols-outlined animate-spin text-base align-middle">autorenew</span>
+                            ) : (
+                              <span className="material-symbols-outlined text-base align-middle">delete</span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200">
               <colgroup>
                 <col style={{ width: '80px' }} />
                 <col style={{ width: '260px' }} />
@@ -481,20 +534,20 @@ export default function Usuarios() {
                   <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider align-middle">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100">
                 {usuarios.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 transition">
                     <td className="px-4 py-3 text-center font-mono text-slate-500 align-middle">{u.id}</td>
                     <td className="px-4 py-3 text-center align-middle">{u.email}</td>
                     <td className="px-4 py-3 text-center align-middle">
                       {u.twofa_enabled ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-bold">
-                          <span className="material-symbols-outlined text-base align-middle">verified_user</span>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-green-100 text-green-700 text-[10px] sm:text-xs font-bold">
+                          <span className="material-symbols-outlined text-sm sm:text-base align-middle">verified_user</span>
                           Activo
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 text-slate-500 text-xs font-bold">
-                          <span className="material-symbols-outlined text-base align-middle">block</span>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-slate-100 text-slate-500 text-[10px] sm:text-xs font-bold">
+                          <span className="material-symbols-outlined text-sm sm:text-base align-middle">block</span>
                           Inactivo
                         </span>
                       )}
@@ -504,9 +557,9 @@ export default function Usuarios() {
                         {roleLabels[u.role] || u.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center align-middle flex flex-col gap-2 items-center justify-center md:flex-row md:gap-1">
+                    <td className="px-4 py-3 text-center align-middle flex flex-col gap-1.5 items-center justify-center md:flex-row md:gap-1">
                       <button
-                        className="w-9 h-9 flex items-center justify-center bg-accent text-white rounded-lg shadow hover:bg-accent/90 transition-all"
+                        className="w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center bg-accent text-white rounded-lg shadow hover:bg-accent/90 transition-all"
                         onClick={() => handleEditClick(u)}
                         title="Editar usuario"
                         aria-label="Editar usuario"
@@ -514,7 +567,7 @@ export default function Usuarios() {
                         <span className="material-symbols-outlined text-lg align-middle">edit</span>
                       </button>
                       <button
-                        className="w-9 h-9 flex items-center justify-center bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition-all disabled:opacity-60"
+                        className="w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition-all disabled:opacity-60"
                         onClick={() => handleDeleteUser(u.id, u.email)}
                         disabled={deleteLoadingId === u.id}
                         title="Eliminar usuario"
@@ -529,8 +582,10 @@ export default function Usuarios() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </main>

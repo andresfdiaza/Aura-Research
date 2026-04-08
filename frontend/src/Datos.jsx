@@ -444,11 +444,11 @@ export default function Datos() {
         <main className="flex-1 flex flex-col items-center py-5 px-4 sm:px-6 md:px-16">
           <div className="max-w-7xl w-full flex flex-col gap-8">
             {/* Back button moved to bottom */}
-            <div className="flex justify-between items-center mb-0">
+            <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-6">
-                <h1 className="text-3xl font-bold text-primary">Análisis y Estadísticas Generales</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-primary">Análisis y Estadísticas Generales</h1>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={handleDownloadCSV}
                   className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
@@ -467,9 +467,9 @@ export default function Datos() {
             </div>
 
             {/* KPI cards on left, filters on right */}
-            <div className="flex items-start justify-between mb-0 overflow-x-auto py-1">
-              <div className="flex gap-4">
-                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+            <div className="flex w-full flex-col gap-4 py-1 lg:flex-row lg:items-start lg:justify-between">
+              <div className="grid w-full grid-cols-2 gap-4 sm:w-auto sm:flex sm:gap-4">
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-full sm:w-36 min-h-[96px] flex flex-col justify-between">
                   <div>
                     <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
                     <p className="text-lg font-bold text-primary">{totalResultados.toLocaleString()}</p>
@@ -482,7 +482,7 @@ export default function Datos() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+                <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-full sm:w-36 min-h-[96px] flex flex-col justify-between">
                   <div>
                     <p className="text-xxs text-slate-600 font-medium mb-0.5">Filtr.</p>
                     <p className="text-lg font-bold text-accent">{filtered.length.toLocaleString()}</p>
@@ -499,9 +499,9 @@ export default function Datos() {
               </div>
 
               {/* SOLO 3 FILTROS VISIBLES */}
-              <div className="flex flex-row gap-3">
+              <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto lg:grid-cols-3">
                 {['facultad', 'grupo', 'programa'].map(key => (
-                  <div key={key} className="w-[120px]">
+                  <div key={key} className="w-full sm:min-w-[160px]">
                     <label className="block text-[9px] font-medium mb-1 truncate text-center">
                       {displayLabel(key)}
                     </label>
@@ -526,10 +526,10 @@ export default function Datos() {
 
             {/* Diagrams side by side, smaller */}
             {!loading && !error && (topTipos.length > 0 || years.length > 0) && (
-              <div className="flex flex-row gap-6 mb-0 w-full justify-between items-start flex-wrap">
+              <div className="grid w-full grid-cols-1 gap-6 xl:grid-cols-2">
                 {/* parent/child drillable bar chart */}
                 {topTipos.length > 0 && (
-                  <div className="flex-1 min-w-[360px] h-96">
+                  <div className="w-full min-w-0 h-80 sm:h-96">
                     <Bar
                       ref={chartRef}
                       data={{
@@ -624,7 +624,7 @@ export default function Datos() {
 
                 {/* año chart */}
                 {years.length > 0 && (
-                  <div className="flex-1 min-w-[360px] h-96">
+                  <div className="w-full min-w-0 h-80 sm:h-96">
                     <Bar
                       data={{
                         labels: years,

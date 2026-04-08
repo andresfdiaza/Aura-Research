@@ -314,9 +314,9 @@ export default function NuevoConocimiento() {
       <div className="container mx-auto flex-1 flex flex-col">
         <main className="flex-1 flex flex-col items-center py-6 px-4 sm:px-6 md:px-16">
         <div className="max-w-7xl w-full flex flex-col gap-8">
-          <div className="flex justify-between items-center mb-0 w-full">
-            <h1 className="text-3xl font-bold text-primary">Nuevo Conocimiento</h1>
-            <div className="flex items-center gap-3">
+          <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Nuevo Conocimiento</h1>
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleDownloadCSV}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
@@ -334,9 +334,9 @@ export default function NuevoConocimiento() {
             </div>
           </div>
           {/* KPI cards on left, filters on right */}
-          <div className="flex items-start justify-between mb-0 overflow-x-auto py-1 gap-6">
-            <div className="flex gap-4 flex-shrink-0">
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+          <div className="flex w-full flex-col gap-4 py-1 lg:flex-row lg:items-start lg:justify-between">
+            <div className="grid w-full grid-cols-2 gap-4 sm:w-auto sm:flex sm:gap-4">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-2 shadow-sm w-full sm:w-36 min-h-[96px] flex flex-col justify-between">
                 <div>
                   <p className="text-xxs text-slate-600 font-medium mb-0.5">Total</p>
                   <p className="text-lg font-bold text-primary">{totalResultados.toLocaleString()}</p>
@@ -348,7 +348,7 @@ export default function NuevoConocimiento() {
                   </div>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-36 h-24 flex flex-col justify-between">
+              <div className="bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl p-2 shadow-sm w-full sm:w-36 min-h-[96px] flex flex-col justify-between">
                 <div>
                   <p className="text-xxs text-slate-600 font-medium mb-0.5">Filtr.</p>
                   <p className="text-lg font-bold text-accent">{filtered.length.toLocaleString()}</p>
@@ -361,9 +361,9 @@ export default function NuevoConocimiento() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-row gap-3">
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto lg:grid-cols-3">
               {['facultad', 'grupo', 'programa'].map(key => (
-                <div key={key} className="w-[180px]">
+                <div key={key} className="w-full sm:min-w-[180px]">
                   <label className="block text-[12px] font-medium mb-2 truncate text-center">
                     {key === 'facultad' ? 'Facultad' : key === 'grupo' ? 'Grupo de Investigación' : key === 'programa' ? 'Programa' : key}
                   </label>
@@ -395,7 +395,7 @@ export default function NuevoConocimiento() {
           {/* modal for expanded chart */}
           {expandedChart && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setExpandedChart(null)}>
-              <div className="bg-white p-6 rounded shadow-lg max-w-xl w-full" onClick={e => e.stopPropagation()}>
+              <div className="bg-white p-6 rounded shadow-lg max-w-xl w-full mx-4" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-bold mb-4 text-primary">{expandedChart.nodo}</h3>
                 <Bar
                   data={{
@@ -446,7 +446,7 @@ export default function NuevoConocimiento() {
 
           {yearDetailModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setYearDetailModal(null)}>
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-6xl w-full max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-6xl w-full mx-4 max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="px-6 py-4 border-b bg-gradient-to-r from-primary/10 to-slate-50">
                   <h3 className="text-xl font-bold text-primary">
                     {yearDetailModal.nodo}
@@ -457,7 +457,7 @@ export default function NuevoConocimiento() {
                 </div>
                 {/* Leyenda */}
                 <div className="px-6 py-3 bg-amber-50 border-b border-amber-200">
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
                     <div className="flex items-center gap-1.5">
                       <div className="w-4 h-4 bg-yellow-200 border border-yellow-300 rounded"></div>
                       <span className="text-slate-600">Fondo amarillo = Autor de CVLAC (sin match en GroupLab)</span>

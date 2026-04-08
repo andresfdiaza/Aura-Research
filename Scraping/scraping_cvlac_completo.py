@@ -515,26 +515,31 @@ def extraer_ediciones_revisiones(soup):
         if not blockquote:
             continue
         texto = limpiar(blockquote.get_text(" "))
-        # Título: después de la última coma antes de "Nombre comercial"
-        match = re.search(r"(?:,)([^,]+),\s*Nombre comercial", texto)
-        if match:
-            titulo = match.group(1).strip()
+        # 1. Quitar nombres en mayúscula sostenida al inicio (separados por coma)
+        partes = [p.strip() for p in texto.split(',')]
+        idx = 0
+        while idx < len(partes) and partes[idx].isupper() and len(partes[idx]) > 1:
+            idx += 1
+        # 2. El título es lo que sigue después de los nombres, hasta antes de la coma previa a 'Nombre comercial' o metadatos
+        resto = ','.join(partes[idx:]).lstrip(',').strip()
+        # Buscar el final del título: antes de ', Nombre comercial', ', contrato/registro', ',. En:', etc.
+        corte = re.search(r",\s*(Nombre comercial|contrato/registro|\. En:|En:|\d{4}|<|$)", resto)
+        if corte:
+            titulo = resto[:corte.start()].strip()
         else:
-            # Si no encuentra el patrón, buscar el último fragmento antes de "Nombre comercial"
-            partes = texto.split(",")
-            titulo = ""
-            for i in range(len(partes)-1, -1, -1):
-                if "Nombre comercial" in partes[i]:
-                    if i > 0:
-                        titulo = partes[i-1].strip()
-                    break
-            if not titulo and len(partes) > 1:
-                titulo = partes[1].strip()
-        # Año: buscar después de "Colombia,"
+            # Si no hay metadato, tomar hasta la primera coma
+            titulo = resto.split(',')[0].strip() if ',' in resto else resto.strip()
+        # Limpiar título de comas iniciales/finales
+        titulo = titulo.strip(',;:. ')
+        # Año: buscar después de "Colombia," o la primera secuencia de 4 dígitos
         anio = ""
         match_colombia = re.search(r"Colombia[, ]+.*?(\d{4})", texto)
         if match_colombia:
             anio = match_colombia.group(1)
+        else:
+            match_anio = re.search(r"\b(19|20)\d{2}\b", texto)
+            if match_anio:
+                anio = match_anio.group(0)
         if titulo:
             resultados.append({
                 "NodoHijo": nodo_hijo,

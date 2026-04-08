@@ -168,7 +168,18 @@ NODO_HIJO_ALIAS_MAP = {
     "eventos artísticos": "Eventos Artísticos",
     "obras productos": "Obras o productos",
     "libros": "Libro",
+    "concepto tecnico": "Concepto técnico",
     "conceptos tecnicos": "Concepto técnico",
+    "conceptos técnicos": "Concepto técnico",
+
+    # Variantes para "Redes de Conocimiento Especializado"
+    "redes de conocimiento especializado": "redes conocimiento especializado",
+    "redes conocimiento especializado": "redes conocimiento especializado",
+    "redes de conocimiento": "redes conocimiento especializado",
+    "redes conocimiento": "redes conocimiento especializado",
+    "redes de conocimiento especializadas": "redes conocimiento especializado",
+    "redes conocimiento especializadas": "redes conocimiento especializado",
+
     "capitulos libro": "Capítulos de libro",
     "capítulos de libro": "Capítulos de libro",
     "documentos trabajo": "Documento de trabajo",
@@ -420,15 +431,52 @@ def extraer_datos_de_celda(celda, tipo_seccion=None):
     
     # Obtener todo el texto de la celda
     texto_completo = celda.get_text(" ", strip=True)
-    
     # Decodificar entidades HTML
     texto_completo = html.unescape(texto_completo)
+
+    # Caso especial: Redes de Conocimiento Especializado
+    if tipo_seccion == "redes_conocimiento_especializado":
+        # El título es el texto dentro del <strong>
+        strong_tag = celda.find("strong")
+        titulo = None
+        if strong_tag:
+            titulo = strong_tag.get_text(" ", strip=True)
+        # Buscar año después de 'desde'
+        texto_completo = celda.get_text(" ", strip=True)
+        ano = None
+        match_desde = re.search(r"desde (\d{4})", texto_completo)
+        if match_desde:
+            ano = match_desde.group(1)
+        else:
+            # Buscar año completo con fecha
+            match_fecha = re.search(r"desde (\d{4}-\d{2}-\d{2})", texto_completo)
+            if match_fecha:
+                ano = match_fecha.group(1)[:4]
+        if titulo and len(titulo) > 3 and len(titulo) < 500:
+            return {
+                'titulo': titulo,
+                'autores': [],
+                'issn': None,
+                'isbn': None,
+                'revista': None,
+                'ano': ano
+            }
+        # Si no hay <strong>, fallback a comportamiento normal
     
     # Extraer año de publicación (diferente según el tipo)
     ano = None
-    
+    # Para Concepto técnico: buscar el año después de "Año de solicitud:"
+    if tipo_seccion == "conceptos_tecnicos":
+        match_ano_sol = re.search(r"Año de solicitud:\s*(19|20)\d{2}", texto_completo)
+        if match_ano_sol:
+            ano = match_ano_sol.group(0)[len("Año de solicitud:"):].strip()
+        else:
+            # Fallback: buscar el primer año
+            match_ano = re.search(r'\b(19|20)\d{2}\b', texto_completo)
+            if match_ano:
+                ano = match_ano.group(0)
     # Para artículos y otros artículos: buscar el año inmediatamente antes de "vol:"
-    if tipo_seccion in ["articulos", "otros_articulos"]:
+    elif tipo_seccion in ["articulos", "otros_articulos"]:
         match_ano_articulo = re.search(
             r'ISSN:[^,]*,\s*((19|20)\d{2})\s+vol:',
             texto_completo,

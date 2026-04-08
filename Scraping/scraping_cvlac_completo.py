@@ -7,7 +7,7 @@ import time
 from bs4 import BeautifulSoup
 import os
 import unicodedata
-from conexion_sql import guardar_en_mysql, limpiar_tabla, asegurar_columna_nodo_padre
+from conexion_sql import guardar_en_mysql, limpiar_tabla, asegurar_columna_nodo_padre, asegurar_indice_unico_resultados
 from db_connection import get_connection
 
 from conexion_sql import guardar_en_mysql
@@ -605,18 +605,23 @@ def extraer_redes_conocimiento(soup):
         return resultados
     for blockquote in tabla.find_all("blockquote"):
         titulo = ""
+        # Buscar el <i> con "Nombre de la red" y tomar el texto siguiente
         for i_tag in blockquote.find_all("i"):
             if "Nombre de la red" in i_tag.get_text():
-                # Tomar todo el texto desde el next_sibling hasta "Creada el:"
-                partes = []
+                # El nombre de la red está justo después de este <i>
                 nodo = i_tag.next_sibling
-                while nodo:
+                if nodo:
+                    # Tomar solo hasta el primer &nbsp;, <i>, o coma
                     texto = str(nodo)
-                    if "Creada el:" in texto:
-                        break
-                    partes.append(texto)
-                    nodo = nodo.next_sibling
-                titulo = limpiar("".join(partes))
+                    # Limpiar entidades HTML
+                    texto = html.unescape(texto)
+                    # Cortar en &nbsp;, <, o ,
+                    corte = len(texto)
+                    for sep in ["\xa0", "<", ",", "&nbsp;"]:
+                        idx = texto.find(sep)
+                        if idx != -1 and idx < corte:
+                            corte = idx
+                    titulo = texto[:corte].strip()
                 break
         # Año: buscar en "Creada el:YYYY-MM-DD"
         texto = limpiar(blockquote.get_text(" "))
@@ -2346,8 +2351,7 @@ if __name__ == "__main__":
             print("UPDATE investigadores SET estado='pendiente' WHERE link_cvlac IS NOT NULL;")
             exit()
 
-        # 🔥 1️⃣ Limpiar tabla SOLO UNA VEZ
-        limpiar_tabla()
+        # Modo incremental: no borrar resultados; solo agregar registros nuevos.
 
         todos_los_datos = []
 
@@ -2379,6 +2383,7 @@ if __name__ == "__main__":
         print(f"\n📊 Total de datos recolectados: {len(todos_los_datos)}")
         if todos_los_datos:
             asegurar_columna_nodo_padre()
+            asegurar_indice_unico_resultados()
             guardar_en_mysql(todos_los_datos)
         else:
             print("⚠️ No hay datos para guardar en la base de datos")

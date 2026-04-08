@@ -119,6 +119,12 @@ ON (
             'eventos artisticos',
             'eventos artísticos'
         ) THEN 'eventos artisticos'
+        WHEN LOWER(TRIM(r.tipo_proyecto)) COLLATE utf8mb4_unicode_ci IN (
+            'redes de conocimiento especializado',
+            'redes conocimiento especializado',
+            'redes de conocimiento',
+            'redes conocimiento'
+        ) THEN 'redes conocimiento especializado'
         ELSE LOWER(TRIM(r.tipo_proyecto)) COLLATE utf8mb4_unicode_ci
     END =
     CASE
@@ -129,6 +135,12 @@ ON (
             'eventos artisticos',
             'eventos artísticos'
         ) THEN 'eventos artisticos'
+        WHEN LOWER(TRIM(t.tipo)) COLLATE utf8mb4_unicode_ci IN (
+            'redes de conocimiento especializado',
+            'redes conocimiento especializado',
+            'redes de conocimiento',
+            'redes conocimiento'
+        ) THEN 'redes conocimiento especializado'
         ELSE LOWER(TRIM(t.tipo)) COLLATE utf8mb4_unicode_ci
     END
 

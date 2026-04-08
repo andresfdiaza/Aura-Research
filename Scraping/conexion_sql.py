@@ -3,11 +3,55 @@ from db_connection import get_connection
 def limpiar_tabla():
     conexion = get_connection()
     cursor = conexion.cursor()
-    # cursor.execute("TRUNCATE TABLE resultados")  # Eliminado para no borrar los datos
+    # Mantenemos la función para uso manual, pero no debe llamarse en ejecuciones incrementales.
+    cursor.execute("TRUNCATE TABLE resultados")
     conexion.commit()
     cursor.close()
     conexion.close()
     print("🗑️ Tabla limpiada correctamente")
+
+def asegurar_indice_unico_resultados():
+    """Asegura índice de deduplicación por investigador + producto."""
+    conexion = get_connection()
+    cursor = conexion.cursor()
+    try:
+        # Retirar índice de estrategia anterior, si existe.
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'resultados'
+              AND INDEX_NAME = 'uq_resultados_origen'
+        """)
+        existe_antiguo = cursor.fetchone()[0]
+        if existe_antiguo:
+            cursor.execute("DROP INDEX uq_resultados_origen ON resultados")
+            conexion.commit()
+            print("✅ Índice antiguo 'uq_resultados_origen' eliminado")
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'resultados'
+              AND INDEX_NAME = 'uq_resultados_dedupe'
+        """)
+        existe = cursor.fetchone()[0]
+
+        if existe == 0:
+            cursor.execute("""
+                CREATE UNIQUE INDEX uq_resultados_dedupe
+                ON resultados (id_investigador, titulo_proyecto(255), nodo_padre(255), anio)
+            """)
+            conexion.commit()
+            print("✅ Índice único por investigador creado en resultados")
+        else:
+            print("✅ Índice único por investigador ya existe en resultados")
+    except Exception as e:
+        print(f"⚠️ Error al asegurar índice único en resultados: {e}")
+    finally:
+        cursor.close()
+        conexion.close()
 
 def asegurar_columna_nodo_padre():
     """Agrega la columna nodo_padre si no existe en la tabla resultados"""
@@ -51,31 +95,47 @@ def guardar_en_mysql(datos):
     conexion = get_connection()
 
     cursor = conexion.cursor()
+
     nuevos = 0
+    omitidos = 0
     for fila in datos:
-        cursor.execute("""
-            SELECT COUNT(*) FROM resultados
-            WHERE id_investigador = %s AND titulo_proyecto = %s AND nodo_padre = %s AND anio = %s
-        """, (fila.get("id_investigador"), fila["titulo_proyecto"], fila.get("nodo_padre", ""), fila["anio"]))
-        existe = cursor.fetchone()[0]
-        if existe == 0:
+        id_investigador = fila.get("id_investigador")
+        titulo = fila.get("titulo_proyecto", "")
+        nodo_padre = fila.get("nodo_padre", "")
+        anio = fila.get("anio", "")
+
+        if id_investigador is not None:
             cursor.execute("""
-                INSERT INTO resultados
-                (id_investigador, categoria, nombre, sexo, grado, tipo_proyecto, nodo_padre, titulo_proyecto, anio)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                fila.get("id_investigador"),
-                fila["categoria"],
-                fila["nombre"],
-                fila["sexo"],
-                fila["grado"],
-                fila["tipo_proyecto"],
-                fila.get("nodo_padre", ""),
-                fila["titulo_proyecto"],
-                fila["anio"]
-            ))
-            nuevos += 1
+                SELECT COUNT(*)
+                FROM resultados
+                WHERE id_investigador = %s
+                  AND titulo_proyecto = %s
+                  AND nodo_padre = %s
+                  AND anio = %s
+            """, (id_investigador, titulo, nodo_padre, anio))
+            existe = cursor.fetchone()[0]
+            if existe:
+                omitidos += 1
+                continue
+
+        cursor.execute("""
+            INSERT INTO resultados
+            (id_investigador, categoria, nombre, sexo, grado, tipo_proyecto, nodo_padre, titulo_proyecto, anio)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            id_investigador,
+            fila["categoria"],
+            fila["nombre"],
+            fila["sexo"],
+            fila["grado"],
+            fila["tipo_proyecto"],
+            nodo_padre,
+            titulo,
+            anio
+        ))
+        nuevos += 1
     conexion.commit()
     cursor.close()
     conexion.close()
-    print(f"✅ Se insertaron {nuevos} registros nuevos correctamente")
+    print(f"✅ Operación incremental completada. Nuevos: {nuevos}")
+    print(f"ℹ️ Omitidos por duplicado del mismo investigador: {omitidos}")

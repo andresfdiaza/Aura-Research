@@ -1,8 +1,11 @@
 const grupoService = require('../service/grupoService');
+const { buildDataScope, getActorFromHeaders } = require('../service/accessScopeService');
 
-async function listarGrupos(_req, res) {
+async function listarGrupos(req, res) {
   try {
-    const grupos = await grupoService.listarGrupos();
+    const actor = await getActorFromHeaders(req.headers);
+    const dataScope = buildDataScope(actor);
+    const grupos = await grupoService.listarGrupos(dataScope);
     res.json(grupos);
   } catch (err) {
     console.error('Error fetching grupos:', err.message, err.stack);
@@ -14,7 +17,8 @@ const { addGrupo } = require('../service/grupoService');
 async function crearGrupo(req, res) {
   const { nombre_grupo, sigla_grupo, url, id_facultad } = req.body;
   try {
-    const grupo = await addGrupo(nombre_grupo, sigla_grupo, url, id_facultad);
+    const actor = await getActorFromHeaders(req.headers);
+    const grupo = await addGrupo(nombre_grupo, sigla_grupo, url, id_facultad, actor);
     res.status(201).json(grupo);
   } catch (err) {
     const status = err.status || 500;

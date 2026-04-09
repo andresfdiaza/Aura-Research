@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { API_BASE } from './config';
+import { authHeaders } from './utils/rolePermissions';
 import AuraLogo from './components/AuraLogo';
 import {
   Chart as ChartJS,
@@ -48,7 +49,7 @@ export default function Datos() {
   React.useEffect(() => {
     const loadProgramas = async () => {
       try {
-        const res = await fetch(`${API_BASE}/programas_full`);
+        const res = await fetch(`${API_BASE}/programas_full`, { headers: authHeaders(user) });
         if (!res.ok) return;
         const data = await res.json();
         setProgramasCatalogo(Array.isArray(data) ? data : []);
@@ -58,7 +59,7 @@ export default function Datos() {
     };
     const loadFacultades = async () => {
       try {
-        const res = await fetch(`${API_BASE}/facultades`);
+        const res = await fetch(`${API_BASE}/facultades`, { headers: authHeaders(user) });
         if (!res.ok) return;
         const data = await res.json();
         setFacultadesCatalogo(Array.isArray(data) ? data : []);
@@ -169,7 +170,7 @@ export default function Datos() {
   };
   const displayLabel = (k) => labelMap[k] || (k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
 
-  // Opciones de filtros dinámicas (programas y facultades desde catálogo)
+  // Opciones de filtros dinámicas
   const filterOptions = React.useMemo(() => {
     const opts = {
       facultad: [], grupo: [], programa: [],
@@ -188,34 +189,20 @@ export default function Datos() {
       if (r.titulo_proyecto && !opts.titulo_proyecto.includes(r.titulo_proyecto)) opts.titulo_proyecto.push(r.titulo_proyecto);
     });
 
-    // Programas: filtrar por grupo si está seleccionado, si no por facultad, si no todos
-    let programasFiltrados = programasCatalogo;
-    if (filters.grupo) {
-      // Buscar los programas asociados al grupo seleccionado en los resultados filtrados
-      const programasSet = new Set();
-      resultados.forEach(r => {
-        const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
-        if (grupo === filters.grupo && r.programa) {
-          r.programa.split(' / ').forEach(p => programasSet.add(p.trim()));
-        }
-      });
-      programasFiltrados = programasCatalogo.filter(p => programasSet.has(p.nombre_programa));
-    } else if (filters.facultad) {
-      // Buscar id_facultad de la facultad seleccionada
-      const fac = facultadesCatalogo.find(f => f.nombre_facultad === filters.facultad);
-      const idFac = fac?.id_facultad;
-      if (idFac) {
-        programasFiltrados = programasCatalogo.filter(p => String(p.id_facultad) === String(idFac));
-      } else {
-        programasFiltrados = [];
-      }
-    }
-    opts.programa = programasFiltrados.map(p => p.nombre_programa);
+    const programasSet = new Set();
+    resultados.forEach((r) => {
+      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
+      if (filters.grupo && grupo !== filters.grupo) return;
+      if (filters.facultad && r.facultad !== filters.facultad) return;
+      const programa = (r.programa || '').toString();
+      programa.split(' / ').map((p) => p.trim()).filter(Boolean).forEach((p) => programasSet.add(p));
+    });
+    opts.programa = Array.from(programasSet);
 
     // sort options for nicer UI
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
-  }, [resultados, programasCatalogo, filters.facultad, facultadesCatalogo]);
+  }, [resultados, filters.facultad, filters.grupo]);
 
   // compute filtered dataset
   const filtered = React.useMemo(() => {
@@ -308,13 +295,13 @@ export default function Datos() {
           if (v) qs.append(k, v);
         });
         const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? '?' + qs.toString() : ''}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: authHeaders(user) });
         if (!res.ok) throw new Error('Error fetching tabla_normalizada_final');
         const data = await res.json();
         setResultados(data);
 
         // Fetch total (sin filtros)
-        const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final`);
+        const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final`, { headers: authHeaders(user) });
         if (resTotal.ok) {
           const dataTotal = await resTotal.json();
           setTotalResultados(Array.isArray(dataTotal) ? dataTotal.length : 0);
@@ -353,7 +340,7 @@ export default function Datos() {
       if (filters.facultad) qs.append('facultad', filters.facultad);
       if (filters.programa) qs.append('programa', filters.programa);
       const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? `?${qs.toString()}` : ''}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: authHeaders(user) });
       if (res.ok) {
         const data = await res.json();
         normalizadaRows = Array.isArray(data) ? data : [];

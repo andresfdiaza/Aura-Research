@@ -1,6 +1,24 @@
 // Modularized: listar todos los investigadores
-async function listarInvestigadores() {
+async function listarInvestigadores(dataScope = {}) {
   const pool = require('../db');
+  const conditions = [];
+  const params = [];
+
+  if (Array.isArray(dataScope.id_facultades) && dataScope.id_facultades.length > 0) {
+    conditions.push(`ipf.id_facultad IN (${dataScope.id_facultades.map(() => '?').join(',')})`);
+    params.push(...dataScope.id_facultades);
+  }
+  if (Array.isArray(dataScope.id_grupos) && dataScope.id_grupos.length > 0) {
+    conditions.push(`ig.id_grupo IN (${dataScope.id_grupos.map(() => '?').join(',')})`);
+    params.push(...dataScope.id_grupos);
+  }
+  if (Array.isArray(dataScope.id_investigadores) && dataScope.id_investigadores.length > 0) {
+    conditions.push(`i.id_investigador IN (${dataScope.id_investigadores.map(() => '?').join(',')})`);
+    params.push(...dataScope.id_investigadores);
+  }
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
   const [rows] = await pool.query(
     `SELECT
       i.id_investigador,
@@ -18,8 +36,10 @@ async function listarInvestigadores() {
     LEFT JOIN programa p ON p.id_programa = ipf.id_programa
     LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad
     LEFT JOIN investigador_grupo ig ON ig.id_investigador = i.id_investigador
+    ${whereClause}
     GROUP BY i.id_investigador, i.nombre_completo, i.cedula, i.link_cvlac, i.correo, i.google_scholar, i.orcid
-    ORDER BY i.nombre_completo`
+    ORDER BY i.nombre_completo`,
+    params
   );
   return rows.map(row => ({
     ...row,

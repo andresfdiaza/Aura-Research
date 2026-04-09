@@ -1,10 +1,26 @@
 // backend/repository/resultadosRepository.js
 const pool = require('../db');
 
-exports.getResultados = async (filters) => {
+exports.getResultados = async (filters, dataScope = {}) => {
   const { facultad, programa, anio, investigador, tipo, categoria, tipologia, titulo_proyecto } = filters;
   const conditions = [];
   const params = [];
+
+  // Scope enforced by role mapping in users table.
+  if (Array.isArray(dataScope.facultades) && dataScope.facultades.length > 0) {
+    conditions.push(`r.facultad IN (${dataScope.facultades.map(() => '?').join(',')})`);
+    params.push(...dataScope.facultades);
+  }
+  if (Array.isArray(dataScope.siglas_grupo) && dataScope.siglas_grupo.length > 0) {
+    const groupConditions = dataScope.siglas_grupo.map(() => 'LOWER(COALESCE(r.sigla_grupo, "")) LIKE LOWER(?)');
+    conditions.push(`(${groupConditions.join(' OR ')})`);
+    params.push(...dataScope.siglas_grupo.map((sigla) => `%${sigla}%`));
+  }
+  if (Array.isArray(dataScope.id_investigadores) && dataScope.id_investigadores.length > 0) {
+    conditions.push(`r.id_investigador IN (${dataScope.id_investigadores.map(() => '?').join(',')})`);
+    params.push(...dataScope.id_investigadores);
+  }
+
   if (facultad) {
     conditions.push('r.facultad = ?');
     params.push(facultad);

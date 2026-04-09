@@ -1,5 +1,6 @@
 const { addInvestigador, updateInvestigadorService } = require('../service/investigadorService');
 const investigadorService = require('../service/investigadorService');
+const { buildDataScope, getActorFromHeaders } = require('../service/accessScopeService');
 
 async function crearInvestigador(req, res) {
   try {
@@ -34,7 +35,9 @@ async function editarInvestigador(req, res) {
 // Modularized: listar todos los investigadores
 async function listarInvestigadores(req, res) {
   try {
-    const investigadores = await investigadorService.listarInvestigadores();
+    const actor = await getActorFromHeaders(req.headers);
+    const dataScope = buildDataScope(actor);
+    const investigadores = await investigadorService.listarInvestigadores(dataScope);
     res.json(investigadores);
   } catch (err) {
     console.error('Error fetching investigadores:', err.message, err.stack);

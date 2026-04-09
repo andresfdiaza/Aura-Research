@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { API_BASE } from './config';
 import AuraLogo from './components/AuraLogo';
+import { authHeaders, getRolePermissions, homePathForRole } from './utils/rolePermissions';
 
 export default function Investigadores() {
   // Catálogo de programas
@@ -26,7 +27,7 @@ export default function Investigadores() {
     React.useEffect(() => {
       const fetchGrupos = async () => {
         try {
-          const res = await fetch(`${API_BASE}/grupos`);
+          const res = await fetch(`${API_BASE}/grupos`, { headers: authHeaders(user) });
           if (!res.ok) throw new Error('Error al cargar grupos');
           const data = await res.json();
           setGruposCatalogo(data);
@@ -41,7 +42,7 @@ export default function Investigadores() {
     React.useEffect(() => {
       const loadProgramas = async () => {
         try {
-          const res = await fetch(`${API_BASE}/programas_full`);
+          const res = await fetch(`${API_BASE}/programas_full`, { headers: authHeaders(user) });
           if (!res.ok) return;
           const data = await res.json();
           setProgramasCatalogo(Array.isArray(data) ? data : []);
@@ -56,7 +57,7 @@ export default function Investigadores() {
     React.useEffect(() => {
       const loadFacultades = async () => {
         try {
-          const res = await fetch(`${API_BASE}/facultades`);
+          const res = await fetch(`${API_BASE}/facultades`, { headers: authHeaders(user) });
           if (!res.ok) return;
           const data = await res.json();
           setFacultadesCatalogo(Array.isArray(data) ? data : []);
@@ -95,16 +96,35 @@ export default function Investigadores() {
       });
     }, [editingData.facultad, programasCatalogo, facultadesCatalogo]);
   const location = useLocation();
-  const homePath = location.state?.user?.role === 'admin' ? '/homeadmin' : '/home';  const user = location.state?.user;
+  const user = location.state?.user;
+  const permissions = getRolePermissions(user?.role);
+  const homePath = homePathForRole(user?.role);
+  const canManageInvestigadores = permissions.canManageInvestigadores;
+  const canDeleteInvestigadores = permissions.canDeleteInvestigadores;
 
   const userName = user?.email?.split('@')[0] || 'Usuario';
+
+  if (!user || !canManageInvestigadores) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+        <h2 className="text-2xl font-bold text-red-600">Acceso restringido</h2>
+        <p className="text-slate-600">Tu rol no tiene permisos para editar investigadores.</p>
+        <button
+          onClick={() => navigate(homePath, { state: { user } })}
+          className="rounded-lg bg-primary px-4 py-2 font-semibold text-white hover:bg-primary/90"
+        >
+          Volver al inicio
+        </button>
+      </div>
+    );
+  }
 
   React.useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/investigadores`);
+        const res = await fetch(`${API_BASE}/investigadores`, { headers: authHeaders(user) });
         if (!res.ok) throw new Error('Error fetching investigadores');
         const data = await res.json();
         setInvestigadores(data);
@@ -180,7 +200,7 @@ export default function Investigadores() {
       };
       const res = await fetch(`${API_BASE}/investigadores/${editingId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(user, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -190,7 +210,7 @@ export default function Investigadores() {
       }
 
       // Recargar todos los investigadores para obtener la vista actualizada
-      const resAll = await fetch(`${API_BASE}/investigadores`);
+      const resAll = await fetch(`${API_BASE}/investigadores`, { headers: authHeaders(user) });
       if (resAll.ok) {
         const allData = await resAll.json();
         setInvestigadores(allData);
@@ -317,12 +337,16 @@ export default function Investigadores() {
                     >
                       <span className="material-symbols-outlined text-base">edit</span>
                     </button>
+                    {canDeleteInvestigadores && (
                     <button
                       className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition-all"
                       onClick={async () => {
                         if (!confirm('¿Eliminar este investigador?')) return;
                         try {
-                          const res = await fetch(`${API_BASE}/investigadores/${inv.id_investigador}`, { method: 'DELETE' });
+                          const res = await fetch(`${API_BASE}/investigadores/${inv.id_investigador}`, {
+                            method: 'DELETE',
+                            headers: authHeaders(user),
+                          });
                           if (!res.ok) throw new Error('Delete failed');
                           setInvestigadores((prev) => prev.filter(p => p.id_investigador !== inv.id_investigador));
                         } catch (err) {
@@ -334,6 +358,7 @@ export default function Investigadores() {
                     >
                       <span className="material-symbols-outlined text-base">delete</span>
                     </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -372,12 +397,16 @@ export default function Investigadores() {
                         >
                           Editar
                         </button>
+                        {canDeleteInvestigadores && (
                         <button
                           className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-all"
                           onClick={async () => {
                             if (!confirm('¿Eliminar este investigador?')) return;
                             try {
-                              const res = await fetch(`${API_BASE}/investigadores/${inv.id_investigador}`, { method: 'DELETE' });
+                              const res = await fetch(`${API_BASE}/investigadores/${inv.id_investigador}`, {
+                                method: 'DELETE',
+                                headers: authHeaders(user),
+                              });
                               if (!res.ok) throw new Error('Delete failed');
                               setInvestigadores((prev) => prev.filter(p => p.id_investigador !== inv.id_investigador));
                             } catch (err) {
@@ -387,6 +416,7 @@ export default function Investigadores() {
                         >
                           Eliminar
                         </button>
+                        )}
                       </div>
                     </td>
                   </tr>

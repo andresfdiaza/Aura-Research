@@ -4,3 +4,7 @@ const tablaNormalizadaFinalRepository = require('../repository/tablaNormalizadaF
 exports.getTablaNormalizadaFinal = async (filters) => {
   return await tablaNormalizadaFinalRepository.getTablaNormalizadaFinal(filters);
 };
+
+exports.getTablaNormalizadaFinalByScope = async (filters, dataScope) => {
+  return await tablaNormalizadaFinalRepository.getTablaNormalizadaFinal(filters, dataScope);
+};

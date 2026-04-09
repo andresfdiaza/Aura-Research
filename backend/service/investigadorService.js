@@ -105,6 +105,6 @@ async function addInvestigador(data) {
 module.exports = {
   addInvestigador,
   updateInvestigadorService,
-  listarInvestigadores: async () => await listarInvestigadores(),
+  listarInvestigadores: async (dataScope) => await listarInvestigadores(dataScope),
   obtenerInvestigadorPorId: async (id) => await obtenerInvestigadorPorId(id)
 };

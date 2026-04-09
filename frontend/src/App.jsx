@@ -14,13 +14,17 @@ import DirectorioInvestigadores from './pages/DirectorioInvestigadores/Directori
 import PerfilInvestigador from './PerfilInvestigador';
 import Usuarios from './pages/HomeAdmin/Usuarios';
 import Ajustes from './pages/HomeAdmin/Ajustes';
+import { canAccessRoles, homePathForRole } from './utils/rolePermissions';
 import './App.css';
 
-function ProtectedRoute({ element }) {
+function ProtectedRoute({ element, allowedRoles = [] }) {
   const location = useLocation();
   const user = location.state?.user;
   if (!user) {
     return <Navigate to="/" replace />;
+  }
+  if (!canAccessRoles(user.role, allowedRoles)) {
+    return <Navigate to={homePathForRole(user.role)} replace state={{ user }} />;
   }
   return element;
 }
@@ -31,8 +35,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/home" element={<ProtectedRoute element={<Home />} />} />
-        <Route path="/homeadmin" element={<ProtectedRoute element={<HomeAdmin />} />} />
-        <Route path="/investigadores" element={<ProtectedRoute element={<Investigadores />} />} />
+        <Route path="/homeadmin" element={<ProtectedRoute element={<HomeAdmin />} allowedRoles={['admin']} />} />
+        <Route path="/investigadores" element={<ProtectedRoute element={<Investigadores />} allowedRoles={['admin', 'coordinador']} />} />
         <Route path="/datos" element={<ProtectedRoute element={<Datos />} />} />
         <Route path="/analisis" element={<ProtectedRoute element={<Analisis />} />} />
         <Route path="/NuevoConocimiento" element={<ProtectedRoute element={<NuevoConocimiento />} />} />
@@ -42,7 +46,7 @@ function App() {
         <Route path="/FormacionRecursoHumano" element={<ProtectedRoute element={<FormacionRecursoHumano />} />} />
         <Route path="/DirectorioInvestigadores" element={<ProtectedRoute element={<DirectorioInvestigadores />} />} />
         <Route path="/PerfilInvestigador" element={<ProtectedRoute element={<PerfilInvestigador />} />} />
-        <Route path="/usuarios" element={<ProtectedRoute element={<Usuarios />} />} />
+        <Route path="/usuarios" element={<ProtectedRoute element={<Usuarios />} allowedRoles={['admin', 'director']} />} />
         <Route path="/ajustes" element={<ProtectedRoute element={<Ajustes />} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

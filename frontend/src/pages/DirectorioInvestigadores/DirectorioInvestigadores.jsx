@@ -44,8 +44,20 @@ import {
   assetImages,
   toTitleCaseEs
 } from '../../utils/directorioUtils';
+import { authHeaders, getRolePermissions, homePathForRole } from '../../utils/rolePermissions';
 
 export default function DirectorioInvestigadores() {
+  const EMPTY_INVESTIGADOR_FORM = {
+    nombre_completo: '',
+    cedula: '',
+    link_cvlac: '',
+    facultad: '',
+    programas: [],
+    correo: '',
+    google_scholar: '',
+    orcid: '',
+    grupos: []
+  };
   const [resultados, setResultados] = React.useState([]);
   const [programasCatalogo, setProgramasCatalogo] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
@@ -73,7 +85,7 @@ export default function DirectorioInvestigadores() {
         };
         const res = await fetch(`${API_BASE}/programas`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(user, { 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
@@ -115,17 +127,7 @@ export default function DirectorioInvestigadores() {
   const [grupoLoading, setGrupoLoading] = React.useState(false);
   const [grupoError, setGrupoError] = React.useState(null);
   const [grupoSuccess, setGrupoSuccess] = React.useState(false);
-  const [formData, setFormData] = React.useState({
-    nombre_completo: '',
-    cedula: '',
-    link_cvlac: '',
-    facultad: '',
-    programas: [],
-    correo: '',
-    google_scholar: '',
-    orcid: '',
-    grupos: []
-  });
+  const [formData, setFormData] = React.useState(EMPTY_INVESTIGADOR_FORM);
   const [formLoading, setFormLoading] = React.useState(false);
   const [formError, setFormError] = React.useState(null);
   const [formSuccess, setFormSuccess] = React.useState(false);
@@ -146,7 +148,7 @@ export default function DirectorioInvestigadores() {
         if (filters.facultad) qs.append('facultad', filters.facultad);
         const url = `${API_BASE}/resultados` + (qs.toString() ? ('?' + qs.toString()) : '');
         console.log('[DirectorioInvestigadores] Fetching resultados', { url, filters });
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: authHeaders(user) });
         if (!res.ok) {
           const errorText = await res.text();
           console.error('[DirectorioInvestigadores] Fetch failed', {
@@ -211,7 +213,8 @@ export default function DirectorioInvestigadores() {
   React.useEffect(() => {
     const fetchGrupos = async () => {
       try {
-        const res = await fetch(`${API_BASE}/grupos`);
+        const res = await fetch(`${API_BASE}/grupos`, { headers: authHeaders(user) });
+        
         if (!res.ok) throw new Error('Error al cargar grupos');
         const data = await res.json();
         setGruposCatalogo(data);
@@ -285,7 +288,7 @@ export default function DirectorioInvestigadores() {
       };
       const res = await fetch(`${API_BASE}/investigadores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(user, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -295,17 +298,7 @@ export default function DirectorioInvestigadores() {
       }
 
       setFormSuccess(true);
-      setFormData({
-        nombre_completo: '',
-        cedula: '',
-        link_cvlac: '',
-        facultad: '',
-        programas: [],
-        correo: '',
-        google_scholar: '',
-        orcid: '',
-        grupos: []
-      });
+      setFormData(EMPTY_INVESTIGADOR_FORM);
       setGruposSeleccionados([]);
       setTimeout(() => {
         setShowAddModal(false);
@@ -333,7 +326,7 @@ export default function DirectorioInvestigadores() {
       };
       const res = await fetch(`${API_BASE}/grupos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(user, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -362,13 +355,9 @@ export default function DirectorioInvestigadores() {
         if (p && !opts.programa.includes(p)) opts.programa.push(p);
       });
     });
-    // Si hay catálogo, agregar solo los nombres de programa que no están ya
-    programasCatalogo.forEach((p) => {
-      if (p && p.nombre_programa && !opts.programa.includes(p.nombre_programa)) opts.programa.push(p.nombre_programa);
-    });
     Object.values(opts).forEach(arr => arr.sort());
     return opts;
-  }, [resultados, programasCatalogo]);
+  }, [resultados]);
 
   // Obtener lista única de investigadores con conteo de productos por tipología
   const investigadores = React.useMemo(() => {
@@ -446,8 +435,65 @@ export default function DirectorioInvestigadores() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
-  const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
+  const isCoordinador = String(user?.role || '').toLowerCase() === 'coordinador';
+  const permissions = getRolePermissions(user?.role);
+  const canManageInvestigadores = permissions.canManageInvestigadores;
+  const canCreateCatalogs = permissions.canCreateCatalogs;
+  const canViewUsers = permissions.canViewUsers;
+  const homePath = homePathForRole(user?.role);
   const userName = user?.email?.split('@')[0] || 'Usuario';
+
+  const coordinatorFacultadOptions = React.useMemo(() => {
+    if (!isCoordinador) return facultadesCatalogo;
+
+    const scopedFacultades = new Set(
+      resultados
+        .map((r) => (r.facultad || '').toString().trim())
+        .filter(Boolean)
+    );
+
+    return facultadesCatalogo.filter((fac) => {
+      const nombreFacultad = (fac.nombre_facultad || fac.nombre || '').toString().trim();
+      return scopedFacultades.has(nombreFacultad);
+    });
+  }, [isCoordinador, facultadesCatalogo, resultados]);
+
+  const coordinatorDefaultFacultad = React.useMemo(() => {
+    if (!isCoordinador) return '';
+    if (coordinatorFacultadOptions.length > 0) {
+      const fac = coordinatorFacultadOptions[0];
+      return (fac.nombre_facultad || fac.nombre || '').toString().trim();
+    }
+    const fallback = resultados.find((r) => r.facultad)?.facultad;
+    return (fallback || '').toString().trim();
+  }, [isCoordinador, coordinatorFacultadOptions, resultados]);
+
+  const openAddInvestigadorModal = React.useCallback(() => {
+    if (!isCoordinador) {
+      setFormData(EMPTY_INVESTIGADOR_FORM);
+      setGruposSeleccionados([]);
+      setShowAddModal(true);
+      return;
+    }
+
+    const facultad = coordinatorDefaultFacultad;
+    const facultadObj = facultadesCatalogo.find((fac) => {
+      const nombreFacultad = (fac.nombre_facultad || fac.nombre || '').toString().trim();
+      return nombreFacultad === facultad;
+    });
+    const idFacultad = facultadObj?.id_facultad || facultadObj?.id;
+
+    const gruposPermitidos = gruposCatalogo.filter((grupo) => {
+      if (!idFacultad) return true;
+      return String(grupo.id_facultad) === String(idFacultad);
+    });
+
+    const defaultGrupos = gruposPermitidos.length === 1 ? [Number(gruposPermitidos[0].id)] : [];
+
+    setFormData({ ...EMPTY_INVESTIGADOR_FORM, facultad });
+    setGruposSeleccionados(defaultGrupos);
+    setShowAddModal(true);
+  }, [isCoordinador, coordinatorDefaultFacultad, facultadesCatalogo, gruposCatalogo]);
 
   // Handler para clic en barras de tipología
   const handleTipologiaClick = (nombreInvestigador, sigla) => {
@@ -507,7 +553,7 @@ export default function DirectorioInvestigadores() {
           >
             Análisis
           </Link>
-          {user?.role === 'admin' && (
+          {canViewUsers && (
             <Link
               className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
               to="/usuarios"
@@ -548,16 +594,19 @@ export default function DirectorioInvestigadores() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <h1 className="text-2xl sm:text-3xl font-bold text-primary">Directorio de Investigadores</h1>
               <div className="flex flex-wrap gap-2">
-                {user?.role === 'admin' && (
+                {(canManageInvestigadores || canCreateCatalogs) && (
                   <>
+                    {canManageInvestigadores && (
                     <button
                       title="Agregar Investigador"
                       className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg font-bold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-sm"
-                      onClick={() => setShowAddModal(true)}
+                      onClick={openAddInvestigadorModal}
                     >
                       <span className="material-symbols-outlined text-base">person_add</span>
                       <span>Agregar</span>
                     </button>
+                    )}
+                    {canManageInvestigadores && (
                     <button
                       title="Editar Investigador"
                       className="flex items-center gap-1 px-4 py-2 bg-slate-500 text-white rounded-lg font-bold shadow-md shadow-slate-400 hover:bg-slate-600 transition-all text-sm"
@@ -566,16 +615,10 @@ export default function DirectorioInvestigadores() {
                       <span className="material-symbols-outlined text-base">edit</span>
                       <span>Editar</span>
                     </button>
-                    <button
-                      title="Agregar Grupo"
-                      className="flex items-center gap-1 px-4 py-2 bg-accent text-white rounded-lg font-bold shadow-md shadow-accent/20 hover:bg-accent/90 transition-all text-sm"
-                      onClick={() => setShowAddGrupoModal(true)}
-                    >
-                      <span className="material-symbols-outlined text-base">group_add</span>
-                      <span>Agregar Grupo</span>
-                    </button>
+                    )}
+                    
                     {/* Modal para Agregar Grupo */}
-                    {showAddGrupoModal && (
+                    {canCreateCatalogs && showAddGrupoModal && (
                       <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                         <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[400px] overflow-hidden relative">
                           <button
@@ -673,24 +716,9 @@ export default function DirectorioInvestigadores() {
                         </div>
                       </div>
                     )}
-                    <button
-                      title="Agregar Facultad"
-                      className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md shadow-green-400 hover:bg-green-700 transition-all text-sm"
-                      onClick={() => setShowAddFacultadModal(true)}
-                    >
-                      <span className="material-symbols-outlined text-base">school</span>
-                      <span>Agregar Facultad</span>
-                    </button>
-                    <button
-                      title="Añadir Programa"
-                      className="flex items-center gap-1 px-4 py-2 bg-[#2A5783] text-white rounded-lg font-bold shadow-md shadow-[#2A5783]/20 hover:bg-[#1e3a5c] transition-all text-sm"
-                      onClick={() => setShowAddProgramaModal(true)}
-                    >
-                      <span className="material-symbols-outlined text-base">school</span>
-                      <span>Añadir Programa</span>
-                    </button>
+                    
                               {/* Modal para Añadir Programa */}
-                              {showAddProgramaModal && (
+                              {canCreateCatalogs && showAddProgramaModal && (
                                 <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                                   <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[400px] overflow-hidden relative">
                                     <button
@@ -766,7 +794,7 @@ export default function DirectorioInvestigadores() {
                                 </div>
                               )}
                         {/* Modal para Agregar Facultad */}
-                        {showAddFacultadModal && (
+                        {canCreateCatalogs && showAddFacultadModal && (
                           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                             <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-[400px] overflow-hidden relative">
                               <button
@@ -802,7 +830,7 @@ export default function DirectorioInvestigadores() {
                                 try {
                                   const res = await fetch(`${API_BASE}/facultades`, {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
+                                    headers: authHeaders(user, { 'Content-Type': 'application/json' }),
                                     body: JSON.stringify(facultadForm),
                                   });
                                   if (!res.ok) {
@@ -845,6 +873,34 @@ export default function DirectorioInvestigadores() {
                             </div>
                           </div>
                         )}
+                  </>
+                )}
+                {canCreateCatalogs && (
+                  <>
+                    <button
+                      title="Agregar Grupo"
+                      className="flex items-center gap-1 px-4 py-2 bg-accent text-white rounded-lg font-bold shadow-md shadow-accent/20 hover:bg-accent/90 transition-all text-sm"
+                      onClick={() => setShowAddGrupoModal(true)}
+                    >
+                      <span className="material-symbols-outlined text-base">group_add</span>
+                      <span>Agregar Grupo</span>
+                    </button>
+                    <button
+                      title="Agregar Facultad"
+                      className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md shadow-green-400 hover:bg-green-700 transition-all text-sm"
+                      onClick={() => setShowAddFacultadModal(true)}
+                    >
+                      <span className="material-symbols-outlined text-base">school</span>
+                      <span>Agregar Facultad</span>
+                    </button>
+                    <button
+                      title="Añadir Programa"
+                      className="flex items-center gap-1 px-4 py-2 bg-[#2A5783] text-white rounded-lg font-bold shadow-md shadow-[#2A5783]/20 hover:bg-[#1e3a5c] transition-all text-sm"
+                      onClick={() => setShowAddProgramaModal(true)}
+                    >
+                      <span className="material-symbols-outlined text-base">school</span>
+                      <span>Añadir Programa</span>
+                    </button>
                   </>
                 )}
                 <button
@@ -898,14 +954,9 @@ export default function DirectorioInvestigadores() {
                     onChange={e => setFilters(prev => ({ ...prev, programa: e.target.value }))}
                   >
                     <option value="">Todos</option>
-                    {programasCatalogo
-                      .filter(p => {
-                        if (!filters.facultad) return true;
-                        return p.nombre_facultad === filters.facultad;
-                      })
-                      .map(p => (
-                        <option key={p.id_programa} value={p.nombre_programa}>{p.nombre_programa}</option>
-                      ))}
+                    {filterOptions.programa?.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1167,9 +1218,10 @@ export default function DirectorioInvestigadores() {
                     name="facultad"
                     value={formData.facultad}
                     onChange={handleFacultadChange}
+                    disabled={isCoordinador}
                   >
                     <option value="">Seleccione Facultad</option>
-                    {facultadesCatalogo.map((fac) => (
+                    {(isCoordinador ? coordinatorFacultadOptions : facultadesCatalogo).map((fac) => (
                       <option
                         key={fac.id_facultad || fac.id}
                         value={fac.nombre_facultad || fac.nombre}
@@ -1244,6 +1296,7 @@ export default function DirectorioInvestigadores() {
                   ) : (
                     gruposFiltrados.map((grupo) => {
                       const siglaGrupo = grupo.sigla_grupo || '';
+                      const singleCoordinatorGroup = isCoordinador && gruposFiltrados.length === 1;
                       return (
                         <label
                           key={grupo.id}
@@ -1253,6 +1306,7 @@ export default function DirectorioInvestigadores() {
                             type="checkbox"
                             value={grupo.id}
                             checked={gruposSeleccionados.includes(grupo.id)}
+                            disabled={singleCoordinatorGroup}
                             onChange={e => {
                               const { value, checked } = e.target;
                               const id = Number(value);

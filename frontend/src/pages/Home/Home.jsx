@@ -2,15 +2,16 @@ import React from 'react';
 import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import '../../styles/pages/home.css';
 import AuraLogo from '../../components/AuraLogo';
-import { API_BASE } from '../../config';
 import TwoFASettings from '../../components/TwoFASettings';
+import { getRolePermissions, homePathForRole, roleLabel } from '../../utils/rolePermissions';
 
 export default function Home() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
-  const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
-  const homePath = isAdmin ? '/homeadmin' : '/home';
+  const permissions = getRolePermissions(user?.role);
+  const homePath = homePathForRole(user?.role);
+  const currentRoleLabel = roleLabel(user?.role);
 
   const [show2FA, setShow2FA] = React.useState(false);
 
@@ -59,6 +60,15 @@ export default function Home() {
               Análisis
             
           </Link>
+          {permissions.canViewUsers && (
+            <Link
+              className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
+              to="/usuarios"
+              state={{ user }}
+            >
+              Usuarios
+            </Link>
+          )}
           
         </nav>
         <div className="flex items-center gap-4">
@@ -109,13 +119,16 @@ export default function Home() {
                 <h1 className="text-primary text-3xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight">
                   <br className="hidden md:block" />¡{userName} Bienvenido al <span className="text-primary">Sistema analitico de investigadores de la UNAC</span> !
                 </h1>
+                <div className="inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
+                  Rol activo: {currentRoleLabel}
+                </div>
                 <p className="text-slate-600 text-lg max-w-2xl leading-relaxed">
                   <span className="align-left-fix">Gestión y análisis de productos de investigación de la Corporación Universitaria Adventista. Visualiza el impacto de la producción científica en tiempo real.</span>
                 </p>
               </div>
             </div>
             {/* Botón de doble factor eliminado, ahora está en la tuerquita */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            <div className={`grid grid-cols-1 ${permissions.canViewUsers ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-8 mb-16`}>
               <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft w-full max-w-[22rem] mx-auto">
                 <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
                   <span className="material-symbols-outlined text-[60px] text-primary">group_add</span>
@@ -171,7 +184,47 @@ export default function Home() {
                 </div>
                 <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
               </div>
+              {permissions.canViewUsers && (
+                <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft w-full max-w-[22rem] mx-auto">
+                  <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
+                    <span className="material-symbols-outlined text-[60px] text-primary">supervisor_account</span>
+                  </div>
+                  <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
+                    <div className="size-14 rounded-2xl bg-[#F5A800] flex items-center justify-center text-white mb-6 shadow-lg shadow-primary/20">
+                      <span className="material-symbols-outlined text-3xl">supervisor_account</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-primary mb-3 tracking-tight">
+                      Usuarios
+                    </h3>
+                    <p className="text-slate-600 mb-8 text-sm">
+                      Gestiona usuarios, roles y acceso al sistema.
+                    </p>
+                    <div className="mt-auto">
+                      <Link
+                        to="/usuarios"
+                        state={{ user }}
+                        className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all uppercase text-sm tracking-widest"
+                        style={{ margin: '5px' }}
+                      >
+                        Administrar
+                        <span className="material-symbols-outlined">arrow_forward</span>
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="h-2 w-full bg-[#F5A800] mt-auto"></div>
+                </div>
+              )}
             </div>
+            {permissions.canViewUsers && (
+              <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <h3 className="text-sm font-bold text-primary">Permisos de tu rol</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {permissions.canManageUsers
+                    ? 'Tienes acceso de administracion de usuarios y configuracion avanzada.'
+                    : 'Tienes acceso de consulta. La gestion de usuarios esta reservada para administradores.'}
+                </p>
+              </div>
+            )}
           </div>
         </main>
       </div>

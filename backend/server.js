@@ -3,6 +3,8 @@ const cors = require('cors');
 const pool = require('./db');
 const bcrypt = require('bcryptjs');
 const scrapingController = require('./controller/scrapingController');
+const { requireRole } = require('./middleware/roleAuth');
+const { buildDataScope, getActorFromHeaders } = require('./service/accessScopeService');
 require('dotenv').config();
 
 
@@ -20,8 +22,8 @@ app.post('/login', login);
 
 // register route separado en controller/service/repository
 const { register } = require('./controller/registerController');
-app.post('/register', register);
-app.post('/api/register', register);
+app.post('/register', requireRole('admin', 'director'), register);
+app.post('/api/register', requireRole('admin', 'director'), register);
 
 
 // Endpoint para activar 2FA
@@ -33,7 +35,7 @@ const { verify2FAController } = require('./controller/verify2faController');
 app.post('/api/2fa/verify', verify2FAController);
 
 // Endpoint para reiniciar 2FA por email
-app.post('/api/2fa/reset', async (req, res) => {
+app.post('/api/2fa/reset', requireRole('admin'), async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: 'email required' });
   try {
@@ -53,18 +55,32 @@ app.post('/api/2fa/reset', async (req, res) => {
 
 // Endpoints para usuarios
 const { listUsersController, updateUserController, deleteUserController } = require('./controller/userController');
-app.get('/api/users', listUsersController);
-app.put('/api/users/:id', updateUserController);
-app.delete('/api/users/:id', deleteUserController);
+app.get('/api/users', requireRole('admin', 'director'), listUsersController);
+app.put('/api/users/:id', requireRole('admin', 'director'), updateUserController);
+app.delete('/api/users/:id', requireRole('admin', 'director'), deleteUserController);
 
 // Nuevo endpoint: lista completa de programas con facultad
 app.get('/api/programas_full', async (_req, res) => {
   try {
+    const actor = await getActorFromHeaders(_req.headers);
+    const dataScope = buildDataScope(actor);
+    const conditions = [];
+    const params = [];
+
+    if (Array.isArray(dataScope.id_facultades) && dataScope.id_facultades.length > 0) {
+      conditions.push(`p.id_facultad IN (${dataScope.id_facultades.map(() => '?').join(',')})`);
+      params.push(...dataScope.id_facultades);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const [rows] = await pool.query(
       `SELECT p.id_programa, p.nombre_programa, p.id_facultad, f.nombre_facultad
        FROM programa p
        LEFT JOIN facultad f ON f.id_facultad = p.id_facultad
+       ${whereClause}
        ORDER BY p.id_programa`
+      ,
+      params
     );
     res.json(rows);
   } catch (err) {
@@ -73,34 +89,90 @@ app.get('/api/programas_full', async (_req, res) => {
   }
 });
 
+app.get('/api/universidades', async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id_universidad, nombre_universidad, codigo
+       FROM universidad
+       ORDER BY nombre_universidad`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching universidades:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
+app.post('/api/universidades', requireRole('admin'), async (req, res) => {
+  try {
+    const nombre_universidad = (req.body?.nombre_universidad || '').trim();
+    const codigoRaw = (req.body?.codigo || '').trim();
+    const codigo = codigoRaw || null;
+
+    if (!nombre_universidad) {
+      return res.status(400).json({ message: 'nombre_universidad requerido' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO universidad (nombre_universidad, codigo)
+       VALUES (?, ?)`,
+      [nombre_universidad, codigo]
+    );
+
+    res.status(201).json({
+      id_universidad: result.insertId,
+      nombre_universidad,
+      codigo,
+    });
+  } catch (err) {
+    if (err?.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'La universidad o codigo ya existe' });
+    }
+    console.error('Error creating universidad:', err.message, err.stack);
+    res.status(500).json({ message: 'internal server error', error: err.message });
+  }
+});
+
 //==========DIRECTORIO INVESTIGADORES==========//
 
 // Crear nuevo programa académico (refactor controller/service/repository)
 const { crearPrograma } = require('./controller/programaController');
-app.post('/api/programas', crearPrograma);
+app.post('/api/programas', requireRole('admin', 'director'), crearPrograma);
 
 // Crear nueva facultad (refactor controller/service/repository)
 const { crearFacultad } = require('./controller/facultadController');
-app.post('/api/facultades', crearFacultad);
+app.post('/api/facultades', requireRole('admin', 'director'), crearFacultad);
 
 // Crear nuevo grupo (refactor controller/service/repository)
 const { crearGrupo } = require('./controller/grupoController');
-app.post('/api/grupos', crearGrupo);
+app.post('/api/grupos', requireRole('admin', 'director'), crearGrupo);
 
 // add investigador route (refactor controller/service/repository)
 const { crearInvestigador } = require('./controller/investigadorController');
-app.post('/api/investigadores', crearInvestigador);
+app.post('/api/investigadores', requireRole('admin', 'coordinador'), crearInvestigador);
 
 // update investigador by id (refactor controller/service/repository)
 const { editarInvestigador } = require('./controller/investigadorController');
-app.put('/investigadores/:id', editarInvestigador);
-app.put('/api/investigadores/:id', editarInvestigador);
+app.put('/investigadores/:id', requireRole('admin', 'coordinador'), editarInvestigador);
+app.put('/api/investigadores/:id', requireRole('admin', 'coordinador'), editarInvestigador);
 
 // Listar todas las facultades (todos los datos)
 app.get('/api/facultades', async (_req, res) => {
   try {
+    const actor = await getActorFromHeaders(_req.headers);
+    const dataScope = buildDataScope(actor);
+    const conditions = [];
+    const params = [];
+
+    if (Array.isArray(dataScope.id_facultades) && dataScope.id_facultades.length > 0) {
+      conditions.push(`id_facultad IN (${dataScope.id_facultades.map(() => '?').join(',')})`);
+      params.push(...dataScope.id_facultades);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const [rows] = await pool.query(
-      `SELECT * FROM facultad ORDER BY nombre_facultad`
+      `SELECT * FROM facultad ${whereClause} ORDER BY nombre_facultad`,
+      params
     );
     res.json(rows);
   } catch (err) {
@@ -110,7 +182,7 @@ app.get('/api/facultades', async (_req, res) => {
 });
 
 // Crear nuevo grupo
-app.post('/api/grupos', async (req, res) => {
+app.post('/api/grupos', requireRole('admin', 'director'), async (req, res) => {
   try {
     console.log('[DEBUG] POST /api/grupos headers:', req.headers);
     console.log('[DEBUG] POST /api/grupos body:', req.body);
@@ -171,8 +243,60 @@ app.use((req, res, next) => {
         await pool.query("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'user'");
         console.log('Added role column to users table');
       }
+
+      const [facCols] = await pool.query("SHOW COLUMNS FROM users WHERE Field = 'id_facultad'");
+      if (facCols.length === 0) {
+        await pool.query('ALTER TABLE users ADD COLUMN id_facultad INT NULL');
+        console.log('Added id_facultad column to users table');
+      }
+
+      const [groupCols] = await pool.query("SHOW COLUMNS FROM users WHERE Field = 'id_grupo'");
+      if (groupCols.length === 0) {
+        await pool.query('ALTER TABLE users ADD COLUMN id_grupo INT NULL');
+        console.log('Added id_grupo column to users table');
+      }
     } catch (err) {
       console.error('Error checking/adding role column:', err.message);
+    }
+
+    const createUserScopeSql = `
+      CREATE TABLE IF NOT EXISTS user_scope (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        scope_type ENUM('universidad', 'facultad', 'grupo', 'investigador') NOT NULL,
+        scope_id INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_user_scope (user_id, scope_type, scope_id),
+        CONSTRAINT fk_user_scope_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB;
+    `;
+    await pool.query(createUserScopeSql);
+    console.log('user_scope table ensured');
+
+    try {
+      await pool.query(
+        `ALTER TABLE user_scope
+         MODIFY COLUMN scope_type ENUM('universidad', 'facultad', 'grupo', 'investigador') NOT NULL`
+      );
+    } catch (scopeEnumErr) {
+      console.error('Error updating user_scope enum values:', scopeEnumErr.message);
+    }
+
+    try {
+      await pool.query(
+        `INSERT IGNORE INTO user_scope (user_id, scope_type, scope_id)
+         SELECT id, 'facultad', id_facultad
+         FROM users
+         WHERE id_facultad IS NOT NULL`
+      );
+      await pool.query(
+        `INSERT IGNORE INTO user_scope (user_id, scope_type, scope_id)
+         SELECT id, 'grupo', id_grupo
+         FROM users
+         WHERE id_grupo IS NOT NULL`
+      );
+    } catch (scopeMigrationErr) {
+      console.error('Error migrating legacy user scope columns:', scopeMigrationErr.message);
     }
 
     const createInvestigadoresSql = `
@@ -209,9 +333,19 @@ app.use((req, res, next) => {
       CREATE TABLE IF NOT EXISTS facultad (
         id_facultad INT AUTO_INCREMENT PRIMARY KEY,
         nombre_facultad VARCHAR(255) NOT NULL UNIQUE,
+        id_universidad INT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB;
     `;
+    const createUniversidadSql = `
+      CREATE TABLE IF NOT EXISTS universidad (
+        id_universidad INT AUTO_INCREMENT PRIMARY KEY,
+        nombre_universidad VARCHAR(255) NOT NULL UNIQUE,
+        codigo VARCHAR(50) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;
+    `;
+    await pool.query(createUniversidadSql);
     const createProgramaSql = `
       CREATE TABLE IF NOT EXISTS programa (
         id_programa INT AUTO_INCREMENT PRIMARY KEY,
@@ -236,6 +370,36 @@ app.use((req, res, next) => {
       ) ENGINE=InnoDB;
     `;
     await pool.query(createFacultadSql);
+
+    try {
+      const [facUniCols] = await pool.query("SHOW COLUMNS FROM facultad WHERE Field = 'id_universidad'");
+      if (facUniCols.length === 0) {
+        await pool.query('ALTER TABLE facultad ADD COLUMN id_universidad INT NULL');
+        console.log('Added id_universidad column to facultad');
+      }
+    } catch (facUniColErr) {
+      console.error('Error ensuring id_universidad column on facultad:', facUniColErr.message);
+    }
+
+    try {
+      const [fkRows] = await pool.query(
+        `SELECT CONSTRAINT_NAME
+         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'facultad'
+           AND COLUMN_NAME = 'id_universidad'
+           AND REFERENCED_TABLE_NAME = 'universidad'`
+      );
+      if (fkRows.length === 0) {
+        await pool.query(
+          'ALTER TABLE facultad ADD CONSTRAINT fk_facultad_universidad FOREIGN KEY (id_universidad) REFERENCES universidad(id_universidad)'
+        );
+        console.log('Added fk_facultad_universidad foreign key');
+      }
+    } catch (facUniFkErr) {
+      console.error('Error ensuring fk_facultad_universidad:', facUniFkErr.message);
+    }
+
     await pool.query(createProgramaSql);
     await pool.query(createInvestigadorProgramaFacultadSql);
 
@@ -276,9 +440,31 @@ app.use((req, res, next) => {
 
     // seed requested base catalog data with coordinators
     await pool.query(
+      `INSERT IGNORE INTO universidad (nombre_universidad, codigo) VALUES (?, ?)` ,
+      ['Universidad Adventista de Colombia', 'UNAC']
+    );
+
+    const [[defaultUniversidad]] = await pool.query(
+      `SELECT id_universidad
+       FROM universidad
+       WHERE codigo = 'UNAC' OR nombre_universidad = 'Universidad Adventista de Colombia'
+       ORDER BY id_universidad
+       LIMIT 1`
+    );
+
+    await pool.query(
       `INSERT IGNORE INTO facultad (nombre_facultad) VALUES (?)`,
       ['Facultad de Ingeniería']
     );
+
+    if (defaultUniversidad?.id_universidad) {
+      await pool.query(
+        `UPDATE facultad
+         SET id_universidad = ?
+         WHERE id_universidad IS NULL`,
+        [defaultUniversidad.id_universidad]
+      );
+    }
     
     // Get the faculty ID for reference
     const [[{ id_facultad }]] = await pool.query(
@@ -311,11 +497,22 @@ app.use((req, res, next) => {
         id INT AUTO_INCREMENT PRIMARY KEY,
         nombre_grupo VARCHAR(255),
         sigla_grupo VARCHAR(255),
-        url VARCHAR(512) NOT NULL
+        url VARCHAR(512) NOT NULL,
+        id_facultad INT NULL
       ) ENGINE=InnoDB;
     `;
     await pool.query(ensureLinkGrouplabSql);
     console.log('link_grouplab table ensured');
+
+    try {
+      const [linkFacCols] = await pool.query("SHOW COLUMNS FROM link_grouplab WHERE Field = 'id_facultad'");
+      if (linkFacCols.length === 0) {
+        await pool.query('ALTER TABLE link_grouplab ADD COLUMN id_facultad INT NULL');
+        console.log('Added id_facultad column to link_grouplab');
+      }
+    } catch (err) {
+      console.error('Error ensuring id_facultad on link_grouplab:', err.message);
+    }
 
     // Ensure resultados table exists with all required columns
     const ensureResultadosSql = `
@@ -579,8 +776,8 @@ const deleteInvestigadorHandler = async (req, res) => {
   }
 };
 
-app.delete('/investigadores/:id', deleteInvestigadorHandler);
-app.delete('/api/investigadores/:id', deleteInvestigadorHandler);
+app.delete('/investigadores/:id', requireRole('admin'), deleteInvestigadorHandler);
+app.delete('/api/investigadores/:id', requireRole('admin'), deleteInvestigadorHandler);
 
 
 //================GET==============//
@@ -598,9 +795,9 @@ app.get('/api/nodo-hijo-cantidades', nodoHijoCantidadesController.getNodoHijoCan
 
 const PORT = process.env.PORT || 4000;
 // scraping endpoints (clean architecture)
-app.post('/api/scraping/ejecutar', scrapingController.ejecutar);
-app.post('/api/scraping/ejecutar-grouplab', scrapingController.ejecutarGroupLab);
-app.post('/api/scraping/ejecutar-completo', scrapingController.ejecutarCompleto);
+app.post('/api/scraping/ejecutar', requireRole('admin'), scrapingController.ejecutar);
+app.post('/api/scraping/ejecutar-grouplab', requireRole('admin'), scrapingController.ejecutarGroupLab);
+app.post('/api/scraping/ejecutar-completo', requireRole('admin'), scrapingController.ejecutarCompleto);
 
 // global error handler (catches unhandled errors passed to next())
 app.use((err, req, res, next) => {

@@ -1,11 +1,13 @@
 const { registerUser } = require('../service/registerService');
+const { getActorFromHeaders } = require('../service/accessScopeService');
 
 async function register(req, res) {
   console.log('--- [REGISTER] HEADERS:', req.headers);
   console.log('--- [REGISTER] BODY:', req.body);
-  const { email, password, role } = req.body;
+  const { email, password, role, scope } = req.body;
   try {
-    const user = await registerUser(email, password, role);
+    const actor = await getActorFromHeaders(req.headers);
+    const user = await registerUser(email, password, role, scope, actor);
     res.status(201).json(user);
   } catch (err) {
     const status = err.status || 500;

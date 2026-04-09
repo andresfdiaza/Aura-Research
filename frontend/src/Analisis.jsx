@@ -1,12 +1,14 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import AuraLogo from './components/AuraLogo';
+import { getRolePermissions, homePathForRole } from './utils/rolePermissions';
 
 export default function Analisis() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
-  const homePath = user?.role === 'admin' ? '/homeadmin' : '/home';
+  const permissions = getRolePermissions(user?.role);
+  const homePath = homePathForRole(user?.role);
   const userName = user?.email?.split('@')[0] || 'Usuario';
   const categories = [
     'General',
@@ -73,7 +75,7 @@ export default function Analisis() {
           >
             Análisis
           </Link>
-          {user?.role === 'admin' && (
+          {permissions.canViewUsers && (
             <Link
               className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
               to="/usuarios"
@@ -82,13 +84,6 @@ export default function Analisis() {
               Usuarios
             </Link>
           )}
-          <Link
-            className="text-slate-500 hover:text-primary text-sm font-semibold transition-colors"
-            to="/ajustes"
-            state={{ user }}
-          >
-            Ajustes
-          </Link>
         </nav>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">

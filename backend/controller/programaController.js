@@ -1,9 +1,11 @@
 const { addPrograma } = require('../service/programaService');
+const { getActorFromHeaders } = require('../service/accessScopeService');
 
 async function crearPrograma(req, res) {
   const { nombre_programa, id_facultad } = req.body;
   try {
-    const programa = await addPrograma(nombre_programa, id_facultad);
+    const actor = await getActorFromHeaders(req.headers);
+    const programa = await addPrograma(nombre_programa, id_facultad, actor);
     res.status(201).json(programa);
   } catch (err) {
     const status = err.status || 500;

@@ -6,6 +6,7 @@ import unacLogo from '../../assets/Logo UNAC + FI Azul@2x.png';
 import bgImage from '../../assets/fondo.jpg';
 import '../../styles/pages/login.css';
 import { LOGIN_URL } from '../../config';
+import { homePathForRole } from '../../utils/rolePermissions';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,10 +19,13 @@ export default function Login() {
   const [pendingLogin, setPendingLogin] = useState({ email: '', password: '' });
   const [twoFAError, setTwoFAError] = useState(null);
 
-  const isAdminRole = (role) => String(role || '').trim().toLowerCase() === 'admin';
-
   const completeLogin = (data) => {
-    const destination = isAdminRole(data?.role) ? '/homeadmin' : '/home';
+    const destination = homePathForRole(data?.role);
+    try {
+      localStorage.setItem('aura_user', JSON.stringify(data));
+    } catch (_err) {
+      // Ignore storage errors to avoid blocking login.
+    }
     navigate(destination, { state: { user: data } });
   };
 

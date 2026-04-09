@@ -4,6 +4,7 @@ import '../../styles/pages/home.css';
 import { API_BASE } from '../../config';
 import AuraLogo from '../../components/AuraLogo';
 import TwoFASettings from '../../components/TwoFASettings';
+import { authHeaders, getRolePermissions, homePathForRole } from '../../utils/rolePermissions';
 
 
 export default function HomeAdmin() {
@@ -11,8 +12,8 @@ export default function HomeAdmin() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
-  const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
-  const homePath = isAdmin ? '/homeadmin' : '/home';
+  const permissions = getRolePermissions(user?.role);
+  const homePath = homePathForRole(user?.role);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [formData, setFormData] = React.useState({
     nombre_completo: '',
@@ -35,6 +36,9 @@ export default function HomeAdmin() {
   if (!user) {
     // if accessed directly without login redirect to login
     return <Navigate to="/" replace />;
+  }
+  if (!permissions.canAccessHomeAdmin) {
+    return <Navigate to="/home" replace state={{ user }} />;
   }
 
   function capitalizeFirst(str) {
@@ -67,7 +71,7 @@ export default function HomeAdmin() {
     try {
         const res = await fetch(`${API_BASE}/investigadores`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(user, { 'Content-Type': 'application/json' }),
         body: JSON.stringify(formData),
       });
 
@@ -317,6 +321,7 @@ export default function HomeAdmin() {
       </main>
       </div>
       <div className="flex gap-2 justify-end mb-8">
+        {permissions.canRunScraping && (
         <button
           title="Iniciar Pipeline Completo"
           className="flex items-center gap-2 px-4 py-2 bg-[#F5A800] text-white rounded-lg font-bold shadow-md shadow-yellow-300 hover:bg-yellow-500 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
@@ -339,6 +344,7 @@ export default function HomeAdmin() {
           <span className="material-symbols-outlined text-base">sync</span>
           <span>{scrapingLoading ? 'Procesando...' : 'Ejecutar scraping'}</span>
         </button>
+        )}
       </div>
       {scrapingStatus && (
         <div className="w-full mb-4 text-center">

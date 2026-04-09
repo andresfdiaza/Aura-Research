@@ -4,6 +4,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import AuraLogo from './components/AuraLogo';
 import { API_BASE } from './config';
+import { authHeaders } from './utils/rolePermissions';
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
@@ -25,7 +26,7 @@ export default function DivulgacionPublica() {
   React.useEffect(() => {
     const loadProgramas = async () => {
       try {
-        const res = await fetch(`${API_BASE}/programas_full`);
+        const res = await fetch(`${API_BASE}/programas_full`, { headers: authHeaders(user) });
         if (!res.ok) return;
         const data = await res.json();
         setProgramasCatalogo(Array.isArray(data) ? data : []);
@@ -35,7 +36,7 @@ export default function DivulgacionPublica() {
     };
     const loadFacultades = async () => {
       try {
-        const res = await fetch(`${API_BASE}/facultades`);
+        const res = await fetch(`${API_BASE}/facultades`, { headers: authHeaders(user) });
         if (!res.ok) return;
         const data = await res.json();
         setFacultadesCatalogo(Array.isArray(data) ? data : []);
@@ -60,14 +61,14 @@ export default function DivulgacionPublica() {
         });
         qs.append('tipologia', 'Divulgación Pública de la Ciencia');
         const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? '?' + qs.toString() : ''}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: authHeaders(user) });
         if (!res.ok) throw new Error('Error fetching resultados');
         const data = await res.json();
         setResultados(data);
         // Fetch total (solo tipología, sin filtros)
         const qsTotal = new URLSearchParams();
         qsTotal.append('tipologia', 'Divulgación Pública de la Ciencia');
-        const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final?${qsTotal.toString()}`);
+        const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final?${qsTotal.toString()}`, { headers: authHeaders(user) });
         if (resTotal.ok) {
           const dataTotal = await resTotal.json();
           setTotalResultados(Array.isArray(dataTotal) ? dataTotal.length : 0);
@@ -89,32 +90,18 @@ export default function DivulgacionPublica() {
       const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
       if (grupo && !opts.grupo.includes(grupo)) opts.grupo.push(grupo);
     });
+    const programasSet = new Set();
+    resultados.forEach((r) => {
+      const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
+      if (filters.grupo && grupo !== filters.grupo) return;
+      if (filters.facultad && r.facultad !== filters.facultad) return;
+      const programa = (r.programa || '').toString();
+      programa.split(' / ').map((p) => p.trim()).filter(Boolean).forEach((p) => programasSet.add(p));
+    });
+    opts.programa = Array.from(programasSet);
     Object.values(opts).forEach(arr => arr.sort());
-    // Programas: filtrar por grupo si está seleccionado, si no por facultad, si no todos
-    let programasFiltrados = programasCatalogo;
-    if (filters.grupo) {
-      // Buscar los programas asociados al grupo seleccionado en los resultados filtrados
-      const programasSet = new Set();
-      resultados.forEach(r => {
-        const grupo = (r.sigla_grupo_grouplab || r.nombre_grupo_grouplab || '').toString().trim();
-        if (grupo === filters.grupo && r.programa) {
-          r.programa.split(' / ').forEach(p => programasSet.add(p.trim()));
-        }
-      });
-      programasFiltrados = programasCatalogo.filter(p => programasSet.has(p.nombre_programa));
-    } else if (filters.facultad) {
-      // Buscar id_facultad de la facultad seleccionada
-      const fac = facultadesCatalogo.find(f => f.nombre_facultad === filters.facultad);
-      const idFac = fac?.id_facultad;
-      if (idFac) {
-        programasFiltrados = programasCatalogo.filter(p => String(p.id_facultad) === String(idFac));
-      } else {
-        programasFiltrados = [];
-      }
-    }
-    opts.programa = programasFiltrados.map(p => p.nombre_programa);
     return opts;
-  }, [resultados, programasCatalogo, filters.facultad, facultadesCatalogo]);
+  }, [resultados, filters.facultad, filters.grupo]);
 
   // Filtrar resultados solo para tipologia 'Divulgación Pública de la Ciencia' (usando nodo_padre de la vista)
   const filtered = React.useMemo(() => {
@@ -216,7 +203,7 @@ export default function DivulgacionPublica() {
       const qs = new URLSearchParams();
       if (filters.facultad) qs.append('facultad', filters.facultad);
       const url = `${API_BASE}/tabla-normalizada-final?` + qs.toString();
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: authHeaders(user) });
       if (!res.ok) throw new Error('Error descargando CSV');
       const data = await res.json();
       

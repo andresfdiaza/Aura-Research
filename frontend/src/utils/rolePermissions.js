@@ -34,7 +34,7 @@ const ROLE_PERMISSIONS = {
     canManageInvestigadores: false,
     canDeleteInvestigadores: false,
     canCreateCatalogs: true,
-    canRunScraping: false,
+    canRunScraping: true,
   },
   coordinador: {
     canAccessHomeAdmin: false,

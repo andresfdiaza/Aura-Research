@@ -5,6 +5,7 @@ import { API_BASE } from '../../config';
 import AuraLogo from '../../components/AuraLogo';
 import TwoFASettings from '../../components/TwoFASettings';
 import { authHeaders, getRolePermissions, homePathForRole } from '../../utils/rolePermissions';
+import { notifySuccess } from '../../utils/globalNotifier';
 
 
 export default function HomeAdmin() {
@@ -330,9 +331,16 @@ export default function HomeAdmin() {
             setScrapingLoading(true);
             setScrapingStatus('Ejecutando... : CVLAC -> GroupLab -> limpieza -> coincidencias -> vistas...');
             try {
-              const res = await fetch(`${API_BASE}/scraping/ejecutar-completo`, { method: 'POST' });
+              const res = await fetch(`${API_BASE}/scraping/ejecutar-completo`, {
+                method: 'POST',
+                headers: authHeaders(user),
+              });
               const data = await res.json();
-              if (res.ok) setScrapingStatus(data.message || 'Scraping ejecutado correctamente');
+              if (res.ok) {
+                const successMessage = data.message || 'Scraping ejecutado correctamente';
+                setScrapingStatus(successMessage);
+                notifySuccess('Pipeline de scraping completado', successMessage);
+              }
               else setScrapingStatus(data.error || data.message || 'Error ejecutando el scraping');
             } catch (err) {
               setScrapingStatus(err.message);

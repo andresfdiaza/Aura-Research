@@ -1,8 +1,10 @@
 const scrapingService = require('../service/scrapingService');
+const { getActorFromHeaders } = require('../service/accessScopeService');
 
 exports.ejecutar = async (req, res) => {
   try {
-    const result = await scrapingService.executeScraping();
+    const actor = await getActorFromHeaders(req.headers);
+    const result = await scrapingService.executeScraping({ actor });
     // optionally log stdout/stderr
     console.log('Scraping output:', result.stdout);
     if (result.stderr) console.error('Scraping stderr:', result.stderr);

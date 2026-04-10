@@ -14,6 +14,7 @@ import DirectorioInvestigadores from './pages/DirectorioInvestigadores/Directori
 import PerfilInvestigador from './PerfilInvestigador';
 import Usuarios from './pages/HomeAdmin/Usuarios';
 import Ajustes from './pages/HomeAdmin/Ajustes';
+import GlobalToast from './components/GlobalToast';
 import { canAccessRoles, homePathForRole } from './utils/rolePermissions';
 import './App.css';
 
@@ -50,6 +51,7 @@ function App() {
         <Route path="/ajustes" element={<ProtectedRoute element={<Ajustes />} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <GlobalToast />
     </HashRouter>
   );
 }

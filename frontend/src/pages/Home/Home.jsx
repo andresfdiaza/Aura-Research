@@ -3,7 +3,9 @@ import { useLocation, Navigate, Link, useNavigate } from 'react-router-dom';
 import '../../styles/pages/home.css';
 import AuraLogo from '../../components/AuraLogo';
 import TwoFASettings from '../../components/TwoFASettings';
-import { getRolePermissions, homePathForRole, roleLabel } from '../../utils/rolePermissions';
+import { API_BASE } from '../../config';
+import { notifySuccess } from '../../utils/globalNotifier';
+import { authHeaders, getRolePermissions, homePathForRole, roleLabel } from '../../utils/rolePermissions';
 
 export default function Home() {
   const location = useLocation();
@@ -14,6 +16,8 @@ export default function Home() {
   const currentRoleLabel = roleLabel(user?.role);
 
   const [show2FA, setShow2FA] = React.useState(false);
+  const [scrapingStatus, setScrapingStatus] = React.useState(null);
+  const [scrapingLoading, setScrapingLoading] = React.useState(false);
 
   if (!user) {
     // if accessed directly without login redirect to login
@@ -128,7 +132,7 @@ export default function Home() {
               </div>
             </div>
             {/* Botón de doble factor eliminado, ahora está en la tuerquita */}
-            <div className={`grid grid-cols-1 ${permissions.canViewUsers ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-8 mb-16`}>
+            <div className={`grid grid-cols-1 ${permissions.canViewUsers ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-8 mb-10`}>
               <div className="action-card group relative flex flex-col overflow-hidden rounded-3xl shadow-soft w-full max-w-[22rem] mx-auto">
                 <div className="absolute top-0 right-0 p-4 opacity-5 transition-transform group-hover:scale-110 group-hover:rotate-12">
                   <span className="material-symbols-outlined text-[60px] text-primary">group_add</span>
@@ -215,14 +219,40 @@ export default function Home() {
                 </div>
               )}
             </div>
-            {permissions.canViewUsers && (
-              <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-                <h3 className="text-sm font-bold text-primary">Permisos de tu rol</h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  {permissions.canManageUsers
-                    ? 'Tienes acceso de administracion de usuarios y configuracion avanzada.'
-                    : 'Tienes acceso de consulta. La gestion de usuarios esta reservada para administradores.'}
-                </p>
+            {permissions.canRunScraping && (
+              <div className="flex flex-col items-end gap-2 mb-10">
+                <button
+                  title="Iniciar Scraping CVLAC"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-[#F5A800] text-white rounded-lg font-bold shadow-md shadow-yellow-300 hover:bg-yellow-500 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={scrapingLoading}
+                  onClick={async () => {
+                    setScrapingLoading(true);
+                    setScrapingStatus('Ejecutando scraping CVLAC...');
+                    try {
+                      const res = await fetch(`${API_BASE}/scraping/ejecutar`, {
+                        method: 'POST',
+                        headers: authHeaders(user),
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        const successMessage = data.message || 'Scraping ejecutado correctamente';
+                        setScrapingStatus(successMessage);
+                        notifySuccess('Scraping completado', successMessage);
+                      }
+                      else setScrapingStatus(data.error || data.message || 'Error ejecutando el scraping');
+                    } catch (err) {
+                      setScrapingStatus(err.message);
+                    } finally {
+                      setScrapingLoading(false);
+                    }
+                  }}
+                >
+                  <span className="material-symbols-outlined text-base">sync</span>
+                  <span>{scrapingLoading ? 'Procesando...' : 'Ejecutar scraping'}</span>
+                </button>
+                {scrapingStatus && (
+                  <p className="text-sm font-semibold text-neutral-muted text-right">{scrapingStatus}</p>
+                )}
               </div>
             )}
           </div>

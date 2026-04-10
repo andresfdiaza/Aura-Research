@@ -4,6 +4,7 @@ import requests  #sirve para hacer solicitudes HTTP
 import csv  # sirve para escribir archivos CSV
 import re # busca patrones en el texto y extraer información específica y reducir espacios extra
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
 import os
 import unicodedata
@@ -23,14 +24,51 @@ def obtener_urls_db():
     # return list of (id, url) so we can record which investigador each result
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT id_investigador, link_cvlac FROM investigadores WHERE estado='pendiente' AND link_cvlac IS NOT NULL"
-    )
+    query = [
+        "SELECT DISTINCT i.id_investigador, i.link_cvlac",
+        "FROM investigadores i",
+        "LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador",
+        "LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad",
+        "WHERE i.estado='pendiente' AND i.link_cvlac IS NOT NULL",
+    ]
+    params = []
+
+    allowed_universidades = parse_csv_ids_env("CVLAC_ALLOWED_UNIVERSIDAD_IDS")
+    if allowed_universidades:
+        placeholders = ",".join(["%s"] * len(allowed_universidades))
+        query.append(f"AND f.id_universidad IN ({placeholders})")
+        params.extend(allowed_universidades)
+
+    allowed_facultades = parse_csv_ids_env("CVLAC_ALLOWED_FACULTAD_IDS")
+    if allowed_facultades:
+        placeholders = ",".join(["%s"] * len(allowed_facultades))
+        query.append(f"AND ipf.id_facultad IN ({placeholders})")
+        params.extend(allowed_facultades)
+
+    cur.execute("\n".join(query), tuple(params))
     rows = cur.fetchall()
     cur.close()
     conn.close()
     # filter out any empty urls and keep their associated id
     return [(r[0], r[1]) for r in rows if r[1]]
+
+
+def parse_csv_ids_env(name):
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return []
+    values = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            value = int(part)
+            if value > 0:
+                values.append(value)
+        except ValueError:
+            continue
+    return values
 
 
 def marcar_todos_pendientes():
@@ -39,12 +77,37 @@ def marcar_todos_pendientes():
     """
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        "UPDATE investigadores SET estado = 'pendiente' WHERE link_cvlac IS NOT NULL"
-    )
+    query = [
+        "UPDATE investigadores i",
+        "LEFT JOIN investigador_programa_facultad ipf ON ipf.id_investigador = i.id_investigador",
+        "LEFT JOIN facultad f ON f.id_facultad = ipf.id_facultad",
+        "SET i.estado = 'pendiente'",
+        "WHERE i.link_cvlac IS NOT NULL",
+    ]
+    params = []
+
+    allowed_universidades = parse_csv_ids_env("CVLAC_ALLOWED_UNIVERSIDAD_IDS")
+    if allowed_universidades:
+        placeholders = ",".join(["%s"] * len(allowed_universidades))
+        query.append(f"AND f.id_universidad IN ({placeholders})")
+        params.extend(allowed_universidades)
+
+    allowed_facultades = parse_csv_ids_env("CVLAC_ALLOWED_FACULTAD_IDS")
+    if allowed_facultades:
+        placeholders = ",".join(["%s"] * len(allowed_facultades))
+        query.append(f"AND ipf.id_facultad IN ({placeholders})")
+        params.extend(allowed_facultades)
+
+    cur.execute("\n".join(query), tuple(params))
     conn.commit()
     cur.close()
     conn.close()
+
+
+def refresh_habilitado():
+    """Determina si la ejecución debe reprocesar todos los CVLAC con link."""
+    valor = os.getenv("CVLAC_FORCE_FULL_REFRESH", "1").strip().lower()
+    return valor in ("1", "true", "yes", "si", "on")
 
 HEADERS = {
     "User-Agent": (
@@ -233,7 +296,7 @@ def limpiar_tipo_consultoria(texto):
     return texto
 
 
-def obtener_html():
+def obtener_html(url):
     session = requests.Session()
     session.headers.update(HEADERS)
 
@@ -241,7 +304,7 @@ def obtener_html():
         print(f"Intento {intento + 1} de conexión...")
         try:
             # Aumentar timeout a 60 segundos para servidores lentos
-            response = session.get(URL, timeout=60)
+            response = session.get(url, timeout=60)
 
             if response.status_code == 200:
                 # Decodificación robusta para evitar mojibake en tildes/ñ
@@ -2202,13 +2265,11 @@ def guardar_csv(filas):
 
         writer.writerows(filas)
 
-def main():
+def main(url):
         
     print("Iniciando scraping CVLAC...")
 
-    html = obtener_html()
-    with open("debug.html", "w", encoding="utf-8") as f:
-        f.write(html)
+    html = obtener_html(url)
 
     # `html.parser` evita mojibake con páginas ISO-8859-1 de CVLAC (caso Walter)
     soup = BeautifulSoup(html, "html.parser")
@@ -2315,12 +2376,6 @@ def main():
             })
 
     # -----------------------------
-    # Guardar CSV
-    # -----------------------------
-    guardar_csv(filas_csv)
-    print(f"✓ {len(filas_csv)} registros guardados en cvlac_completo.csv")
-
-    # -----------------------------
     # Preparar filas para MySQL y guardar
     # -----------------------------
     for fila in filas_csv:
@@ -2334,17 +2389,74 @@ def main():
             "titulo_proyecto": fila["Titulo_proyecto"],
             "anio": fila["año"]
         })
-    return filas_mysql
+    return filas_csv, filas_mysql
+
+
+def obtener_max_workers():
+    raw = os.getenv("CVLAC_MAX_WORKERS", "3").strip()
+    try:
+        workers = int(raw)
+    except ValueError:
+        workers = 3
+    return max(1, min(workers, 8))
+
+
+def obtener_pausa_entre_lotes():
+    raw = os.getenv("CVLAC_BATCH_PAUSE_SECONDS", "1").strip()
+    try:
+        segundos = float(raw)
+    except ValueError:
+        segundos = 1.0
+    return max(0.0, min(segundos, 30.0))
+
+
+def procesar_investigador(idx, total, investigator_id, url):
+    print(f"\n[{idx}/{total}] Procesando CVLAC: {url} (investigador {investigator_id})")
+    try:
+        filas_csv, datos_mysql = main(url)
+        return {
+            "ok": True,
+            "id_investigador": investigator_id,
+            "filas_csv": filas_csv or [],
+            "datos_mysql": datos_mysql or [],
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "id_investigador": investigator_id,
+            "error": str(e),
+            "filas_csv": [],
+            "datos_mysql": [],
+        }
+
+
+def marcar_investigador_procesado(investigator_id):
+    conn_update = get_connection()
+    cur_update = conn_update.cursor()
+    cur_update.execute(
+        "UPDATE investigadores SET estado = 'procesado' WHERE id_investigador = %s",
+        (investigator_id,)
+    )
+    conn_update.commit()
+    cur_update.close()
+    conn_update.close()
 
 if __name__ == "__main__":
     # Si se pasa una URL como argumento, solo procesa esa URL y NO toca la base de datos
     if len(sys.argv) > 1:
         test_url = sys.argv[1]
         print(f"🔎 Modo prueba: procesando solo {test_url}")
-        URL = test_url
-        main()  # Esto solo genera el CSV, no guarda en MySQL ni marca nada
+        filas_csv, _ = main(test_url)
+        guardar_csv(filas_csv)
+        print(f"✓ {len(filas_csv)} registros guardados en cv_datos_generales.csv")
         print("✅ Prueba finalizada. Revisa el archivo cv_datos_generales.csv")
     else:
+
+        if refresh_habilitado():
+            marcar_todos_pendientes()
+            print("♻️ Reproceso completo habilitado: estados reiniciados a 'pendiente'")
+        else:
+            print("ℹ️ Reproceso completo deshabilitado: solo se procesarán los 'pendiente'")
 
         # obtener todas las URLs pendientes de la tabla investigadores
         URLS = obtener_urls_db()
@@ -2359,31 +2471,63 @@ if __name__ == "__main__":
         # Modo incremental: no borrar resultados; solo agregar registros nuevos.
 
         todos_los_datos = []
+        todas_las_filas_csv = []
+        max_workers = obtener_max_workers()
+        pausa_entre_lotes = obtener_pausa_entre_lotes()
+        print(f"⚙️ Procesamiento paralelo activo: {max_workers} investigadores en simultaneo")
+        print(f"⏱️ Pausa entre lotes: {pausa_entre_lotes:.1f}s")
 
-        for idx, (investigator_id, url) in enumerate(URLS, 1):
-            print(f"\n[{idx}/{len(URLS)}] Procesando CVLAC: {url} (investigador {investigator_id})")
-            URL = url
-            datos = main()
-            if datos:
-                print(f"  -> Se extrajeron {len(datos)} registros")
-                for row in datos:
-                    row["id_investigador"] = investigator_id
-                todos_los_datos.extend(datos)
-            else:
-                print(f"  -> No se extrajeron datos de esta URL")
-            try:
-                conn_update = get_connection()
-                cur_update = conn_update.cursor()
-                cur_update.execute(
-                    "UPDATE investigadores SET estado = 'procesado' WHERE id_investigador = %s",
-                    (investigator_id,)
-                )
-                conn_update.commit()
-                print(f"  ✅ Marcado como procesado")
-                cur_update.close()
-                conn_update.close()
-            except Exception as e:
-                print(f"  ❌ Error al marcar como procesado: {e}")
+        total_urls = len(URLS)
+        for inicio in range(0, total_urls, max_workers):
+            lote = URLS[inicio:inicio + max_workers]
+            print(f"\n🧩 Lote {inicio // max_workers + 1}: procesando {len(lote)} investigadores")
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {
+                    executor.submit(
+                        procesar_investigador,
+                        inicio + offset + 1,
+                        total_urls,
+                        investigator_id,
+                        url,
+                    ): (investigator_id, url)
+                    for offset, (investigator_id, url) in enumerate(lote)
+                }
+
+                for future in as_completed(future_map):
+                    investigator_id, url = future_map[future]
+                    resultado = future.result()
+
+                    if not resultado.get("ok"):
+                        print(f"  ❌ Error en investigador {investigator_id} ({url}): {resultado.get('error')}")
+                        continue
+
+                    filas_csv = resultado.get("filas_csv", [])
+                    datos = resultado.get("datos_mysql", [])
+
+                    if datos:
+                        print(f"  -> Investigador {investigator_id}: {len(datos)} registros extraidos")
+                        for row in datos:
+                            row["id_investigador"] = investigator_id
+                        todos_los_datos.extend(datos)
+                    else:
+                        print(f"  -> Investigador {investigator_id}: no se extrajeron datos")
+
+                    if filas_csv:
+                        todas_las_filas_csv.extend(filas_csv)
+
+                    try:
+                        marcar_investigador_procesado(investigator_id)
+                        print(f"  ✅ Investigador {investigator_id} marcado como procesado")
+                    except Exception as e:
+                        print(f"  ❌ Error al marcar como procesado ({investigator_id}): {e}")
+
+            if inicio + max_workers < total_urls and pausa_entre_lotes > 0:
+                time.sleep(pausa_entre_lotes)
+
+        if todas_las_filas_csv:
+            guardar_csv(todas_las_filas_csv)
+            print(f"✓ {len(todas_las_filas_csv)} registros guardados en cv_datos_generales.csv")
 
         print(f"\n📊 Total de datos recolectados: {len(todos_los_datos)}")
         if todos_los_datos:

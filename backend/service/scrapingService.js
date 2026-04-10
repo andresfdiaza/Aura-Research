@@ -42,8 +42,30 @@ const getPythonEnv = () =>
     PYTHONUTF8: '1'
   });
 
+function addScrapingScopeToEnv(env, actor) {
+  if (!actor || actor.role !== 'director') {
+    return env;
+  }
+
+  const universidadIds = Array.isArray(actor.universidadIds)
+    ? actor.universidadIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+    : [];
+  const facultadIds = Array.isArray(actor.facultadIds)
+    ? actor.facultadIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+    : [];
+
+  if (universidadIds.length > 0) {
+    env.CVLAC_ALLOWED_UNIVERSIDAD_IDS = universidadIds.join(',');
+  }
+  if (facultadIds.length > 0) {
+    env.CVLAC_ALLOWED_FACULTAD_IDS = facultadIds.join(',');
+  }
+
+  return env;
+}
+
 // run python scraping logic. the real processing lives in scraping_cvlac_completo.py
-exports.executeScraping = async () => {
+exports.executeScraping = async ({ actor } = {}) => {
   // ensure the scraping table exists and has necessary columns
 
   // mark all investigators with a link as pending so they will be processed
@@ -57,7 +79,7 @@ exports.executeScraping = async () => {
     const scriptPath = path.resolve(__dirname, '..', '..', 'Scraping', 'scraping_cvlac_completo.py');
     // set environment variables so Python uses UTF-8 for I/O (prevents
     // UnicodeEncodeError when printing emojis on Windows)
-    const env = getPythonEnv();
+    const env = addScrapingScopeToEnv(getPythonEnv(), actor);
     exec(`python "${scriptPath}"`, { env, maxBuffer: 1024 * 500 }, async (error, stdout, stderr) => {
       if (error) {
         return reject(error);

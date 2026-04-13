@@ -796,6 +796,7 @@ app.get('/api/nodo-hijo-cantidades', nodoHijoCantidadesController.getNodoHijoCan
 const PORT = process.env.PORT || 4000;
 // scraping endpoints (clean architecture)
 app.post('/api/scraping/ejecutar', requireRole('admin', 'director'), scrapingController.ejecutar);
+app.get('/api/scraping/progreso', requireRole('admin', 'director'), scrapingController.progreso);
 app.post('/api/scraping/ejecutar-grouplab', requireRole('admin'), scrapingController.ejecutarGroupLab);
 app.post('/api/scraping/ejecutar-completo', requireRole('admin'), scrapingController.ejecutarCompleto);
 

@@ -12,7 +12,7 @@ exports.ejecutar = async (req, res) => {
     res.json({ success: true, message: 'Scraping ejecutado correctamente' });
   } catch (err) {
     console.error('Error en scraping:', err);
-    res.status(500).json({ success: false, message: 'Error ejecutando scraping', error: err.message });
+    res.status(err.statusCode || 500).json({ success: false, message: 'Error ejecutando scraping', error: err.message });
   }
 };
 
@@ -47,5 +47,16 @@ exports.ejecutarCompleto = async (req, res) => {
       message: 'Error ejecutando scraping completo',
       error: err.message,
     });
+  }
+};
+
+exports.progreso = async (req, res) => {
+  try {
+    const actor = await getActorFromHeaders(req.headers);
+    const progress = scrapingService.getScrapingProgress({ actor });
+    res.json({ success: true, progress });
+  } catch (err) {
+    console.error('Error consultando progreso de scraping:', err);
+    res.status(500).json({ success: false, message: 'Error consultando progreso de scraping', error: err.message });
   }
 };

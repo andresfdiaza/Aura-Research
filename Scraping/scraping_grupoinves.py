@@ -712,6 +712,24 @@ def conectar_bd():
     return get_connection()
 
 
+def parse_csv_ids_env(name):
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return []
+    values = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            value = int(part)
+            if value > 0:
+                values.append(value)
+        except ValueError:
+            continue
+    return values
+
+
 
 def crear_tabla():
     """Asegura la existencia de las tablas titulo_grouplab y link_grouplab"""
@@ -755,7 +773,27 @@ def obtener_links_grouplab():
     """Obtiene los links de la tabla link_grouplab"""
     conexion = conectar_bd()
     cursor = conexion.cursor()
-    cursor.execute("SELECT id, nombre_grupo, sigla_grupo, url FROM link_grouplab")
+    query = [
+        "SELECT DISTINCT g.id, g.nombre_grupo, g.sigla_grupo, g.url",
+        "FROM link_grouplab g",
+        "LEFT JOIN facultad f ON f.id_facultad = g.id_facultad",
+        "WHERE 1=1",
+    ]
+    params = []
+
+    allowed_universidades = parse_csv_ids_env("CVLAC_ALLOWED_UNIVERSIDAD_IDS")
+    if allowed_universidades:
+        placeholders = ",".join(["%s"] * len(allowed_universidades))
+        query.append(f"AND f.id_universidad IN ({placeholders})")
+        params.extend(allowed_universidades)
+
+    allowed_facultades = parse_csv_ids_env("CVLAC_ALLOWED_FACULTAD_IDS")
+    if allowed_facultades:
+        placeholders = ",".join(["%s"] * len(allowed_facultades))
+        query.append(f"AND g.id_facultad IN ({placeholders})")
+        params.extend(allowed_facultades)
+
+    cursor.execute("\n".join(query), tuple(params))
     links = cursor.fetchall()
     cursor.close()
     conexion.close()

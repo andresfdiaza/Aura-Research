@@ -4,7 +4,7 @@ import '../../styles/pages/home.css';
 import AuraLogo from '../../components/AuraLogo';
 import TwoFASettings from '../../components/TwoFASettings';
 import { API_BASE } from '../../config';
-import { notifySuccess } from '../../utils/globalNotifier';
+import { notifyError, notifySuccess } from '../../utils/globalNotifier';
 import { authHeaders, getRolePermissions, homePathForRole, roleLabel } from '../../utils/rolePermissions';
 
 export default function Home() {
@@ -18,6 +18,127 @@ export default function Home() {
   const [show2FA, setShow2FA] = React.useState(false);
   const [scrapingStatus, setScrapingStatus] = React.useState(null);
   const [scrapingLoading, setScrapingLoading] = React.useState(false);
+  const [scrapingProgress, setScrapingProgress] = React.useState(null);
+  const [showScrapingProgress, setShowScrapingProgress] = React.useState(false);
+  const progressPollRef = React.useRef(null);
+  const progressHideTimeoutRef = React.useRef(null);
+
+  const scrapingSteps = React.useMemo(() => ([
+    { key: 'cvlac', label: 'CVLAC' },
+    { key: 'grouplab', label: 'GroupLab' },
+    { key: 'limpieza', label: 'Limpieza' },
+    { key: 'coincidencias', label: 'Coincidencias' },
+    { key: 'vistas', label: 'Vistas' },
+  ]), []);
+
+  React.useEffect(() => () => {
+    if (progressPollRef.current) {
+      clearInterval(progressPollRef.current);
+      progressPollRef.current = null;
+    }
+    if (progressHideTimeoutRef.current) {
+      clearTimeout(progressHideTimeoutRef.current);
+      progressHideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const startProgressPolling = React.useCallback(() => {
+    if (progressPollRef.current) return;
+    progressPollRef.current = setInterval(() => {
+      fetchScrapingProgress();
+    }, 2000);
+  }, []);
+
+  const stopProgressPolling = React.useCallback(() => {
+    if (!progressPollRef.current) return;
+    clearInterval(progressPollRef.current);
+    progressPollRef.current = null;
+  }, []);
+
+  React.useEffect(() => {
+    if (!user || !permissions.canRunScraping) return;
+
+    let cancelled = false;
+    const restoreProgress = async () => {
+      const progress = await fetchScrapingProgress();
+      if (cancelled || !progress) return;
+
+      const isRunning = progress.status === 'running';
+      if (isRunning) {
+        setShowScrapingProgress(true);
+        setScrapingLoading(true);
+        if (progress.message) setScrapingStatus(progress.message);
+        startProgressPolling();
+      } else {
+        setScrapingLoading(false);
+      }
+    };
+
+    restoreProgress();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, permissions.canRunScraping, startProgressPolling]);
+
+  React.useEffect(() => {
+    const status = scrapingProgress?.status;
+    if (!showScrapingProgress) return;
+
+    if (status === 'running') {
+      if (progressHideTimeoutRef.current) {
+        clearTimeout(progressHideTimeoutRef.current);
+        progressHideTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (status === 'success') {
+      if (progressHideTimeoutRef.current) {
+        clearTimeout(progressHideTimeoutRef.current);
+      }
+      progressHideTimeoutRef.current = setTimeout(() => {
+        setShowScrapingProgress(false);
+      }, 30000);
+    }
+
+    if (status === 'error') {
+      if (progressHideTimeoutRef.current) {
+        clearTimeout(progressHideTimeoutRef.current);
+      }
+      progressHideTimeoutRef.current = setTimeout(() => {
+        setShowScrapingProgress(false);
+      }, 60000);
+    }
+  }, [scrapingProgress, showScrapingProgress]);
+
+  async function fetchScrapingProgress() {
+    try {
+      const response = await fetch(`${API_BASE}/scraping/progreso`, {
+        headers: authHeaders(user),
+      });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      const progress = payload?.progress || null;
+      if (progress) {
+        setScrapingProgress(progress);
+        if (progress.message) {
+          setScrapingStatus(progress.message);
+        } else if (progress.error) {
+          setScrapingStatus(progress.error);
+        }
+      }
+      return progress;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function stepIcon(stepStatus) {
+    if (stepStatus === 'completed') return { icon: 'check_circle', cls: 'text-green-600' };
+    if (stepStatus === 'in_progress') return { icon: 'sync', cls: 'text-amber-600 animate-spin' };
+    if (stepStatus === 'failed') return { icon: 'cancel', cls: 'text-red-600' };
+    return { icon: 'radio_button_unchecked', cls: 'text-slate-400' };
+  }
 
   if (!user) {
     // if accessed directly without login redirect to login
@@ -222,36 +343,84 @@ export default function Home() {
             {permissions.canRunScraping && (
               <div className="flex flex-col items-end gap-2 mb-10">
                 <button
-                  title="Iniciar Scraping CVLAC"
+                  title="Iniciar Scraping CVLAC -> GroupLab"
                   className="flex items-center justify-center gap-2 px-4 py-2 bg-[#F5A800] text-white rounded-lg font-bold shadow-md shadow-yellow-300 hover:bg-yellow-500 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={scrapingLoading}
                   onClick={async () => {
                     setScrapingLoading(true);
-                    setScrapingStatus('Ejecutando scraping CVLAC...');
+                    setScrapingStatus('Ejecutando... : CVLAC -> GroupLab -> limpieza -> coincidencias -> vistas...');
+                    setShowScrapingProgress(true);
+                    setScrapingProgress({
+                      status: 'running',
+                      message: 'Ejecutando... : CVLAC -> GroupLab -> limpieza -> coincidencias -> vistas...',
+                      steps: {
+                        cvlac: 'in_progress',
+                        grouplab: 'pending',
+                        limpieza: 'pending',
+                        coincidencias: 'pending',
+                        vistas: 'pending',
+                      },
+                    });
+
+                    if (progressHideTimeoutRef.current) {
+                      clearTimeout(progressHideTimeoutRef.current);
+                      progressHideTimeoutRef.current = null;
+                    }
+
+                    stopProgressPolling();
+
+                    await fetchScrapingProgress();
+                    startProgressPolling();
+
                     try {
                       const res = await fetch(`${API_BASE}/scraping/ejecutar`, {
                         method: 'POST',
                         headers: authHeaders(user),
                       });
                       const data = await res.json();
+                      await fetchScrapingProgress();
                       if (res.ok) {
                         const successMessage = data.message || 'Scraping ejecutado correctamente';
                         setScrapingStatus(successMessage);
                         notifySuccess('Scraping completado', successMessage);
                       }
-                      else setScrapingStatus(data.error || data.message || 'Error ejecutando el scraping');
+                      else {
+                        const errorMessage = data.error || data.message || 'No se pudo ejecutar la acción porque no hay data para procesar.';
+                        setScrapingStatus(errorMessage);
+                        notifyError('No se pudo ejecutar la acción', errorMessage);
+                      }
                     } catch (err) {
-                      setScrapingStatus(err.message);
+                      const errorMessage = err.message || 'Error ejecutando el scraping';
+                      setScrapingStatus(errorMessage);
+                      notifyError('Error ejecutando scraping', errorMessage);
                     } finally {
+                      stopProgressPolling();
                       setScrapingLoading(false);
                     }
                   }}
                 >
                   <span className="material-symbols-outlined text-base">sync</span>
-                  <span>{scrapingLoading ? 'Procesando...' : 'Ejecutar scraping'}</span>
+                  <span>{scrapingLoading ? 'Procesando...' : 'Ejecutar scraping completo'}</span>
                 </button>
                 {scrapingStatus && (
                   <p className="text-sm font-semibold text-neutral-muted text-right">{scrapingStatus}</p>
+                )}
+                {showScrapingProgress && scrapingProgress?.steps && (
+                  <div className="w-full max-w-md bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-right">Progreso del pipeline</p>
+                    <div className="space-y-1.5">
+                      {scrapingSteps.map((step) => {
+                        const status = scrapingProgress.steps?.[step.key] || 'pending';
+                        const icon = stepIcon(status);
+                        return (
+                          <div key={step.key} className="flex items-center justify-between text-sm">
+                            <span className="text-slate-700 font-medium">{step.label}</span>
+                            <span className={`material-symbols-outlined text-[18px] ${icon.cls}`}>{icon.icon}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             )}

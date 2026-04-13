@@ -1,7 +1,7 @@
 import React from 'react';
 import { getGlobalNotifyEvent } from '../utils/globalNotifier';
 
-const AUTO_HIDE_MS = 6000;
+const AUTO_HIDE_MS = 60000;
 
 export default function GlobalToast() {
   const [toast, setToast] = React.useState(null);

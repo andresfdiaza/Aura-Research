@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { API_BASE } from './config';
-import AuraLogo from './components/AuraLogo';
-import { authHeaders, getRolePermissions, homePathForRole } from './utils/rolePermissions';
+import { API_BASE } from '../../config';
+import AuraLogo from '../../components/AuraLogo';
+import { authHeaders, getRolePermissions, homePathForRole } from '../../utils/rolePermissions';
 
 export default function Investigadores() {
   // Catálogo de programas
@@ -622,3 +622,4 @@ export default function Investigadores() {
     </div>
   );
 }
+

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import AuraLogo from '../../components/AuraLogo';
-import TwoFASettings from '../../components/TwoFASettings';
 import { API_BASE } from '../../config';
 import { authHeaders, getRolePermissions, homePathForRole } from '../../utils/rolePermissions';
 
@@ -36,7 +35,6 @@ export default function Usuarios() {
   }
   const homePath = homePathForRole(user?.role);
 
-  const [show2FASettings, setShow2FASettings] = React.useState(false);
   const [usuarios, setUsuarios] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -495,14 +493,6 @@ export default function Usuarios() {
             >
               <span className="material-symbols-outlined text-[18px] sm:text-[22px]">settings</span>
             </button>
-            <button
-              className="flex items-center justify-center rounded-full w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 text-primary hover:bg-slate-200 transition-all"
-              onClick={() => setShow2FASettings(true)}
-              title="Configurar 2FA"
-            >
-              <span className="material-symbols-outlined text-[18px] sm:text-[22px]">key</span>
-            </button>
-            {show2FASettings && <TwoFASettings user={user} onClose={() => setShow2FASettings(false)} />}
           </div>
 
           <div className="hidden sm:block h-10 w-[1px] bg-slate-200 mx-2" />

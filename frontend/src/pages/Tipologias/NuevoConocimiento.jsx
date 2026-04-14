@@ -1,15 +1,14 @@
 import React from "react";
-
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
-import AuraLogo from './components/AuraLogo';
-import { API_BASE } from './config';
-import { authHeaders } from './utils/rolePermissions';
+import AuraLogo from '../../components/AuraLogo';
+import { API_BASE } from '../../config';
+import { authHeaders } from '../../utils/rolePermissions';
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
 
-export default function FormacionRecursoHumano() {
+export default function NuevoConocimiento() {
   const [resultados, setResultados] = React.useState([]);
   const [totalResultados, setTotalResultados] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
@@ -48,26 +47,26 @@ export default function FormacionRecursoHumano() {
     loadFacultades();
   }, []);
 
-  // Obtener datos del backend desde la vista deduplicada
+  // Obtener datos del backend según filtros (trabaja con la vista)
   React.useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch filtrados
+        // Fetch filtered
         const qs = new URLSearchParams();
         Object.entries(filters).forEach(([k, v]) => {
           if (v) qs.append(k, v);
         });
-        qs.append('tipologia', 'Formación del Recurso Humano');
+        qs.append('tipologia', 'Nuevo Conocimiento');
         const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? '?' + qs.toString() : ''}`;
         const res = await fetch(url, { headers: authHeaders(user) });
-        if (!res.ok) throw new Error('Error fetching resultados');
+        if (!res.ok) throw new Error('Error fetching tabla_normalizada_final');
         const data = await res.json();
         setResultados(data);
         // Fetch total (solo tipología, sin filtros)
         const qsTotal = new URLSearchParams();
-        qsTotal.append('tipologia', 'Formación del Recurso Humano');
+        qsTotal.append('tipologia', 'Nuevo Conocimiento');
         const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final?${qsTotal.toString()}`, { headers: authHeaders(user) });
         if (resTotal.ok) {
           const dataTotal = await resTotal.json();
@@ -103,11 +102,11 @@ export default function FormacionRecursoHumano() {
     return opts;
   }, [resultados, filters.facultad, filters.grupo]);
 
-  // Filtrar resultados solo para tipologia 'Formación del Recurso Humano' (usando nodo_padre de la vista)
+  // Filtrar resultados solo para tipologia 'Nuevo Conocimiento' (usando nodo_padre de la vista)
   const filtered = React.useMemo(() => {
     let result = resultados.filter(r => {
       const tipologia = (r.nodo_padre || r.tipologia_productos || '').toString().trim().toLowerCase();
-      return tipologia === 'formación del recurso humano';
+      return tipologia === 'nuevo conocimiento';
     });
     
     // Aplicar otros filtros (sin año)
@@ -126,11 +125,10 @@ export default function FormacionRecursoHumano() {
     });
     
     console.log('Resultados totales:', resultados.length);
-    console.log('Filtrados (Formación del Recurso Humano):', result.length);
+    console.log('Filtrados (Nuevo Conocimiento):', result.length);
     if (resultados.length > 0) {
       console.log('Sample data:', resultados[0]);
-      const valoresUnicos = [...new Set(resultados.map(r => r.nodo_padre || r.tipologia_productos))];
-      console.log('Valores nodo_padre únicos:', valoresUnicos);
+      console.log('Valores nodo_padre únicos:', [...new Set(resultados.map(r => r.nodo_padre || r.tipologia_productos))]);
     }
     return result;
   }, [resultados, filters]);
@@ -220,7 +218,7 @@ export default function FormacionRecursoHumano() {
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.setAttribute('href', URL.createObjectURL(blob));
-      link.setAttribute('download', `formacion_recurso_humano_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `nuevo_conocimiento_${new Date().toISOString().split('T')[0]}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -304,7 +302,7 @@ export default function FormacionRecursoHumano() {
         <main className="flex-1 flex flex-col items-center py-6 px-4 sm:px-6 md:px-16">
         <div className="max-w-7xl w-full flex flex-col gap-8">
           <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Formación del Recurso Humano</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Nuevo Conocimiento</h1>
             <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleDownloadCSV}
@@ -377,7 +375,7 @@ export default function FormacionRecursoHumano() {
         <p className="text-center text-gray-600 text-lg">No hay datos disponibles. Revisa la consola.</p>
       )}
       {!loading && !error && resultados.length > 0 && Object.keys(nodosHijo).length === 0 && (
-        <p className="text-center text-gray-600 text-lg">No hay registros de "Formación del Recurso Humano". Total datos: {resultados.length}</p>
+        <p className="text-center text-gray-600 text-lg">No hay registros de "Nuevo Conocimiento". Total datos: {resultados.length}</p>
       )}
       {!loading && !error && Object.keys(nodosHijo).length > 0 && (
         <>
@@ -453,6 +451,7 @@ export default function FormacionRecursoHumano() {
                     </div>
                   </div>
                 </div>
+                
                 <div className="overflow-auto max-h-[60vh]">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-100 sticky top-0 z-10">
@@ -568,3 +567,4 @@ export default function FormacionRecursoHumano() {
     </div>
   );
 }
+

@@ -2,9 +2,9 @@ import React from "react";
 
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
-import AuraLogo from './components/AuraLogo';
-import { API_BASE } from './config';
-import { authHeaders } from './utils/rolePermissions';
+import AuraLogo from '../../components/AuraLogo';
+import { API_BASE } from '../../config';
+import { authHeaders } from '../../utils/rolePermissions';
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
@@ -568,3 +568,4 @@ export default function DivulgacionPublica() {
     </div>
   );
 }
+

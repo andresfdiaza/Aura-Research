@@ -20,6 +20,10 @@ const { login } = require('./controller/authController');
 app.post('/api/login', login);
 app.post('/login', login);
 
+// Endpoint para cambiar la contrasena del usuario autenticado
+const { changeMyPasswordController } = require('./controller/passwordController');
+app.post('/api/users/change-password', changeMyPasswordController);
+
 // register route separado en controller/service/repository
 const { register } = require('./controller/registerController');
 app.post('/register', requireRole('admin', 'director'), register);

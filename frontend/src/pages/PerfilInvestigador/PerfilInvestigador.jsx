@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { API_BASE } from './config';
+import { API_BASE } from '../../config';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -712,3 +712,4 @@ export default function PerfilInvestigador() {
     </div>
   );
 }
+

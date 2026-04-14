@@ -2,14 +2,14 @@ import React from "react";
 
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
-import AuraLogo from './components/AuraLogo';
-import { API_BASE } from './config';
-import { authHeaders } from './utils/rolePermissions';
+import AuraLogo from '../../components/AuraLogo';
+import { API_BASE } from '../../config';
+import { authHeaders } from '../../utils/rolePermissions';
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
 
-export default function ApropriacionSocial() {
+export default function FormacionRecursoHumano() {
   const [resultados, setResultados] = React.useState([]);
   const [totalResultados, setTotalResultados] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
@@ -59,7 +59,7 @@ export default function ApropriacionSocial() {
         Object.entries(filters).forEach(([k, v]) => {
           if (v) qs.append(k, v);
         });
-        qs.append('tipologia', 'Apropiación Social de Conocimiento');
+        qs.append('tipologia', 'Formación del Recurso Humano');
         const url = `${API_BASE}/tabla-normalizada-final${qs.toString() ? '?' + qs.toString() : ''}`;
         const res = await fetch(url, { headers: authHeaders(user) });
         if (!res.ok) throw new Error('Error fetching resultados');
@@ -67,7 +67,7 @@ export default function ApropriacionSocial() {
         setResultados(data);
         // Fetch total (solo tipología, sin filtros)
         const qsTotal = new URLSearchParams();
-        qsTotal.append('tipologia', 'Apropiación Social de Conocimiento');
+        qsTotal.append('tipologia', 'Formación del Recurso Humano');
         const resTotal = await fetch(`${API_BASE}/tabla-normalizada-final?${qsTotal.toString()}`, { headers: authHeaders(user) });
         if (resTotal.ok) {
           const dataTotal = await resTotal.json();
@@ -103,11 +103,11 @@ export default function ApropriacionSocial() {
     return opts;
   }, [resultados, filters.facultad, filters.grupo]);
 
-  // Filtrar resultados solo para tipologia 'Apropiación Social del Conocimiento' (usando nodo_padre de la vista)
+  // Filtrar resultados solo para tipologia 'Formación del Recurso Humano' (usando nodo_padre de la vista)
   const filtered = React.useMemo(() => {
     let result = resultados.filter(r => {
       const tipologia = (r.nodo_padre || r.tipologia_productos || '').toString().trim().toLowerCase();
-      return tipologia === 'apropiación social del conocimiento';
+      return tipologia === 'formación del recurso humano';
     });
     
     // Aplicar otros filtros (sin año)
@@ -126,12 +126,11 @@ export default function ApropriacionSocial() {
     });
     
     console.log('Resultados totales:', resultados.length);
-    console.log('Filtrados (Apropiación Social de Conocimiento):', result.length);
+    console.log('Filtrados (Formación del Recurso Humano):', result.length);
     if (resultados.length > 0) {
       console.log('Sample data:', resultados[0]);
       const valoresUnicos = [...new Set(resultados.map(r => r.nodo_padre || r.tipologia_productos))];
       console.log('Valores nodo_padre únicos:', valoresUnicos);
-      console.log('VALORES CON DETALLES:', valoresUnicos.map(v => ({ original: v, lowercase: (v || '').toString().trim().toLowerCase() })));
     }
     return result;
   }, [resultados, filters]);
@@ -221,7 +220,7 @@ export default function ApropriacionSocial() {
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.setAttribute('href', URL.createObjectURL(blob));
-      link.setAttribute('download', `apropiacion_social_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `formacion_recurso_humano_${new Date().toISOString().split('T')[0]}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -305,7 +304,7 @@ export default function ApropriacionSocial() {
         <main className="flex-1 flex flex-col items-center py-6 px-4 sm:px-6 md:px-16">
         <div className="max-w-7xl w-full flex flex-col gap-8">
           <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Apropiación Social de Conocimiento</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary">Formación del Recurso Humano</h1>
             <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleDownloadCSV}
@@ -378,7 +377,7 @@ export default function ApropriacionSocial() {
         <p className="text-center text-gray-600 text-lg">No hay datos disponibles. Revisa la consola.</p>
       )}
       {!loading && !error && resultados.length > 0 && Object.keys(nodosHijo).length === 0 && (
-        <p className="text-center text-gray-600 text-lg">No hay registros de "Apropiación Social de Conocimiento". Total datos: {resultados.length}</p>
+        <p className="text-center text-gray-600 text-lg">No hay registros de "Formación del Recurso Humano". Total datos: {resultados.length}</p>
       )}
       {!loading && !error && Object.keys(nodosHijo).length > 0 && (
         <>
@@ -498,7 +497,7 @@ export default function ApropriacionSocial() {
             </div>
           )}
 
-          <div className="w-full max-w-7xl mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="w-full max-w-7xl mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           {Object.entries(nodosHijo).map(([nodo, items], idx) => {
             // Agrupar por año para el diagrama
             const anios = {};
@@ -532,7 +531,7 @@ export default function ApropriacionSocial() {
               >
                 <div className="absolute top-2 right-2 bg-primary text-white px-2 py-0.5 rounded-full text-xs font-bold">{items.length}</div>
                 <h2 className="text-base font-bold mb-2 text-primary break-words pr-12">{nodo}</h2>
-                <Bar data={chartData} height={160} options={{
+                <Bar data={chartData} height={100} options={{
                   responsive: true,
                   onClick: (_event, elements) => {
                     if (!elements || elements.length === 0) return;
@@ -569,3 +568,4 @@ export default function ApropriacionSocial() {
     </div>
   );
 }
+

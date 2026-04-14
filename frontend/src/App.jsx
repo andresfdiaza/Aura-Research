@@ -1,19 +1,19 @@
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login/Login';
-import NuevoConocimiento from './NuevoConocimiento';
-import DesarrolloTecnologico from './DesarrolloTecnologico';
-import ApropriacionSocial from './ApropriacionSocial';
-import DivulgacionPublica from './DivulgacionPublica';
-import FormacionRecursoHumano from './FormacionRecursoHumano';
+import NuevoConocimiento from './pages/Tipologias/NuevoConocimiento';
+import DesarrolloTecnologico from './pages/Tipologias/DesarrolloTecnologico';
+import ApropriacionSocial from './pages/Tipologias/ApropriacionSocial';
+import DivulgacionPublica from './pages/Tipologias/DivulgacionPublica';
+import FormacionRecursoHumano from './pages/Tipologias/FormacionRecursoHumano';
 import Home from './pages/Home/Home';
 import HomeAdmin from './pages/HomeAdmin/HomeAdmin';
-import Investigadores from './Investigadores';
-import Datos from './Datos';
-import Analisis from './Analisis';
+import Investigadores from './pages/Investigadores/Investigadores';
+import Datos from './pages/Datos/Datos';
+import Analisis from './pages/Analisis/Analisis';
 import DirectorioInvestigadores from './pages/DirectorioInvestigadores/DirectorioInvestigadores';
-import PerfilInvestigador from './PerfilInvestigador';
-import Usuarios from './pages/HomeAdmin/Usuarios';
-import Ajustes from './pages/HomeAdmin/Ajustes';
+import PerfilInvestigador from './pages/PerfilInvestigador/PerfilInvestigador';
+import Usuarios from './pages/Usuarios/Usuarios';
+import Ajustes from './pages/Ajustes/Ajustes';
 import GlobalToast from './components/GlobalToast';
 import { canAccessRoles, homePathForRole } from './utils/rolePermissions';
 import './App.css';
@@ -57,3 +57,4 @@ function App() {
 }
 
 export default App;
+

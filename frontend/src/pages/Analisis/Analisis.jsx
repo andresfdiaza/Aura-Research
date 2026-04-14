@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import AuraLogo from './components/AuraLogo';
-import { getRolePermissions, homePathForRole } from './utils/rolePermissions';
+import AuraLogo from '../../components/AuraLogo';
+import { getRolePermissions, homePathForRole } from '../../utils/rolePermissions';
 
 export default function Analisis() {
   const location = useLocation();
@@ -218,3 +218,4 @@ export default function Analisis() {
     </div>
   );
 }
+

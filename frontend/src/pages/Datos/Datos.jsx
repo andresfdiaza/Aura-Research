@@ -1,8 +1,8 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import { API_BASE } from './config';
-import { authHeaders } from './utils/rolePermissions';
-import AuraLogo from './components/AuraLogo';
+import { API_BASE } from '../../config';
+import { authHeaders } from '../../utils/rolePermissions';
+import AuraLogo from '../../components/AuraLogo';
 import {
   Chart as ChartJS,
   CategoryScale,

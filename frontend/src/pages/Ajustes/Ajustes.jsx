@@ -9,7 +9,11 @@ export default function Ajustes() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = location.state?.user;
-  const isAdmin = String(user?.role || '').trim().toLowerCase() === 'admin';
+  const normalizedRole = String(user?.role || '').trim().toLowerCase() === 'user'
+    ? 'investigador'
+    : String(user?.role || '').trim().toLowerCase();
+  const isAdmin = normalizedRole === 'admin';
+  const canDownloadGrouplab = normalizedRole === 'coordinador' || normalizedRole === 'director';
 
   if (!user) {
     return <Navigate to="/" replace />;
@@ -230,6 +234,70 @@ export default function Ajustes() {
             )}
           </section>
         </div>
+        {/* CSV Download Section */}
+        <section className="mt-8 w-full max-w-lg">
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]/80 px-1 mb-1">Descarga de Datos</h3>
+          <div className="bg-white/80 rounded-2xl p-5 shadow-lg border border-[var(--color-accent)]/30 flex flex-col gap-4">
+            <button
+              className="flex items-center gap-2 px-4 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${API_BASE}/export/cvlac`, {
+                    headers: authHeaders(user)
+                  });
+                  if (!res.ok) {
+                    alert('No se pudo descargar el CSV de CVLAC');
+                    return;
+                  }
+                  const blob = await res.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'cvlac.csv';
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+                } catch (err) {
+                  alert('Error al descargar el CSV de CVLAC');
+                }
+              }}
+            >
+              <span className="material-symbols-outlined">download</span>
+              Descargar CSV de CVLAC
+            </button>
+            {canDownloadGrouplab && (
+              <button
+                className="flex items-center gap-2 px-4 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`${API_BASE}/export/grouplab`, {
+                      headers: authHeaders(user)
+                    });
+                    if (!res.ok) {
+                      alert('No se pudo descargar el CSV de Grouplab');
+                      return;
+                    }
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'grouplab.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                  } catch (err) {
+                    alert('Error al descargar el CSV de Grouplab');
+                  }
+                }}
+              >
+                <span className="material-symbols-outlined">download</span>
+                Descargar CSV de Grouplab
+              </button>
+            )}
+          </div>
+        </section>
         {/* Logout Footer */}
         <div className="pt-8 w-full max-w-lg">
           <button onClick={() => { localStorage.removeItem('aura_user'); navigate('/'); }} className="w-full py-4 flex items-center justify-center gap-3 rounded-2xl bg-[var(--color-secondary)]/10 text-[var(--color-secondary)] font-bold border border-[var(--color-secondary)]/20 hover:bg-[var(--color-secondary)]/20 transition-all active:scale-[0.97] shadow">

@@ -38,6 +38,11 @@ app.post('/api/2fa/activate', activate2FAController);
 const { verify2FAController } = require('./controller/verify2faController');
 app.post('/api/2fa/verify', verify2FAController);
 
+// Endpoints de descarga de CSV
+const { descargarCvlacCSV, descargarGrouplabCSV } = require('./controller/exportController');
+app.get('/api/export/cvlac', descargarCvlacCSV);
+app.get('/api/export/grouplab', requireRole('coordinador', 'director'), descargarGrouplabCSV);
+
 // Endpoint para reiniciar 2FA por email
 app.post('/api/2fa/reset', requireRole('admin'), async (req, res) => {
   const { email } = req.body;

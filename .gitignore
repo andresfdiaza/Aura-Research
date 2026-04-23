@@ -2,3 +2,5 @@
 backend/cv_datos_generales.csv
 backend/debug.html
 backend/titulos_grouplab_clean.csv
+backend/node_modules/
+backend/.env

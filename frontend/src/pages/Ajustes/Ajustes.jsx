@@ -19,6 +19,8 @@ export default function Ajustes() {
     return <Navigate to="/" replace />;
   }
 
+  const displayName = String(user.nombre_completo || '').trim() || 'Usuario';
+
   const [show2FASettings, setShow2FASettings] = React.useState(false);
   const [showChangePassword, setShowChangePassword] = React.useState(false);
   const [currentPassword, setCurrentPassword] = React.useState('');
@@ -157,7 +159,7 @@ export default function Ajustes() {
           <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-primary">{user.nombre_completo || user.email}</p>
+              <p className="text-sm font-bold text-primary">{displayName}</p>
             </div>
             <div className="bg-primary/10 rounded-full border border-primary/20 flex items-center justify-center w-10 h-10 overflow-hidden">
               {user.foto ? (
@@ -187,46 +189,34 @@ export default function Ajustes() {
           {/* User Card */}
           <section className="relative overflow-visible p-0 rounded-3xl flex flex-col items-center">
             <div className="-mt-8 mb-2 w-24 h-24 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-[var(--color-bg)]">
-              <img alt={user.nombre_completo || user.email} className="w-full h-full object-cover" src={user.foto || 'https://lh3.googleusercontent.com/a/default-user'} />
+              <img alt={displayName} className="w-full h-full object-cover" src={user.foto || 'https://lh3.googleusercontent.com/a/default-user'} />
             </div>
             <div className="text-center">
-              <h2 className="text-2xl font-extrabold text-[var(--color-primary)] tracking-tight leading-tight mb-1">{user.nombre_completo || user.email}</h2>
-              <p className="text-[var(--color-secondary)] text-sm font-medium mb-1">{user.email}</p>
+              <h2 className="text-2xl font-extrabold text-[var(--color-primary)] tracking-tight leading-tight mb-1">{displayName}</h2>
+              {user.email && <p className="text-[var(--color-secondary)] text-sm font-medium mb-1">{user.email}</p>}
               <span className="inline-flex px-3 py-1 bg-[var(--color-accent)]/10 text-[var(--color-accent)] rounded-full text-xs font-bold uppercase tracking-widest shadow-sm">{user.role}</span>
             </div>
           </section>
           {/* Security Section */}
           <section className="space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-primary)]/80 px-1 mb-1">Seguridad y Acceso</h3>
-            <div className="bg-white/80 rounded-2xl divide-y divide-[var(--color-accent)] overflow-hidden shadow-lg border border-[var(--color-accent)]/30">
-              <div className="p-5 flex items-center justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl text-[var(--color-primary)]">
-                    <span className="material-symbols-outlined">lock</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[var(--color-primary)]">Autenticación de Dos Factores (2FA)</p>
-                    <p className="text-xs text-[var(--color-secondary)]">Añade una capa extra de seguridad</p>
-                  </div>
-                </div>
-                <button className="relative inline-flex items-center cursor-pointer hover:bg-[var(--color-secondary)]/20 p-2 rounded-lg transition" onClick={() => setShow2FASettings(true)}>
-                  <span className="material-symbols-outlined text-[var(--color-secondary)]">settings</span>
-                </button>
-                {show2FASettings && (
-                  <TwoFASettings user={user} onClose={() => setShow2FASettings(false)} />
-                )}
-              </div>
+            <div className="bg-white/80 rounded-2xl p-5 shadow-lg border border-[var(--color-accent)]/30 flex flex-col gap-4">
+              <button
+                className="flex items-center gap-2 px-4 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition"
+                onClick={() => setShow2FASettings(true)}
+              >
+                <span className="material-symbols-outlined">lock</span>
+                Autenticación de Dos Factores (2FA)
+              </button>
+              {show2FASettings && (
+                <TwoFASettings user={user} onClose={() => setShow2FASettings(false)} />
+              )}
               <button
                 onClick={openChangePasswordModal}
-                className="w-full p-5 flex items-center justify-between hover:bg-[var(--color-secondary)]/10 transition-colors active:scale-[0.98]"
+                className="flex items-center gap-2 px-4 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition"
               >
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-[var(--color-primary)]/10 rounded-xl text-[var(--color-primary)]">
-                    <span className="material-symbols-outlined">password</span>
-                  </div>
-                  <p className="font-semibold text-[var(--color-primary)]">Cambiar Contraseña</p>
-                </div>
-                <span className="material-symbols-outlined text-[var(--color-secondary)]">chevron_right</span>
+                <span className="material-symbols-outlined">password</span>
+                Cambiar Contraseña
               </button>
             </div>
             {passwordSuccess && (
